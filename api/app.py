@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -548,6 +548,57 @@ def api_player(pid: str):
         "news": news,
         "source": "ESPN public API · cached 6 h",
     }
+
+
+# ---------- partner dashboard (Measurement & Attribution, live) ----------
+# Live taps land in memory per serverless instance — enough to demo the loop.
+# Production path: swap _clicks for Upstash Redis REST (same pattern as ListTrac stars).
+
+_clicks: dict[tuple, int] = {}
+
+PARTNER_SAMPLE = {
+    "period": "MCG Game Week · Sept 7–14 2026 (illustrative)",
+    "kpis": {"reach": 412000, "taps": 18400, "landings": 15900, "signups": 2140},
+    "storylines": [
+        {"label": "SF vs LAR at the MCG — California to the G", "content": "SF@LAR", "taps": 7900},
+        {"label": "NE @ SEA — Dickson in the Thursday window", "content": "NE@SEA", "taps": 2100},
+        {"label": "DAL @ NYG — rivalry opener", "content": "DAL@NYG", "taps": 1900},
+        {"label": "TB @ CIN — Burrow's first test", "content": "TB@CIN", "taps": 1650},
+        {"label": "KC opener — the champs raise the banner", "content": "KC", "taps": 1500},
+        {"label": "Rest of the slate", "content": "other", "taps": 3350},
+    ],
+    "surfaces": [
+        {"key": "gotw", "label": "Game of the Week card", "taps": 5400},
+        {"key": "rtg", "label": "Road to the G banner", "taps": 6200},
+        {"key": "wtw", "label": "Slate cards", "taps": 6800},
+    ],
+    "trend": [
+        {"week": "Jul 13", "taps": 2100}, {"week": "Jul 20", "taps": 3400},
+        {"week": "Jul 27", "taps": 4200}, {"week": "Aug 3", "taps": 5100},
+        {"week": "Aug 10", "taps": 6800}, {"week": "Aug 17", "taps": 9500},
+        {"week": "Aug 24", "taps": 13200}, {"week": "Aug 31", "taps": 18400},
+    ],
+}
+
+
+@app.post("/api/track")
+async def track(req: Request):
+    try:
+        data = json.loads(await req.body())
+        key = (str(data.get("medium", ""))[:24], str(data.get("campaign", ""))[:24],
+               str(data.get("content", ""))[:24])
+        _clicks[key] = _clicks.get(key, 0) + 1
+        return {"ok": True}
+    except Exception:
+        return {"ok": False}
+
+
+@app.get("/api/partner")
+def partner():
+    live = [{"medium": k[0], "campaign": k[1], "content": k[2], "count": v}
+            for k, v in sorted(_clicks.items(), key=lambda kv: -kv[1])]
+    return {"sample": PARTNER_SAMPLE, "live": live,
+            "note": "Sample figures are illustrative; live taps are real CTA clicks recorded by this prototype instance."}
 
 
 @app.get("/api/debug")

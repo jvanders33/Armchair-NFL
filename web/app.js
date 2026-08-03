@@ -355,6 +355,16 @@
   function bindWatch(scope) {
     scope.querySelectorAll("[data-watch]").forEach((b) => {
       b.addEventListener("click", () => {
+        // record the tap for the partner dashboard (fire-and-forget)
+        try {
+          const u = new URL(b.href);
+          const payload = JSON.stringify({
+            medium: u.searchParams.get("utm_medium") || "",
+            campaign: u.searchParams.get("utm_campaign") || "",
+            content: u.searchParams.get("utm_content") || "",
+          });
+          navigator.sendBeacon("/api/track", new Blob([payload], { type: "application/json" }));
+        } catch (e) { /* tracking must never block the tap */ }
         toast(`Deep-link to Disney+ · <span class="u">utm_source=armchair&amp;game=${esc(b.getAttribute("data-watch"))}</span> — click tracked to sign-up`);
       });
     });
@@ -581,6 +591,117 @@
   }
 
   // =====================================================================
+  // PARTNER dashboard (Measurement & Attribution, rendered live)
+  // =====================================================================
+
+  const fmtN = (n) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k" : String(n);
+
+  function hbars(rows, color, max) {
+    const m = max || Math.max(...rows.map((r) => r.taps), 1);
+    return rows.map((r) => `
+      <div class="hb-row">
+        <span class="hb-lbl">${esc(r.label)}</span>
+        <span class="hb-track"><span class="hb-fill" style="width:${Math.max(2, r.taps / m * 100)}%;background:${r.color || color}"></span></span>
+        <span class="hb-val tnum">${fmtN(r.taps)}</span>
+      </div>`).join("");
+  }
+
+  function sparkline(trend, color) {
+    const w = 560, h = 120, pad = 8;
+    const max = Math.max(...trend.map((t) => t.taps), 1);
+    const pts = trend.map((t, i) => {
+      const x = pad + i * (w - 2 * pad) / (trend.length - 1);
+      const y = h - pad - (t.taps / max) * (h - 2 * pad);
+      return { x, y, t };
+    });
+    const path = pts.map((p, i) => (i ? "L" : "M") + p.x.toFixed(1) + " " + p.y.toFixed(1)).join(" ");
+    const last = pts[pts.length - 1];
+    return `<svg class="spark" viewBox="0 0 ${w} ${h}" role="img" aria-label="Weekly watch taps trend">
+      <path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      ${pts.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${color}"><title>${esc(p.t.week)}: ${p.t.taps.toLocaleString()} taps</title></circle>`).join("")}
+      <text x="${last.x - 6}" y="${(last.y - 10).toFixed(1)}" text-anchor="end" class="spark-lbl">${fmtN(last.t.taps)}</text>
+    </svg>
+    <div class="spark-x">${trend.map((t) => `<span>${esc(t.week)}</span>`).join("")}</div>`;
+  }
+
+  async function showPartner() {
+    view.innerHTML = `<div class="shell"><div class="loading">Loading partner dashboard…</div></div>`;
+    try {
+      const d = await fetch("/api/partner").then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); });
+      const s = d.sample, k = s.kpis;
+      const CH = { amber: "#C4860F", blue: "#3B7BD0", green: "#2B9166" }; // validated chart marks
+      const surfColor = { gotw: CH.amber, rtg: CH.blue, wtw: CH.green };
+      const conv = (k.signups / k.taps * 100).toFixed(1);
+      // funnel starts at taps — reach lives in the KPI row (412k would flatten these bars to slivers)
+      const pctOfTaps = (n) => Math.round(n / k.taps * 100) + "% of taps";
+      const funnel = [
+        { label: "Watch on Disney+ taps", taps: k.taps },
+        { label: "Disney+ landings · " + pctOfTaps(k.landings), taps: k.landings },
+        { label: "Attributed sign-ups · " + pctOfTaps(k.signups), taps: k.signups },
+      ];
+      view.innerHTML = `
+        <div class="team-hero partner-hero">
+          <div class="shell">
+            <div class="th-row">
+              <div>
+                <div class="th-loc">Armchair Experts × Disney+ · ESPN</div>
+                <h1 class="th-name">Partner dashboard</h1>
+                <div class="th-meta">${esc(s.period)} · <span class="sample-badge">Illustrative sample data</span> · live prototype taps overlaid below</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="shell">
+          <div class="kpis">
+            <div class="stat"><div class="stat-v tnum">${fmtN(k.reach)}</div><div class="stat-l">Audience reached</div><div class="stat-s">episodes + social + platform</div></div>
+            <div class="stat"><div class="stat-v tnum">${fmtN(k.taps)}</div><div class="stat-l">Watch taps</div><div class="stat-s">tracked Disney+ CTAs</div></div>
+            <div class="stat"><div class="stat-v tnum">${fmtN(k.signups)}</div><div class="stat-l">Attributed sign-ups</div><div class="stat-s">via utm_source=armchair</div></div>
+            <div class="stat"><div class="stat-v tnum">${conv}%</div><div class="stat-l">Tap → sign-up</div><div class="stat-s">conversion, 7-day window</div></div>
+          </div>
+
+          <div class="section-h" style="margin-top:28px">The funnel <span class="n">· tap → subscriber</span></div>
+          <div class="panel">${hbars(funnel, CH.amber, k.taps)}</div>
+
+          <div class="cols2">
+            <div>
+              <div class="section-h" style="margin-top:28px">What's driving taps <span class="n">· by storyline</span></div>
+              <div class="panel">${hbars(s.storylines, CH.amber)}</div>
+            </div>
+            <div>
+              <div class="section-h" style="margin-top:28px">Where taps happen <span class="n">· by surface</span></div>
+              <div class="panel">${hbars(s.surfaces.map((x) => ({ ...x, color: surfColor[x.key] })), CH.amber)}</div>
+              <div class="section-h" style="margin-top:22px">Weekly taps <span class="n">· season arc</span></div>
+              <div class="panel">${sparkline(s.trend, CH.amber)}</div>
+            </div>
+          </div>
+
+          <div class="section-h" style="margin-top:28px">How attribution works</div>
+          <div class="panel mech">
+            <div class="mech-step"><b>1</b><div><b>Storyline</b><br>Cam & Ben call the game — on the show, on socials, on this platform</div></div>
+            <i>→</i>
+            <div class="mech-step"><b>2</b><div><b>Tracked tap</b><br>every Watch CTA carries <code>utm_source=armchair</code> + surface + storyline</div></div>
+            <i>→</i>
+            <div class="mech-step"><b>3</b><div><b>Disney+ landing</b><br>UTMs flow into the partner's analytics unchanged</div></div>
+            <i>→</i>
+            <div class="mech-step"><b>4</b><div><b>Attributed sign-up</b><br>subscriptions credited to the storyline that drove them — reported weekly</div></div>
+          </div>
+
+          <div class="section-h" style="margin-top:28px">Live prototype taps <span class="n">· recorded this session</span></div>
+          <div class="panel">
+            ${d.live.length ? `<div class="tbl-wrap" style="border:none"><table class="roster stats" style="min-width:420px">
+              <thead><tr><th>Surface</th><th>Campaign</th><th>Storyline</th><th class="tnum">Taps</th></tr></thead>
+              <tbody>${d.live.map((l) => `<tr><td>${esc(l.medium)}</td><td>${esc(l.campaign)}</td><td>${esc(l.content)}</td><td class="tnum">${l.count}</td></tr>`).join("")}</tbody>
+            </table></div>`
+            : `<div class="loading" style="padding:14px 0">No taps recorded yet this session — hit any <b>Watch on Disney+</b> button on the hub and refresh this page.</div>`}
+            <div class="panel-note">Live counters are per-instance for the prototype; production wires this to a persistent store (same pattern as the AFL build).</div>
+          </div>
+        </div>`;
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load the dashboard (${esc(err.message)}).</div></div>`;
+    }
+  }
+
+  // =====================================================================
   // router
   // =====================================================================
 
@@ -597,6 +718,7 @@
     if ((m = h.match(/^#\/team\/([A-Za-z]{2,4})$/))) { setNav("teams"); showTeam(m[1].toUpperCase()); }
     else if ((m = h.match(/^#\/player\/(\d+)$/))) { setNav("teams"); showPlayer(m[1]); }
     else if (h === "#/teams") { setNav("teams"); showTeams(); }
+    else if (h === "#/partner") { setNav("partner"); showPartner(); }
     else { setNav("watch"); showHub(); }
   }
 
