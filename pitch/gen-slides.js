@@ -3,10 +3,12 @@ const p = new pptxgen();
 p.defineLayout({ name: "W", width: 13.33, height: 7.5 });
 p.layout = "W";
 
+// Brand palette — matches the iHeart-red deck and the live platform (v6 tokens)
 const C = {
-  bg:"0A111E", card:"132339", panel:"16273F", ink:"F3F6FB", ink2:"B7C4D8",
-  muted:"7E8FA8", line:"26374F", accent:"FFB020", accentInk:"0A111E", disney:"5AA7FF", go:"46C58C"
+  bg:"0F0407", card:"1E0C13", panel:"2A111B", ink:"F9F3F5", ink2:"DCC3CB",
+  muted:"A57E8B", line:"43202C", accent:"F5294B", accentInk:"FFFFFF", disney:"5AA7FF", go:"43C58C"
 };
+const URL = "armchair-nfl.vercel.app";
 const DISP = "Arial Narrow", BODY = "Arial";
 const M = 0.5, W = 13.33, gap = 0.18;
 const cardW = (W - 2*M - 3*gap) / 4;              // 4-up cards
@@ -80,7 +82,7 @@ a.addText([
   {text:" — audited reach, engaged completion, and fit.", options:{color:C.ink}},
 ], { x:R.x+0.22, y:spY+0.66, w:R.w-0.44, h:spH-0.9, fontFace:BODY, fontSize:15, margin:0, valign:"top", lineSpacingMultiple:1.08 });
 
-footer(a, "Draft — replace bracketed figures with Armchair's actuals (downloads, watch-time, audience survey, socials). Concept for pitch purposes; not affiliated with the NFL, ESPN or Disney+.");
+footer(a, "Draft — replace bracketed figures with Armchair's actuals (downloads, watch-time, audience survey, socials). Live platform: " + URL + ". Concept for pitch purposes; not affiliated with the NFL, ESPN or Disney+.");
 
 /* ---------------- SLIDE B ---------------- */
 const b = p.addSlide();
@@ -122,14 +124,45 @@ b.addText([
 ], { x:L.x+0.22, y:wY+0.52, w:L.w-0.44, h:wH-0.66, fontFace:BODY, fontSize:12, color:C.ink, margin:0, valign:"top", lineSpacingMultiple:1.02 });
 
 card(b, R.x, wY, R.w, wH, C.panel, "2E5B8C");
-b.addText("THE UNLOCK", { x:R.x+0.22, y:wY+0.18, w:R.w-0.44, h:0.3, fontFace:BODY, fontSize:10.5, bold:true, color:C.disney, charSpacing:1.5, margin:0 });
+b.addText("THE UNLOCK — ALREADY LIVE", { x:R.x+0.22, y:wY+0.18, w:R.w-0.44, h:0.3, fontFace:BODY, fontSize:10.5, bold:true, color:C.disney, charSpacing:1.5, margin:0 });
 b.addText([
   {text:"Every ", options:{color:C.ink}},
   {text:"“Watch on Disney+”", options:{color:C.accent, bold:true}},
-  {text:" tap in the weekly hub is one of these tracked links. The product and the measurement are the same system.", options:{color:C.ink}},
-], { x:R.x+0.22, y:wY+0.58, w:R.w-0.44, h:wH-0.72, fontFace:BODY, fontSize:13.5, margin:0, valign:"top", lineSpacingMultiple:1.06 });
+  {text:" tap in the hub is one of these tracked links — and the hub is running today at ", options:{color:C.ink}},
+  {text:URL, options:{color:C.disney, bold:true}},
+  {text:". Product and measurement are the same system.", options:{color:C.ink}},
+], { x:R.x+0.22, y:wY+0.58, w:R.w-0.44, h:wH-0.72, fontFace:BODY, fontSize:13, margin:0, valign:"top", lineSpacingMultiple:1.06 });
 
-footer(b, "Draft. Palette & type match the “What to Watch” hub prototype so the pitch reads as one platform. Concept for pitch purposes; not affiliated with the NFL, ESPN or Disney+.");
+footer(b, "Live platform: " + URL + " — palette & type match, so the pitch reads as one system. Concept for pitch purposes; not affiliated with the NFL, ESPN or Disney+.");
+
+/* ---------------- SLIDE C — the platform, live ---------------- */
+const c = p.addSlide();
+c.background = { color:C.bg };
+brand(c);
+header(c, "THE PLATFORM — LIVE NOW",
+  [{text:"Not a concept. It's running.", options:{}}],
+  "The utility layer from this deck is built and live on real NFL data — every game in Australian time, the MCG countdown, tracked Disney+ taps, and the partner dashboard that proves what they drove.");
+
+const imgY = 2.62, imgW = 6.05, imgH = imgW * 1880/3000; // 3000x1880 captures
+const imgGap = W - 2*M - 2*imgW; // remaining space between the two shots
+[["assets/hub.png", "The What to Watch hub — Road to the G countdown, the Experts' calls, every kickoff in AEST/AWST"],
+ ["assets/partner.png", "The partner dashboard — taps by storyline, the funnel, attribution wired end-to-end"]]
+.forEach((im, i) => {
+  const x = M + i*(imgW + imgGap);
+  c.addShape(p.ShapeType.roundRect, { x:x-0.04, y:imgY-0.04, w:imgW+0.08, h:imgH+0.08, fill:{color:C.card}, line:{color:C.accent, width:1.25}, rectRadius:0.06 });
+  c.addImage({ path: im[0], x, y:imgY, w:imgW, h:imgH });
+  c.addText(im[1], { x, y:imgY+imgH+0.08, w:imgW, h:0.5, fontFace:BODY, fontSize:9.5, color:C.muted, margin:0, valign:"top", lineSpacingMultiple:1.0 });
+});
+
+const urlY = imgY + imgH + 0.68;
+card(c, M, urlY, W-2*M, 0.78, C.panel, "2E5B8C");
+c.addText([
+  {text:"Open it now — ", options:{color:C.ink2, fontSize:14}},
+  {text:URL, options:{color:C.accent, bold:true, fontFace:DISP, fontSize:22, charSpacing:0.5}},
+  {text:"   · live schedule, 32 team pages, player stats, the lot", options:{color:C.muted, fontSize:11}},
+], { x:M+0.3, y:urlY+0.14, w:W-2*M-0.6, h:0.5, margin:0, valign:"middle", align:"center", fontFace:BODY });
+
+footer(c, "Screenshots are the live product on real ESPN data, " + new Date().toISOString().slice(0,10) + ". Built on the ListTrac engine. Concept for pitch purposes; not affiliated with the NFL, ESPN or Disney+.");
 
 const OUT = process.argv[2] || "Armchair-Disney-two-slides.pptx";
 p.writeFile({ fileName: OUT }).then(f => console.log("wrote", f));

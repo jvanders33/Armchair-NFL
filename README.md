@@ -37,7 +37,7 @@ Same pattern as ListTrac: everything routes through the Python function `api/ind
 | `web/` | No-build vanilla SPA — the What to Watch hub |
 | `data/aussies.json` | Hand-curated Aussies-in-the-NFL list — **maintain each season / after cut-down day** |
 | `scraper/` | (empty for now) future NFL data ingestion — nflverse, Spotrac, Over The Cap |
-| `pitch/` | The original pitch assets: hub concept prototype, the two Disney+ deck slides (+ pptx generator), platform map |
+| `pitch/` | Pitch assets: hub concept prototype, the Disney+ deck slides — Audience & Reach, Measurement & Attribution, and a live-platform slide with real screenshots (`Armchair-Disney-slides.pptx`, rebuilt via `gen-slides.js`; refresh `assets/*.png` with new captures first) — and the platform map |
 
 ## Pitch context
 
