@@ -1,0 +1,54 @@
+{
+  "note": "Curated by hand — the Aussies-in-the-NFL layer. Update team/roster status at the start of each season and after cut-down day. `team` must match the ESPN abbreviation so games get flagged.",
+  "players": [
+    {
+      "name": "Jordan Mailata",
+      "pos": "OT",
+      "team": "PHI",
+      "from": "South Sydney rugby league",
+      "hook": "The best story in Australian football exports — rugby league project turned elite NFL left tackle, protecting the Eagles' blind side."
+    },
+    {
+      "name": "Michael Dickson",
+      "pos": "P",
+      "team": "SEA",
+      "from": "Sydney",
+      "hook": "Pro Bowl punter and cult hero — the man who made punting must-watch TV in Seattle."
+    },
+    {
+      "name": "Tory Taylor",
+      "pos": "P",
+      "team": "CHI",
+      "from": "Melbourne",
+      "hook": "Record-breaking Iowa punter drafted in the fourth round — huge leg, huge hang time for the Bears."
+    },
+    {
+      "name": "Mitch Wishnowsky",
+      "pos": "P",
+      "team": "SF",
+      "from": "Perth",
+      "hook": "Perth glazier turned Ray Guy Award winner, pinning teams deep for the 49ers."
+    },
+    {
+      "name": "Daniel Faalele",
+      "pos": "OL",
+      "team": "BAL",
+      "from": "Melbourne",
+      "hook": "203cm and 170+kg of Melbourne-born mass anchoring the Ravens' offensive interior."
+    },
+    {
+      "name": "Cameron Johnston",
+      "pos": "P",
+      "team": "NYJ",
+      "from": "Geelong",
+      "hook": "Veteran Geelong-raised punter — one of the longest-serving Australians in the league."
+    },
+    {
+      "name": "Patrick Murtagh",
+      "pos": "TE",
+      "team": "IND",
+      "from": "Gold Coast",
+      "hook": "International Player Pathway convert from the Gold Coast chasing a Colts roster spot."
+    }
+  ]
+}

@@ -1,0 +1,164 @@
+<style>
+  :root{
+    --ground:#0A111E; --slide:#0E1A2C; --slide-2:#132339; --panel:#16273F;
+    --ink:#F3F6FB; --ink-2:#B7C4D8; --muted:#7E8FA8; --line:#26374F;
+    --accent:#FFB020; --accent-ink:#0A111E; --disney:#5AA7FF; --go:#46C58C;
+    --f-cond:"Arial Narrow","Roboto Condensed","Helvetica Neue Condensed","Helvetica Neue",sans-serif;
+    --f-body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0}
+  .page{background:var(--ground); min-height:100vh; padding:26px 20px 48px; font-family:var(--f-body)}
+  .lead{max-width:1000px; margin:0 auto 22px; color:var(--ink-2); font-size:14px; line-height:1.55}
+  .lead b{color:var(--ink)}
+  .lead .pill{display:inline-block; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent);
+    border:1px solid color-mix(in srgb,var(--accent) 40%, transparent); border-radius:999px; padding:4px 11px; margin-bottom:12px}
+
+  .slidecap{max-width:1000px; margin:0 auto 8px; display:flex; align-items:center; gap:10px;
+    font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); font-weight:600}
+  .slidecap .b{width:22px;height:22px;border-radius:6px;background:var(--accent);color:var(--accent-ink);
+    display:grid;place-items:center;font-weight:800;font-size:12px;letter-spacing:0}
+
+  .slide{
+    max-width:1000px; margin:0 auto 34px; min-height:min(560px,58vw); position:relative;
+    background:
+      radial-gradient(900px 380px at 82% -12%, color-mix(in srgb,var(--accent) 13%, transparent), transparent 60%),
+      linear-gradient(180deg,var(--slide),var(--ground));
+    border:1px solid var(--line); border-radius:14px; color:var(--ink);
+    box-shadow:0 20px 50px rgba(0,0,0,.4);
+    padding:clamp(20px,3.6vw,42px);
+    display:flex; flex-direction:column;
+  }
+  .ey{font-size:clamp(9px,1.15vw,11.5px); letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700}
+  .ttl{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; letter-spacing:.01em;
+    font-size:clamp(24px,4.4vw,50px); line-height:.94; margin:10px 0 6px; text-wrap:balance}
+  .sub{color:var(--ink-2); font-size:clamp(11px,1.5vw,16px); max-width:60ch}
+  .brandcorner{position:absolute; top:clamp(16px,2.6vw,30px); right:clamp(16px,2.6vw,30px); text-align:right}
+  .brandcorner .m{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:clamp(11px,1.5vw,15px); letter-spacing:.03em}
+  .brandcorner .m em{font-style:normal;color:var(--accent)}
+  .brandcorner .p{font-size:clamp(8px,1vw,10px); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:3px}
+  .brandcorner .p b{color:var(--disney)}
+
+  /* stat row */
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:clamp(8px,1.4vw,16px); margin-top:clamp(14px,2vw,20px)}
+  .stat{background:var(--slide-2); border:1px solid var(--line); border-radius:12px; padding:clamp(11px,1.5vw,18px)}
+  .stat .big{font-family:var(--f-cond); font-weight:700; font-size:clamp(26px,4.6vw,52px); line-height:.9; color:var(--accent);
+    letter-spacing:.01em}
+  .stat .big.fill{color:var(--muted); border-bottom:2px dashed color-mix(in srgb,var(--accent) 55%,transparent); display:inline-block; padding-bottom:2px}
+  .stat .lb{font-weight:700; font-size:clamp(11px,1.35vw,15px); margin-top:9px}
+  .stat .cx{color:var(--muted); font-size:clamp(9.5px,1.15vw,12.5px); margin-top:4px; line-height:1.4}
+
+  .split{display:grid; grid-template-columns:1.25fr 1fr; gap:clamp(12px,2vw,26px); align-items:stretch}
+  @media (max-width:640px){.split{grid-template-columns:1fr}}
+  .who{background:var(--slide-2); border:1px solid var(--line); border-radius:12px; padding:clamp(12px,1.7vw,20px)}
+  .who h4{margin:0 0 10px; font-size:clamp(11px,1.3vw,14px); letter-spacing:.1em; text-transform:uppercase; color:var(--ink-2)}
+  .who ul{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:clamp(7px,1vw,11px)}
+  .who li{display:flex; gap:9px; font-size:clamp(11px,1.35vw,14.5px); line-height:1.4; color:var(--ink)}
+  .who li .d{color:var(--go); font-weight:800; flex:none}
+  .why{background:
+      linear-gradient(180deg,color-mix(in srgb,var(--disney) 12%,transparent),transparent 70%),var(--panel);
+    border:1px solid color-mix(in srgb,var(--disney) 35%,transparent); border-radius:12px; padding:clamp(12px,1.7vw,20px);
+    display:flex; flex-direction:column; justify-content:center}
+  .why .k{font-size:clamp(9.5px,1.1vw,11px); letter-spacing:.14em; text-transform:uppercase; color:var(--disney); font-weight:700; margin-bottom:8px}
+  .why p{margin:0; font-size:clamp(12px,1.55vw,17px); line-height:1.42; color:var(--ink)}
+  .why b{color:var(--accent)}
+
+  /* funnel */
+  .funnel{display:grid; grid-template-columns:repeat(4,1fr); gap:clamp(7px,1vw,12px); margin-top:clamp(14px,2vw,20px)}
+  .step{position:relative; background:var(--slide-2); border:1px solid var(--line); border-radius:12px; padding:clamp(11px,1.5vw,17px); display:flex; flex-direction:column}
+  .step .no{font-family:var(--f-cond); font-weight:700; font-size:clamp(13px,1.5vw,17px); color:var(--accent); letter-spacing:.06em}
+  .step h5{margin:5px 0 0; font-size:clamp(12px,1.5vw,16px); font-weight:700; text-transform:uppercase; font-family:var(--f-cond); letter-spacing:.02em}
+  .step .mech{color:var(--ink-2); font-size:clamp(10px,1.2vw,13px); margin-top:7px; line-height:1.4; flex:1}
+  .step .kpi{margin-top:11px; padding-top:9px; border-top:1px solid var(--line)}
+  .step .kpi .kl{font-size:clamp(8px,1vw,10px); letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+  .step .kpi .kv{font-weight:800; font-size:clamp(11px,1.3vw,14px); color:var(--go); margin-top:2px}
+  .step .arw{position:absolute; right:calc(-1 * clamp(7px,1vw,12px) / 2 - 6px); top:50%; transform:translateY(-50%);
+    color:var(--muted); font-size:14px; z-index:2}
+  .step:last-child .arw{display:none}
+
+  .wired{display:grid; grid-template-columns:1.3fr 1fr; gap:clamp(12px,2vw,24px); align-items:stretch}
+  @media (max-width:640px){.wired{grid-template-columns:1fr}}
+  .wired .how{background:var(--slide-2); border:1px solid var(--line); border-radius:12px; padding:clamp(12px,1.7vw,20px)}
+  .wired .how h4{margin:0 0 10px; font-size:clamp(11px,1.3vw,14px); letter-spacing:.1em; text-transform:uppercase; color:var(--ink-2)}
+  .wired .how ol{margin:0; padding-left:0; list-style:none; counter-reset:w; display:flex; flex-direction:column; gap:clamp(7px,1vw,10px)}
+  .wired .how li{counter-increment:w; display:flex; gap:10px; font-size:clamp(11px,1.35vw,14px); line-height:1.4}
+  .wired .how li::before{content:counter(w); flex:none; width:20px; height:20px; border-radius:6px; background:var(--accent); color:var(--accent-ink);
+    font-weight:800; font-size:11px; display:grid; place-items:center}
+
+  .footnote{max-width:1000px; margin:0 auto; color:var(--muted); font-size:12px; line-height:1.6; padding-top:6px}
+  .footnote b{color:var(--ink-2)}
+  @media print{.page{background:#fff} .lead,.slidecap,.footnote{color:#333} .slide{break-inside:avoid; box-shadow:none}}
+</style>
+
+<div class="page">
+  <div class="lead">
+    <span class="pill">Two slides to add · drafted</span><br>
+    The deck sells reach and a voice but never <b>proves</b> either, and never shows how a sign-up gets attributed back to the show — the two questions a streaming buyer asks first. These slot in <b>before the pricing tiers</b> and <b>after the deliverables</b>. Bracketed figures are fill-ins for Armchair's real numbers.
+  </div>
+
+  <!-- SLIDE A -->
+  <div class="slidecap"><span class="b">A</span> Audience &amp; reach — add before pricing</div>
+  <section class="slide">
+    <div class="brandcorner">
+      <div class="m">Armchair<em>·</em>Experts</div>
+      <div class="p">Streaming partner · <b>Disney+</b></div>
+    </div>
+    <div class="ey">The audience</div>
+    <h1 class="ttl">Who Disney+<br>is really buying</h1>
+    <p class="sub">Not impressions — a pre-qualified pool of streaming-ready NFL fans, indexed exactly where the league wants Australian growth.</p>
+    <div class="stats">
+      <div class="stat"><div class="big fill">000k</div><div class="lb">Monthly audience</div><div class="cx">Across audio, video &amp; social</div></div>
+      <div class="stat"><div class="big fill">00%</div><div class="lb">Watch-through</div><div class="cx">Avg completion on the video show</div></div>
+      <div class="stat"><div class="big fill">00%</div><div class="lb">Men 18–34</div><div class="cx">The NFL's core AU growth demo</div></div>
+      <div class="stat"><div class="big fill">000k</div><div class="lb">Social reach / mo</div><div class="cx">Instagram + TikTok combined</div></div>
+    </div>
+    <div class="split" style="margin-top:clamp(12px,1.8vw,22px)">
+      <div class="who">
+        <h4>Who they are</h4>
+        <ul>
+          <li><span class="d">▸</span> Already NFL-curious but under-served — no trusted Australian voice or clear place to watch.</li>
+          <li><span class="d">▸</span> Streaming-native: they subscribe readily and follow talent across platforms.</li>
+          <li><span class="d">▸</span> Concentrated in the metro markets and the exact demo Disney+ and the NFL both want.</li>
+        </ul>
+      </div>
+      <div class="why">
+        <div class="k">Why it matters to Disney+</div>
+        <p>Every other slide is inventory. This is the <b>reason to buy it</b> — audited reach, engaged completion, and fit.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE B -->
+  <div class="slidecap"><span class="b">B</span> Measurement &amp; attribution — add after deliverables</div>
+  <section class="slide">
+    <div class="brandcorner">
+      <div class="m">Armchair<em>·</em>Experts</div>
+      <div class="p">Streaming partner · <b>Disney+</b></div>
+    </div>
+    <div class="ey">The proof</div>
+    <h1 class="ttl">How we prove it<br>drove subscriptions</h1>
+    <p class="sub">Turning "awareness" into a number Disney+ can bank — one tracked path from a mention to a sign-up.</p>
+    <div class="funnel">
+      <div class="step"><span class="arw">→</span><div class="no">01</div><h5>Awareness</h5><div class="mech">Show, social cut-downs &amp; the iHeart network put the NFL story in front of fans.</div><div class="kpi"><div class="kl">Measured by</div><div class="kv">Reach &amp; impressions</div></div></div>
+      <div class="step"><span class="arw">→</span><div class="no">02</div><h5>Intent</h5><div class="mech">A unique tracked deep-link &amp; on-air promo code in every episode and post.</div><div class="kpi"><div class="kl">Measured by</div><div class="kv">Click-through rate</div></div></div>
+      <div class="step"><span class="arw">→</span><div class="no">03</div><h5>Conversion</h5><div class="mech">A co-branded, code-gated landing page — the giveaway is the hook that captures the referral.</div><div class="kpi"><div class="kl">Measured by</div><div class="kv">Attributed sign-ups</div></div></div>
+      <div class="step"><div class="no">04</div><h5>Prove it</h5><div class="mech">A shared dashboard reconciles spend against sign-ups every fortnight.</div><div class="kpi"><div class="kl">Measured by</div><div class="kv">Cost per acquisition</div></div></div>
+    </div>
+    <div class="wired" style="margin-top:clamp(12px,1.8vw,22px)">
+      <div class="how">
+        <h4>How it's wired</h4>
+        <ol>
+          <li>A unique UTM deep-link &amp; Disney+ promo code per episode — so credit is unambiguous.</li>
+          <li>A giveaway landing page that gates entry behind the sign-up path, capturing the referral.</li>
+          <li>A fortnightly report shared with Disney+ — reach, clicks, sign-ups, CPA — nothing behind the curtain.</li>
+        </ol>
+      </div>
+      <div class="why">
+        <div class="k">The unlock</div>
+        <p>Every <b>"Watch on Disney+"</b> tap in the weekly hub <em>is</em> one of these tracked links. The product and the measurement are the same system.</p>
+      </div>
+    </div>
+  </section>
+
+  <p class="footnote"><b>Draft.</b> Replace bracketed figures with Armchair's actuals (downloads, watch-time, audience survey, socials). Palette &amp; type match the "What to Watch" hub prototype so the pitch reads as one platform. Concept for pitch purposes — not affiliated with the NFL, ESPN or Disney+.</p>
+</div>

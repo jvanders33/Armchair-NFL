@@ -1,0 +1,450 @@
+<style>
+  :root{
+    --ground:#0B1220; --ground-2:#0E1626; --card:#141E2E; --card-2:#1A2740;
+    --ink:#F2F4F8; --ink-2:#AEB9CC; --muted:#8091A8; --line:#243349;
+    --accent:#FFB020; --accent-ink:#0B1220; --live:#E8483F; --go:#43C08A;
+    --shadow:0 12px 34px rgba(0,0,0,.42);
+    --disney:#5AA7FF;
+    --f-body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --f-cond:"Arial Narrow","Roboto Condensed","Helvetica Neue Condensed","Helvetica Neue",sans-serif;
+  }
+  @media (prefers-color-scheme:light){
+    :root{
+      --ground:#EEF1F6; --ground-2:#E7ECF3; --card:#FFFFFF; --card-2:#F4F6FA;
+      --ink:#0B1220; --ink-2:#33415A; --muted:#5E6E86; --line:#DBE2EC;
+      --accent:#B9761A; --accent-ink:#FFFFFF; --live:#D23B32; --go:#1E9E67;
+      --shadow:0 10px 26px rgba(20,40,80,.10); --disney:#1E5FC4;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B1220; --ground-2:#0E1626; --card:#141E2E; --card-2:#1A2740;
+    --ink:#F2F4F8; --ink-2:#AEB9CC; --muted:#8091A8; --line:#243349;
+    --accent:#FFB020; --accent-ink:#0B1220; --live:#E8483F; --go:#43C08A;
+    --shadow:0 12px 34px rgba(0,0,0,.42); --disney:#5AA7FF;
+  }
+  :root[data-theme="light"]{
+    --ground:#EEF1F6; --ground-2:#E7ECF3; --card:#FFFFFF; --card-2:#F4F6FA;
+    --ink:#0B1220; --ink-2:#33415A; --muted:#5E6E86; --line:#DBE2EC;
+    --accent:#B9761A; --accent-ink:#FFFFFF; --live:#D23B32; --go:#1E9E67;
+    --shadow:0 10px 26px rgba(20,40,80,.10); --disney:#1E5FC4;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0}
+  .wrap{
+    background:
+      radial-gradient(1200px 500px at 75% -8%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+      var(--ground);
+    color:var(--ink); font-family:var(--f-body);
+    font-size:16px; line-height:1.5; -webkit-font-smoothing:antialiased;
+    min-height:100vh; padding-bottom:40px;
+  }
+  .shell{max-width:1080px; margin:0 auto; padding:0 20px}
+  h1,h2,h3{margin:0; text-wrap:balance}
+  a{color:inherit}
+  .tnum{font-variant-numeric:tabular-nums}
+
+  /* prototype bar */
+  .proto{
+    background:var(--ground-2); border-bottom:1px solid var(--line);
+    font-size:12px; color:var(--muted);
+  }
+  .proto .shell{display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding-top:8px; padding-bottom:8px}
+  .proto b{color:var(--ink-2); font-weight:700}
+  .proto .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);display:inline-block}
+  .spacer{flex:1 1 auto; min-width:8px}
+
+  /* masthead */
+  .mast .shell{display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; padding-top:20px; padding-bottom:14px}
+  .brand{display:flex; align-items:center; gap:12px}
+  .brand .mark{
+    font-family:var(--f-cond); font-weight:700; letter-spacing:.02em; text-transform:uppercase;
+    font-size:26px; line-height:.92; color:var(--ink);
+  }
+  .brand .mark em{font-style:normal; color:var(--accent)}
+  .brand .tag{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-top:3px}
+  .partner{
+    display:flex; align-items:center; gap:9px; margin-left:auto;
+    border:1px solid var(--line); border-radius:999px; padding:6px 12px 6px 14px; background:var(--card);
+  }
+  .partner .lbl{font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); line-height:1}
+  .partner .dplus{font-family:var(--f-cond); font-weight:700; font-size:16px; letter-spacing:.01em; color:var(--disney)}
+  .partner .dplus sup{font-size:.6em; top:-.5em}
+
+  /* week ribbon */
+  .ribbon .shell{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; padding:6px 20px 18px}
+  .ribbon .wk{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; letter-spacing:.04em; font-size:20px}
+  .ribbon .sub{color:var(--muted); font-size:13px}
+
+  .section-h{
+    display:flex; align-items:baseline; gap:10px; margin:26px 0 12px;
+    font-family:var(--f-cond); text-transform:uppercase; letter-spacing:.05em; font-weight:700; font-size:19px;
+  }
+  .section-h .n{color:var(--muted); font-size:12px; letter-spacing:.14em; font-family:var(--f-body); font-weight:600}
+
+  /* game of the week */
+  .gotw{
+    position:relative; overflow:hidden; border:1px solid var(--line); border-radius:18px;
+    background:
+      linear-gradient(180deg, color-mix(in srgb,var(--accent) 9%, transparent), transparent 40%),
+      var(--card);
+    box-shadow:var(--shadow);
+  }
+  .gotw .ey{
+    display:inline-flex; align-items:center; gap:8px; margin:18px 20px 0;
+    font-size:11px; letter-spacing:.16em; text-transform:uppercase; font-weight:700; color:var(--accent);
+  }
+  .gotw .body{padding:12px 20px 20px; display:grid; grid-template-columns:1.15fr .85fr; gap:22px}
+  @media (max-width:720px){.gotw .body{grid-template-columns:1fr; gap:16px}}
+  .matchup{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .team{display:flex; align-items:center; gap:11px}
+  .chip{width:38px;height:38px;border-radius:10px;flex:none;display:grid;place-items:center;
+    font-family:var(--f-cond);font-weight:700;font-size:15px;color:#fff;letter-spacing:.02em;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+  .team .nm{font-family:var(--f-cond);text-transform:uppercase;font-weight:700;font-size:30px;line-height:.9;letter-spacing:.01em}
+  .team .rec{color:var(--muted);font-size:12px;margin-top:2px}
+  .at{color:var(--muted); font-family:var(--f-cond); font-size:16px; padding:0 4px}
+  .gotw .why{color:var(--ink-2); font-size:14.5px; margin:14px 0 0; max-width:52ch}
+  .kick{display:flex; flex-direction:column; gap:12px; justify-content:center;
+    border-left:1px solid var(--line); padding-left:22px}
+  @media (max-width:720px){.kick{border-left:none; padding-left:0; border-top:1px solid var(--line); padding-top:16px}}
+  .kick .when{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:15px; letter-spacing:.03em}
+  .kick .big{font-family:var(--f-cond); font-size:34px; font-weight:700; line-height:.9; letter-spacing:.01em}
+  .kick .slot{font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+
+  /* win prob meter */
+  .meter{margin-top:2px}
+  .meter .lab{display:flex; justify-content:space-between; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:5px}
+  .meter .bar{height:9px; border-radius:6px; overflow:hidden; display:flex; background:var(--card-2)}
+  .meter .bar span{display:block; height:100%}
+  .meter .pct{display:flex; justify-content:space-between; font-size:12px; margin-top:5px; font-weight:600}
+  .meter .pct .tnum{color:var(--ink-2)}
+
+  /* CTA */
+  .watch{
+    display:inline-flex; align-items:center; gap:9px; cursor:pointer; user-select:none;
+    background:var(--accent); color:var(--accent-ink); border:none; border-radius:10px;
+    font-family:var(--f-body); font-weight:700; font-size:13.5px; padding:11px 15px; letter-spacing:.01em;
+    transition:transform .12s ease, filter .12s ease;
+  }
+  .watch:hover{filter:brightness(1.06); transform:translateY(-1px)}
+  .watch:active{transform:translateY(0)}
+  .watch .tv{font-size:14px}
+  .watch.sm{font-size:12px; padding:8px 11px; border-radius:8px}
+  .watch.ghost{background:transparent; color:var(--accent); box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 55%, transparent)}
+
+  /* controls */
+  .controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:2px 0 4px}
+  .seg{display:inline-flex; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:3px; gap:2px}
+  .seg button{
+    font-family:var(--f-body); font-size:12.5px; font-weight:600; color:var(--ink-2);
+    background:transparent; border:none; border-radius:7px; padding:7px 12px; cursor:pointer; white-space:nowrap;
+  }
+  .seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink)}
+  .seg .k{font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding:0 8px; align-self:center}
+  .ctl-note{color:var(--muted); font-size:12px; margin-left:auto}
+
+  /* slate */
+  .slate{display:grid; grid-template-columns:repeat(2,1fr); gap:14px}
+  @media (max-width:720px){.slate{grid-template-columns:1fr}}
+  .game{
+    border:1px solid var(--line); border-radius:14px; background:var(--card);
+    padding:15px 16px 14px; display:flex; flex-direction:column; gap:11px; position:relative;
+  }
+  .game .top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px}
+  .tier{font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; font-weight:800; padding:4px 8px; border-radius:6px; white-space:nowrap}
+  .tier.t1{background:var(--accent); color:var(--accent-ink)}
+  .tier.t2{background:transparent; color:var(--accent); box-shadow:inset 0 0 0 1.2px color-mix(in srgb,var(--accent) 50%,transparent)}
+  .tier.t3{background:var(--card-2); color:var(--muted)}
+  .star{background:none;border:none;cursor:pointer;color:var(--muted);font-size:17px;line-height:1;padding:2px;transition:color .12s,transform .12s}
+  .star:hover{transform:scale(1.15)}
+  .star[aria-pressed="true"]{color:var(--accent)}
+  .game .mu{display:flex; align-items:center; gap:9px; flex-wrap:wrap}
+  .game .mu .chip{width:30px;height:30px;border-radius:8px;font-size:12px}
+  .game .mu .nm{font-size:22px}
+  .game .mu .rec{font-size:11px}
+  .game .row{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+  .game .whenwrap{display:flex; align-items:baseline; gap:8px}
+  .game .when{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:16px; letter-spacing:.02em}
+  .game .slot{font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+  .game .why{color:var(--ink-2); font-size:13px; line-height:1.45}
+  .game .foot{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:1px}
+  .aus-flag{font-size:10.5px; color:var(--go); font-weight:700; letter-spacing:.03em; display:inline-flex; align-items:center; gap:5px}
+
+  /* aussies strip */
+  .aus{display:grid; grid-template-columns:repeat(4,1fr); gap:12px}
+  @media (max-width:720px){.aus{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:420px){.aus{grid-template-columns:1fr}}
+  .aus .p{border:1px solid var(--line); border-radius:12px; background:var(--card); padding:13px 14px}
+  .aus .p .pos{font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--go); font-weight:700}
+  .aus .p .pn{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:19px; line-height:1; margin-top:5px}
+  .aus .p .pt{color:var(--muted); font-size:12px; margin-top:6px}
+  .aus .p .pg{color:var(--ink-2); font-size:12px; margin-top:8px; padding-top:8px; border-top:1px solid var(--line)}
+
+  .foot-note{margin-top:26px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; line-height:1.6}
+  .foot-note b{color:var(--ink-2)}
+  .engine{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2);font-weight:600}
+
+  /* toast */
+  #toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:var(--ground); font-size:13px; font-weight:600; padding:11px 16px; border-radius:10px;
+    box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:50; max-width:90vw}
+  #toast.on{opacity:1; transform:translateX(-50%) translateY(0)}
+  #toast .u{color:var(--accent); font-family:var(--f-cond); letter-spacing:.02em}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:6px}
+</style>
+
+<div class="wrap">
+  <div class="proto">
+    <div class="shell">
+      <span class="dot"></span><b>Concept prototype</b>
+      <span>— product direction for the Armchair Experts platform. Illustrative fixtures &amp; data.</span>
+      <span class="spacer"></span>
+      <span>Built on the ListTrac engine</span>
+    </div>
+  </div>
+
+  <header class="mast">
+    <div class="shell">
+      <div class="brand">
+        <div>
+          <div class="mark">Armchair<em>·</em>Experts</div>
+          <div class="tag">The Australian NFL Platform</div>
+        </div>
+      </div>
+      <div class="partner" title="Pitched streaming-partner positioning — concept only">
+        <div>
+          <div class="lbl">Streaming partner</div>
+          <div class="dplus">Disney+<sup>&nbsp;</sup> · ESPN</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="ribbon">
+    <div class="shell">
+      <span class="wk">Week 3 · What to Watch</span>
+      <span class="sub" id="ribbon-sub">Every game, your kick-off time, one tap to stream.</span>
+    </div>
+  </div>
+
+  <div class="shell">
+
+    <div class="section-h">Game of the Week</div>
+    <section class="gotw" id="gotw"></section>
+
+    <div class="section-h" style="margin-top:30px">
+      The Slate <span class="n" id="slate-count"></span>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Timezone">
+        <span class="k">Times</span>
+        <button data-tz="Australia/Sydney" aria-pressed="true">Sydney</button>
+        <button data-tz="Australia/Brisbane" aria-pressed="false">Brisbane</button>
+        <button data-tz="Australia/Perth" aria-pressed="false">Perth</button>
+      </div>
+      <div class="seg" role="group" aria-label="Sort">
+        <span class="k">Sort</span>
+        <button data-sort="watch" aria-pressed="true">Watchability</button>
+        <button data-sort="time" aria-pressed="false">Kick-off</button>
+      </div>
+      <span class="ctl-note" id="tz-note"></span>
+    </div>
+    <div class="slate" id="slate"></div>
+
+    <div class="section-h" style="margin-top:32px">Aussies in the NFL <span class="n">· this week</span></div>
+    <div class="aus" id="aus"></div>
+
+    <p class="foot-note">
+      <b>Why this exists.</b> A weekly show builds a weekly habit; this builds a <b>daily, year-round</b> one — the utility layer that turns
+      an audience into a destination. Every card is a conversion surface: the <span style="color:var(--accent);font-weight:700">Watch on Disney+</span>
+      tap carries a tracked link, so the partner sees exactly which storylines drive sign-ups.<br><br>
+      <span class="engine">◆ ListTrac engine</span> — the same data-to-product pipeline behind the AFL build, pointed at the NFL.
+      Concept prototype for pitch purposes; not affiliated with or endorsed by the NFL, ESPN or Disney+. Team names used for identification only; fixtures, records and win-probabilities are illustrative.
+    </p>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+  const T = {
+    KC:{n:"Chiefs",c:"#E31837"}, BUF:{n:"Bills",c:"#00338D"}, SF:{n:"49ers",c:"#AA0000"},
+    DAL:{n:"Cowboys",c:"#12315e"}, PHI:{n:"Eagles",c:"#004C54"}, BAL:{n:"Ravens",c:"#241773"},
+    DET:{n:"Lions",c:"#0076B6"}, CIN:{n:"Bengals",c:"#FB4F14"}, MIA:{n:"Dolphins",c:"#008E97"},
+    GB:{n:"Packers",c:"#203731"}, LAR:{n:"Rams",c:"#003594"}, MIN:{n:"Vikings",c:"#4F2683"},
+    HOU:{n:"Texans",c:"#0b2432"}, PIT:{n:"Steelers",c:"#b58a00", ink:"#0B1220"}, NYJ:{n:"Jets",c:"#125740"},
+    SEA:{n:"Seahawks",c:"#002244"}
+  };
+  // kickoffUTC based on real Week-3 slots (Sept 2026, ET = UTC-4).
+  const GAMES = [
+    {a:"BUF",h:"KC", utc:"2026-09-21T00:20:00Z", slot:"Sun Night Football", hp:.52, tier:1, gotw:true,
+     why:"The rematch the whole season points to — Allen and Mahomes, prime-time, and a genuine AFC-title preview. If you watch one game this week, it's this."},
+    {a:"SF",h:"PHI", utc:"2026-09-20T20:25:00Z", slot:"Sunday · Late", hp:.58, tier:1, aus:["Jordan Mailata protecting Hurts' blind side"],
+     why:"A Super Bowl-calibre trench war, and Jordan Mailata anchors the Philly line — the Aussie angle in a marquee window."},
+    {a:"DET",h:"BAL", utc:"2026-09-21T00:15:00Z", slot:"Mon Night Football", hp:.55, tier:1, aus:["Daniel Faalele starting at guard"],
+     why:"Two of the league's most explosive offences under the lights, with Daniel Faalele in the Ravens' front five."},
+    {a:"CIN",h:"MIA", utc:"2026-09-20T17:00:00Z", slot:"Sunday · Early", hp:.49, tier:2, aus:["Lou Hedley punting for Miami"],
+     why:"Shootout script in the Miami heat; Burrow vs a Dolphins side that lives in the fast lane."},
+    {a:"DAL",h:"GB", utc:"2026-09-21T00:20:00Z", slot:"Sun Night (regional)", hp:.53, tier:2,
+     why:"Cowboys–Packers at Lambeau never needs a reason. A classic rivalry window."},
+    {a:"MIN",h:"LAR", utc:"2026-09-20T20:05:00Z", slot:"Sunday · Late", hp:.51, tier:2, aus:["Matt Orzech long-snapping for LA"],
+     why:"Two playoff hopefuls feeling each other out — the sneaky-good game on the late slate."},
+    {a:"HOU",h:"PIT", utc:"2026-09-20T17:00:00Z", slot:"Sunday · Early", hp:.47, tier:3,
+     why:"Defence-first, grind-it-out football. One for the purists rather than the highlight reel."},
+    {a:"NYJ",h:"SEA", utc:"2026-09-20T20:05:00Z", slot:"Sunday · Late", hp:.56, tier:3,
+     why:"A deep-cut rebuild watch — worth a quarter if your marquee game is a blowout."}
+  ];
+  const AUS = [
+    {pos:"OT · Eagles", nm:"Jordan Mailata", tm:"vs San Francisco", g:"Sun late — protecting Jalen Hurts in a top-two matchup."},
+    {pos:"OG · Ravens", nm:"Daniel Faalele", tm:"vs Detroit", g:"Monday night — anchoring the interior against a live front."},
+    {pos:"P · Dolphins", nm:"Lou Hedley", tm:"vs Cincinnati", g:"Sunday early — field position in a projected shootout."},
+    {pos:"LS · Rams", nm:"Matt Orzech", tm:"vs Minnesota", g:"Sunday late — special-teams reliability in a tight one."}
+  ];
+
+  let tz = "Australia/Sydney";
+  let sort = "watch";
+
+  const tzLabel = {"Australia/Sydney":"Sydney","Australia/Brisbane":"Brisbane","Australia/Perth":"Perth"};
+  const chip = k => {
+    const t=T[k]; const ink = t.ink || "#fff";
+    return `<span class="chip" style="background:${t.c};color:${ink}">${k}</span>`;
+  };
+  const fmt = utc => {
+    const d = new Date(utc);
+    const wd = new Intl.DateTimeFormat("en-AU",{weekday:"short",timeZone:tz}).format(d).toUpperCase();
+    const tm = new Intl.DateTimeFormat("en-AU",{hour:"numeric",minute:"2-digit",hour12:true,timeZone:tz}).format(d).toUpperCase().replace(" ","");
+    return {wd,tm};
+  };
+  const rec = () => { // deterministic-ish illustrative records
+    return null;
+  };
+  const RECORDS = {BUF:"2-0",KC:"2-0",SF:"2-0",PHI:"1-1",DET:"2-0",BAL:"1-1",CIN:"1-1",MIA:"1-1",
+    DAL:"1-1",GB:"2-0",MIN:"1-1",LAR:"1-1",HOU:"1-1",PIT:"0-2",NYJ:"0-2",SEA:"1-1"};
+
+  function meter(g){
+    const th=T[g.h], ta=T[g.a];
+    const hp=Math.round(g.hp*100), ap=100-hp;
+    return `<div class="meter">
+      <div class="lab"><span>${g.a} win</span><span>${g.h} win</span></div>
+      <div class="bar"><span style="width:${ap}%;background:${ta.c}"></span><span style="width:${hp}%;background:${th.c}"></span></div>
+      <div class="pct"><span class="tnum">${ap}%</span><span class="tnum">${hp}%</span></div>
+    </div>`;
+  }
+  function team(k,big){
+    return `<div class="team">${chip(k)}<div><div class="nm">${T[k].n}</div><div class="rec">${RECORDS[k]||""}</div></div></div>`;
+  }
+  function watchBtn(g,cls){
+    return `<button class="watch ${cls||''}" data-watch="${g.a}@${g.h}"><span class="tv">▶</span> Watch on Disney+</button>`;
+  }
+
+  function renderGotw(){
+    const g = GAMES.find(x=>x.gotw);
+    const k = fmt(g.utc);
+    document.getElementById("gotw").innerHTML = `
+      <div class="ey">★ Marquee · ${tzLabel[tz]} prime viewing</div>
+      <div class="body">
+        <div>
+          <div class="matchup">${team(g.a)}<span class="at">at</span>${team(g.h)}</div>
+          <p class="why">${g.why}</p>
+          ${meter(g)}
+        </div>
+        <div class="kick">
+          <div>
+            <div class="when">${k.wd}</div>
+            <div class="big tnum">${k.tm}</div>
+            <div class="slot">${g.slot} · ${tzLabel[tz]}</div>
+          </div>
+          ${watchBtn(g)}
+        </div>
+      </div>`;
+  }
+
+  function renderSlate(){
+    let list = GAMES.slice();
+    if(sort==="watch") list.sort((a,b)=> a.tier-b.tier || b.hp-a.hp);
+    else list.sort((a,b)=> new Date(a.utc)-new Date(b.utc));
+    const tierLbl = {1:"Must-watch",2:"Worth it",3:"Deep cut"};
+    document.getElementById("slate").innerHTML = list.map(g=>{
+      const k=fmt(g.utc);
+      const aus = g.aus ? `<span class="aus-flag" title="${g.aus[0]}">🇦🇺 ${g.aus[0]}</span>` : `<span></span>`;
+      return `<article class="game">
+        <div class="top">
+          <span class="tier t${g.tier}">${tierLbl[g.tier]}</span>
+          <button class="star" data-star aria-pressed="false" title="Add to my watchlist" aria-label="Add to watchlist">☆</button>
+        </div>
+        <div class="mu">${team(g.a)}<span class="at">at</span>${team(g.h)}</div>
+        ${meter(g)}
+        <div class="row">
+          <div class="whenwrap"><span class="when tnum">${k.wd} ${k.tm}</span><span class="slot">${g.slot}</span></div>
+        </div>
+        <p class="why">${g.why}</p>
+        <div class="foot">${aus}${watchBtn(g,"sm ghost")}</div>
+      </article>`;
+    }).join("");
+    document.getElementById("slate-count").textContent = "· "+list.length+" games";
+    bindStars();
+    bindWatch();
+  }
+
+  function renderAus(){
+    document.getElementById("aus").innerHTML = AUS.map(p=>`
+      <div class="p">
+        <div class="pos">🇦🇺 ${p.pos}</div>
+        <div class="pn">${p.nm}</div>
+        <div class="pt">${p.tm}</div>
+        <div class="pg">${p.g}</div>
+      </div>`).join("");
+  }
+
+  let toastTimer=null;
+  function toast(html){
+    const el=document.getElementById("toast");
+    el.innerHTML=html; el.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>el.classList.remove("on"),2600);
+  }
+  function bindWatch(){
+    document.querySelectorAll("[data-watch]").forEach(b=>{
+      b.addEventListener("click",()=>{
+        const m=b.getAttribute("data-watch");
+        toast(`Deep-link to Disney+ · <span class="u">utm_source=armchair&amp;game=${m}</span> — click tracked to sign-up`);
+      });
+    });
+  }
+  function bindStars(){
+    document.querySelectorAll("[data-star]").forEach(s=>{
+      s.addEventListener("click",()=>{
+        const on = s.getAttribute("aria-pressed")==="true";
+        s.setAttribute("aria-pressed", String(!on));
+        s.textContent = on ? "☆" : "★";
+        if(!on) toast(`Added to your watchlist — we'll remind you before kick-off`);
+      });
+    });
+  }
+
+  function setTzNote(){
+    document.getElementById("tz-note").textContent = "Kick-offs converted live to "+tzLabel[tz]+" time";
+    document.getElementById("ribbon-sub").textContent = "Every game in "+tzLabel[tz]+" time, one tap to stream.";
+  }
+
+  document.querySelectorAll("[data-tz]").forEach(b=>{
+    b.addEventListener("click",()=>{
+      tz=b.getAttribute("data-tz");
+      document.querySelectorAll("[data-tz]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+      renderGotw(); renderSlate(); setTzNote();
+    });
+  });
+  document.querySelectorAll("[data-sort]").forEach(b=>{
+    b.addEventListener("click",()=>{
+      sort=b.getAttribute("data-sort");
+      document.querySelectorAll("[data-sort]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+      renderSlate();
+    });
+  });
+
+  renderGotw(); renderSlate(); renderAus(); setTzNote();
+})();
+</script>

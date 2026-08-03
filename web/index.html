@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Armchair Experts — What to Watch · The Australian NFL Platform</title>
+  <meta name="description" content="Every NFL game, your kick-off time, one tap to stream. The Australian NFL platform by Armchair Experts.">
+  <link rel="stylesheet" href="/styles.css?v=1">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏈</text></svg>">
+</head>
+<body>
+  <div class="wrap">
+    <header class="mast">
+      <div class="shell">
+        <div class="brand">
+          <div>
+            <div class="mark">Armchair<em>·</em>Experts</div>
+            <div class="tag">The Australian NFL Platform</div>
+          </div>
+        </div>
+        <div class="partner" title="Pitched streaming-partner positioning — concept only">
+          <div>
+            <div class="lbl">Streaming partner</div>
+            <div class="dplus">Disney+<sup>&nbsp;</sup> · ESPN</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="ribbon">
+      <div class="shell">
+        <button class="wknav" id="wk-prev" aria-label="Previous week">‹</button>
+        <span class="wk" id="wk-label">Loading…</span>
+        <button class="wknav" id="wk-next" aria-label="Next week">›</button>
+        <span class="sub" id="ribbon-sub">Every game, your kick-off time, one tap to stream.</span>
+      </div>
+    </div>
+
+    <div class="shell">
+      <div id="loading" class="loading">Fetching the live slate…</div>
+      <div id="content" hidden>
+        <div class="section-h">Game of the Week</div>
+        <section class="gotw" id="gotw"></section>
+
+        <div class="section-h" style="margin-top:30px">
+          The Slate <span class="n" id="slate-count"></span>
+        </div>
+        <div class="controls">
+          <div class="seg" role="group" aria-label="Timezone">
+            <span class="k">Times</span>
+            <button data-tz="Australia/Sydney" aria-pressed="true">Sydney</button>
+            <button data-tz="Australia/Brisbane" aria-pressed="false">Brisbane</button>
+            <button data-tz="Australia/Perth" aria-pressed="false">Perth</button>
+          </div>
+          <div class="seg" role="group" aria-label="Sort">
+            <span class="k">Sort</span>
+            <button data-sort="watch" aria-pressed="true">Watchability</button>
+            <button data-sort="time" aria-pressed="false">Kick-off</button>
+          </div>
+          <span class="ctl-note" id="tz-note"></span>
+        </div>
+        <div class="slate" id="slate"></div>
+
+        <div class="section-h" style="margin-top:32px">Aussies in the NFL <span class="n" id="aus-note">· this week</span></div>
+        <div class="aus" id="aus"></div>
+      </div>
+
+      <p class="foot-note">
+        <b>Why this exists.</b> A weekly show builds a weekly habit; this builds a <b>daily, year-round</b> one — the utility layer that turns
+        an audience into a destination. Every card is a conversion surface: the <span class="accent-b">Watch on Disney+</span>
+        tap carries a tracked link, so the partner sees exactly which storylines drive sign-ups.<br><br>
+        <span class="engine">◆ ListTrac engine</span> — the same data-to-product pipeline behind the AFL build, pointed at the NFL.
+        <span id="source-line"></span><br>
+        Prototype for pitch purposes; not affiliated with or endorsed by the NFL, ESPN or Disney+. Team marks shown for identification only.
+      </p>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js?v=1"></script>
+</body>
+</html>
