@@ -1,5 +1,6 @@
-/* Armchair Experts — What to Watch hub.
-   Live data via /api/schedule (ESPN public feed, normalised server-side). */
+/* Armchair Experts — the Australian NFL platform.
+   Hash-routed SPA: #/ (What to Watch) · #/teams · #/team/{abbr} · #/player/{id}
+   Live data via /api/* (ESPN public feeds, normalised + cached server-side). */
 (function () {
   "use strict";
 
@@ -14,13 +15,24 @@
 
   let tz = localStorage.getItem(TZ_KEY) || "Australia/Sydney";
   let sort = "watch";
-  let view = null; // null = ESPN "current"; else {year, seasontype, week}
-  let data = null;
+  let weekView = null; // null = ESPN "current"; else {year, seasontype, week}
+  let hubData = null;
   let aussies = [];
 
   const $ = (id) => document.getElementById(id);
+  const view = $("view");
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-  // ---------- formatting ----------
+  const _cache = new Map();
+  async function fetchJSON(url) {
+    if (_cache.has(url)) return _cache.get(url);
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("API " + r.status);
+    const d = await r.json();
+    _cache.set(url, d);
+    return d;
+  }
+
   const fmt = (iso) => {
     const d = new Date(iso);
     const wd = new Intl.DateTimeFormat("en-AU", { weekday: "short", timeZone: tz }).format(d).toUpperCase();
@@ -30,9 +42,55 @@
     return { wd, day, tm };
   };
 
-  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  // ---------- toast ----------
+  let toastTimer = null;
+  function toast(html) {
+    const el = $("toast");
+    el.innerHTML = html;
+    el.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("on"), 2600);
+  }
 
-  // ---------- storyline generator (deterministic, data-driven) ----------
+  // =====================================================================
+  // WHAT TO WATCH (hub)
+  // =====================================================================
+
+  const HUB_HTML = `
+    <div class="ribbon">
+      <div class="shell">
+        <button class="wknav" id="wk-prev" aria-label="Previous week">‹</button>
+        <span class="wk" id="wk-label">Loading…</span>
+        <button class="wknav" id="wk-next" aria-label="Next week">›</button>
+        <span class="sub" id="ribbon-sub">Every game, your kick-off time, one tap to stream.</span>
+      </div>
+    </div>
+    <div class="shell">
+      <div id="loading" class="loading">Fetching the live slate…</div>
+      <div id="content" hidden>
+        <div class="section-h">Game of the Week</div>
+        <section class="gotw" id="gotw"></section>
+        <div class="section-h" style="margin-top:30px">The Slate <span class="n" id="slate-count"></span></div>
+        <div class="controls">
+          <div class="seg" role="group" aria-label="Timezone">
+            <span class="k">Times</span>
+            <button data-tz="Australia/Sydney">Sydney</button>
+            <button data-tz="Australia/Brisbane">Brisbane</button>
+            <button data-tz="Australia/Perth">Perth</button>
+          </div>
+          <div class="seg" role="group" aria-label="Sort">
+            <span class="k">Sort</span>
+            <button data-sort="watch">Watchability</button>
+            <button data-sort="time">Kick-off</button>
+          </div>
+          <span class="ctl-note" id="tz-note"></span>
+        </div>
+        <div class="slate" id="slate"></div>
+        <div class="section-h" style="margin-top:32px">Aussies in the NFL <span class="n" id="aus-note">· this week</span></div>
+        <div class="aus" id="aus"></div>
+      </div>
+    </div>`;
+
   function why(g) {
     const bits = [];
     const sp = g.odds && g.odds.spread != null ? Math.abs(g.odds.spread) : null;
@@ -50,13 +108,12 @@
     return s.charAt(0).toUpperCase() + s.slice(1) + ".";
   }
 
-  // ---------- building blocks ----------
   function teamHTML(t, big, showScore) {
     const score = showScore && t.score != null ? ` <span class="sc tnum">${esc(t.score)}</span>` : "";
-    return `<div class="team">
+    return `<a class="team" href="#/team/${esc(t.abbr)}">
       <img class="logo${big ? "" : " sm"}" src="${esc(t.logo)}" alt="${esc(t.displayName)} logo" loading="lazy">
       <div><div class="nm">${esc(t.name)}</div><div class="rec">${esc(t.record)}${score}</div></div>
-    </div>`;
+    </a>`;
   }
 
   function meter(g) {
@@ -71,7 +128,7 @@
   }
 
   function watchBtn(g, cls) {
-    const wk = data && data.week ? data.week.number : "";
+    const wk = hubData && hubData.week ? hubData.week.number : "";
     const label = g.status.state === "post" ? "Replay on Disney+" : "Watch on Disney+";
     const utm = `utm_source=armchair&utm_medium=wtw&utm_campaign=week${wk}&utm_content=${g.away.abbr}@${g.home.abbr}`;
     return `<a class="watch ${cls || ""}" target="_blank" rel="noopener"
@@ -85,9 +142,8 @@
     return `<span class="tier t${g.watch.tier}">${TIER_LABEL[g.watch.tier]}</span>`;
   }
 
-  // ---------- sections ----------
   function renderGotw() {
-    const g = data.games.find((x) => x.id === data.gotw) || data.games[0];
+    const g = hubData.games.find((x) => x.id === hubData.gotw) || hubData.games[0];
     if (!g) { $("gotw").innerHTML = ""; return; }
     const k = fmt(g.date);
     const showScore = g.status.state !== "pre";
@@ -112,7 +168,7 @@
   }
 
   function renderSlate() {
-    let list = data.games.slice();
+    let list = hubData.games.slice();
     if (sort === "watch") list.sort((a, b) => b.watch.score - a.watch.score || new Date(a.date) - new Date(b.date));
     else list.sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -145,7 +201,7 @@
 
   function renderAussies() {
     const byTeam = {};
-    data.games.forEach((g) => {
+    hubData.games.forEach((g) => {
       [g.home.abbr, g.away.abbr].forEach((ab) => { byTeam[ab] = g; });
     });
     const playing = [], off = [];
@@ -176,31 +232,21 @@
   }
 
   function renderRibbon() {
-    const s = data.season, w = data.week;
-    const cal = data.calendar || [];
+    const s = hubData.season, w = hubData.week;
+    const cal = hubData.calendar || [];
     const idx = cal.findIndex((c) => c.seasontype === s.type && c.week === w.number);
     const label = idx >= 0 ? cal[idx].label : "Week " + w.number;
     const stName = { 1: "Preseason", 2: "", 3: "Postseason" }[s.type] || "";
     $("wk-label").textContent = [stName, label].filter(Boolean).join(" · ") + " · What to Watch";
     $("wk-prev").disabled = idx <= 0;
     $("wk-next").disabled = idx < 0 || idx >= cal.length - 1;
-    $("wk-prev").onclick = () => { if (idx > 0) jump(cal[idx - 1]); };
-    $("wk-next").onclick = () => { if (idx >= 0 && idx < cal.length - 1) jump(cal[idx + 1]); };
+    $("wk-prev").onclick = () => { if (idx > 0) jumpWeek(cal[idx - 1]); };
+    $("wk-next").onclick = () => { if (idx >= 0 && idx < cal.length - 1) jumpWeek(cal[idx + 1]); };
   }
 
-  function jump(entry) {
-    view = { year: data.season.year, seasontype: entry.seasontype, week: entry.week };
-    load();
-  }
-
-  // ---------- interactions ----------
-  let toastTimer = null;
-  function toast(html) {
-    const el = $("toast");
-    el.innerHTML = html;
-    el.classList.add("on");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove("on"), 2600);
+  function jumpWeek(entry) {
+    weekView = { year: hubData.season.year, seasontype: entry.seasontype, week: entry.week };
+    loadHub();
   }
 
   function bindWatch(scope) {
@@ -231,37 +277,38 @@
     $("ribbon-sub").textContent = "Every game in " + TZ_LABEL[tz] + " time, one tap to stream.";
   }
 
-  document.querySelectorAll("[data-tz]").forEach((b) => {
-    b.addEventListener("click", () => {
-      tz = b.getAttribute("data-tz");
-      localStorage.setItem(TZ_KEY, tz);
-      document.querySelectorAll("[data-tz]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-      renderGotw(); renderSlate(); renderAussies(); setTzNote();
+  function bindHubControls() {
+    view.querySelectorAll("[data-tz]").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-tz") === tz));
+      b.addEventListener("click", () => {
+        tz = b.getAttribute("data-tz");
+        localStorage.setItem(TZ_KEY, tz);
+        view.querySelectorAll("[data-tz]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        renderGotw(); renderSlate(); renderAussies(); setTzNote();
+      });
     });
-  });
-  document.querySelectorAll("[data-sort]").forEach((b) => {
-    b.addEventListener("click", () => {
-      sort = b.getAttribute("data-sort");
-      document.querySelectorAll("[data-sort]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-      renderSlate();
+    view.querySelectorAll("[data-sort]").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-sort") === sort));
+      b.addEventListener("click", () => {
+        sort = b.getAttribute("data-sort");
+        view.querySelectorAll("[data-sort]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        renderSlate();
+      });
     });
-  });
-  document.querySelectorAll("[data-tz]").forEach((b) =>
-    b.setAttribute("aria-pressed", String(b.getAttribute("data-tz") === tz)));
+  }
 
-  // ---------- load ----------
-  async function load() {
+  async function loadHub() {
     $("loading").hidden = false;
     $("content").hidden = true;
-    const qs = view ? `?year=${view.year}&seasontype=${view.seasontype}&week=${view.week}` : "";
+    const qs = weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "";
     try {
       const [sched, aus] = await Promise.all([
         fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
-        aussies.length ? Promise.resolve(null) : fetch("/api/aussies").then((r) => r.json()),
+        aussies.length ? Promise.resolve(null) : fetchJSON("/api/aussies"),
       ]);
-      data = sched;
+      hubData = sched;
       if (aus) aussies = aus.players || [];
-      $("source-line").textContent = "Data: " + (data.source || "");
+      $("source-line").textContent = "Data: " + (hubData.source || "");
       renderRibbon(); renderGotw(); renderSlate(); renderAussies(); setTzNote();
       $("loading").hidden = true;
       $("content").hidden = false;
@@ -270,5 +317,175 @@
     }
   }
 
-  load();
+  function showHub() {
+    view.innerHTML = HUB_HTML;
+    bindHubControls();
+    loadHub();
+  }
+
+  // =====================================================================
+  // TEAMS grid
+  // =====================================================================
+
+  async function showTeams() {
+    view.innerHTML = `<div class="shell"><div class="loading">Loading the 32 clubs…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/teams");
+      view.innerHTML = `<div class="shell">
+        <div class="section-h" style="margin-top:18px">Teams</div>
+        ${d.divisions.map((div) => `
+          <div class="div-h">${esc(div.name)}</div>
+          <div class="teams-grid">
+            ${div.teams.map((t) => `
+              <a class="team-card" href="#/team/${esc(t.abbr)}">
+                <img src="${esc(t.logo)}" alt="" loading="lazy">
+                <div><div class="loc">${esc(t.location)}</div><div class="tnm">${esc(t.name)}</div></div>
+              </a>`).join("")}
+          </div>`).join("")}
+      </div>`;
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load teams (${esc(err.message)}).</div></div>`;
+    }
+  }
+
+  // =====================================================================
+  // TEAM page
+  // =====================================================================
+
+  async function showTeam(abbr) {
+    view.innerHTML = `<div class="shell"><div class="loading">Loading ${esc(abbr)}…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/team/" + encodeURIComponent(abbr));
+      const t = d.team;
+      let next = "";
+      if (t.nextEvent && t.nextEvent.date) {
+        const k = fmt(t.nextEvent.date);
+        next = `Next: ${esc(t.nextEvent.shortName)} · ${k.wd} ${k.day} ${k.tm} ${TZ_LABEL[tz]}`;
+      }
+      const aussieCount = d.groups.reduce((n, g) => n + g.players.filter((p) => p.aussie).length, 0);
+      view.innerHTML = `
+        <div class="team-hero" style="background:linear-gradient(120deg,#${esc(t.color || "222")}E6,#${esc(t.color || "222")}66),var(--card)">
+          <div class="shell">
+            <a class="crumb" href="#/teams">← All teams</a>
+            <div class="th-row">
+              <img class="th-logo" src="${esc(t.logo)}" alt="">
+              <div>
+                <div class="th-loc">${esc(t.location)}</div>
+                <h1 class="th-name">${esc(t.name)}</h1>
+                <div class="th-meta">${esc(t.record)} · ${esc(t.standing)} · ${esc(t.division)}${aussieCount ? ` · 🇦🇺 ${aussieCount} Aussie${aussieCount > 1 ? "s" : ""} on the list` : ""}</div>
+                ${next ? `<div class="th-next">${next}</div>` : ""}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="shell">
+          ${d.groups.map((g) => `
+            <div class="section-h" style="margin-top:26px">${esc(g.label)} <span class="n">· ${g.players.length}</span></div>
+            <div class="tbl-wrap"><table class="roster">
+              <thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Age</th><th>HT</th><th>WT</th><th>College</th><th>Exp</th></tr></thead>
+              <tbody>
+                ${g.players.map((p) => `
+                  <tr data-player="${esc(p.id)}" tabindex="0">
+                    <td class="tnum">${esc(p.jersey)}</td>
+                    <td class="pl">
+                      ${p.headshot ? `<img class="hs" src="${esc(p.headshot)}" alt="" loading="lazy">` : `<span class="hs hs-empty"></span>`}
+                      <span class="pl-nm">${esc(p.name)}</span>${p.aussie ? ' <span title="Australian">🇦🇺</span>' : ""}
+                    </td>
+                    <td>${esc(p.pos)}</td>
+                    <td class="tnum">${esc(p.age ?? "")}</td>
+                    <td>${esc(p.height)}</td>
+                    <td>${esc(p.weight)}</td>
+                    <td>${esc(p.college)}</td>
+                    <td class="tnum">${p.exp === 0 ? "R" : esc(p.exp ?? "")}</td>
+                  </tr>`).join("")}
+              </tbody>
+            </table></div>`).join("")}
+        </div>`;
+      view.querySelectorAll("[data-player]").forEach((tr) => {
+        const go = () => { location.hash = "#/player/" + tr.getAttribute("data-player"); };
+        tr.addEventListener("click", go);
+        tr.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+      });
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load ${esc(abbr)} (${esc(err.message)}).</div></div>`;
+    }
+  }
+
+  // =====================================================================
+  // PLAYER page
+  // =====================================================================
+
+  async function showPlayer(pid) {
+    view.innerHTML = `<div class="shell"><div class="loading">Loading player…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/player/" + encodeURIComponent(pid));
+      const p = d.player;
+      const chips = [
+        p.pos, p.age ? p.age + " yrs" : "", p.height, p.weight,
+        p.college ? "College: " + p.college : "",
+        p.draft || "", p.experience || "",
+        p.birthplace ? "Born: " + p.birthplace : "",
+      ].filter(Boolean);
+      view.innerHTML = `
+        <div class="team-hero" style="background:linear-gradient(120deg,#${esc(p.team.color || "222")}E6,#${esc(p.team.color || "222")}66),var(--card)">
+          <div class="shell">
+            ${p.team.abbr ? `<a class="crumb" href="#/team/${esc(p.team.abbr)}">← ${esc(p.team.displayName)}</a>` : `<a class="crumb" href="#/teams">← Teams</a>`}
+            <div class="th-row">
+              ${p.headshot ? `<img class="ph" src="${esc(p.headshot)}" alt="">` : ""}
+              <div>
+                <div class="th-loc">${esc(p.team.displayName)}${p.jersey ? " · " + esc(p.jersey) : ""}${p.aussie ? " · 🇦🇺 Australian" : ""}</div>
+                <h1 class="th-name">${esc(p.name)}</h1>
+                <div class="th-meta">${chips.map(esc).join(" · ")}</div>
+                ${d.summary.length ? `<div class="sum-chips">${d.summary.map((s) => `<span class="sum"><b class="tnum">${esc(s.value)}</b> ${esc(s.label)}</span>`).join("")}</div>` : ""}
+              </div>
+              ${p.team.logo ? `<img class="th-watermark" src="${esc(p.team.logo)}" alt="">` : ""}
+            </div>
+          </div>
+        </div>
+        <div class="shell">
+          ${d.categories.length ? d.categories.map((c) => `
+            <div class="section-h" style="margin-top:26px">${esc(c.name)} <span class="n">· season by season</span></div>
+            <div class="tbl-wrap"><table class="roster stats">
+              <thead><tr><th>Season</th><th>Team</th>${c.labels.map((l) => `<th class="tnum">${esc(l)}</th>`).join("")}</tr></thead>
+              <tbody>
+                ${c.seasons.map((s) => `
+                  <tr>
+                    <td>${esc(s.season)}</td>
+                    <td>${s.team ? `<a href="#/team/${esc(s.team)}">${esc(s.team)}</a>` : ""}</td>
+                    ${s.stats.map((v) => `<td class="tnum">${esc(v)}</td>`).join("")}
+                  </tr>`).join("")}
+                ${c.totals && c.totals.length ? `<tr class="tot"><td>Career</td><td></td>${c.totals.map((v) => `<td class="tnum">${esc(v)}</td>`).join("")}</tr>` : ""}
+              </tbody>
+            </table></div>`).join("")
+          : `<div class="loading">No senior stats recorded yet${p.experience ? "" : " — rookie season ahead"}.</div>`}
+          ${d.news.length ? `
+            <div class="section-h" style="margin-top:26px">${esc(p.name.split(" ").slice(-1)[0])} in the news</div>
+            <ul class="news">${d.news.map((n) => `<li><a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.headline)}</a></li>`).join("")}</ul>` : ""}
+        </div>`;
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load player (${esc(err.message)}).</div></div>`;
+    }
+  }
+
+  // =====================================================================
+  // router
+  // =====================================================================
+
+  function setNav(active) {
+    document.querySelectorAll("[data-nav]").forEach((a) =>
+      a.classList.toggle("on", a.getAttribute("data-nav") === active));
+  }
+
+  function route() {
+    const h = location.hash || "#/";
+    let m;
+    window.scrollTo(0, 0);
+    if ((m = h.match(/^#\/team\/([A-Za-z]{2,4})$/))) { setNav("teams"); showTeam(m[1].toUpperCase()); }
+    else if ((m = h.match(/^#\/player\/(\d+)$/))) { setNav("teams"); showPlayer(m[1]); }
+    else if (h === "#/teams") { setNav("teams"); showTeams(); }
+    else { setNav("watch"); showHub(); }
+  }
+
+  window.addEventListener("hashchange", route);
+  route();
 })();

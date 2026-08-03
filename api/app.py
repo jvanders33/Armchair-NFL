@@ -22,12 +22,27 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 DATA = ROOT / "data"
 
-ESPN_SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+ESPN_SITE = "https://site.api.espn.com/apis/site/v2/sports/football/nfl"
+ESPN_WEB = "https://site.web.api.espn.com/apis/common/v3/sports/football/nfl"
+ESPN_SCOREBOARD = f"{ESPN_SITE}/scoreboard"
 CACHE_TTL = 600  # seconds; the slate changes slowly, live scores are fine at 10 min for v1
 
 app = FastAPI(title="Armchair Experts API")
 
 _cache: dict[str, tuple[float, dict]] = {}
+
+
+def _get_json(url: str, params: dict | None = None, ttl: int = CACHE_TTL) -> dict:
+    key = url + "?" + json.dumps(params or {}, sort_keys=True)
+    hit = _cache.get(key)
+    if hit and time.time() - hit[0] < ttl:
+        return hit[1]
+    r = requests.get(url, params=params, timeout=15,
+                     headers={"User-Agent": "Mozilla/5.0 (ArmchairExperts prototype)"})
+    r.raise_for_status()
+    data = r.json()
+    _cache[key] = (time.time(), data)
+    return data
 
 
 def _fetch_scoreboard(year: int | None, seasontype: int | None, week: int | None) -> dict:
@@ -38,16 +53,7 @@ def _fetch_scoreboard(year: int | None, seasontype: int | None, week: int | None
         params["seasontype"] = str(seasontype)
     if week:
         params["week"] = str(week)
-    key = json.dumps(params, sort_keys=True)
-    hit = _cache.get(key)
-    if hit and time.time() - hit[0] < CACHE_TTL:
-        return hit[1]
-    r = requests.get(ESPN_SCOREBOARD, params=params, timeout=15,
-                     headers={"User-Agent": "Mozilla/5.0 (ArmchairExperts prototype)"})
-    r.raise_for_status()
-    data = r.json()
-    _cache[key] = (time.time(), data)
-    return data
+    return _get_json(ESPN_SCOREBOARD, params)
 
 
 # ---------- odds → win probability ----------
@@ -277,6 +283,210 @@ def schedule(year: int | None = None, seasontype: int | None = None, week: int |
 @app.get("/api/aussies")
 def api_aussies():
     return {"players": _load_aussies()}
+
+
+# ---------- teams / rosters / players ----------
+
+DIVISIONS = [
+    ("AFC East", ["BUF", "MIA", "NE", "NYJ"]),
+    ("AFC North", ["BAL", "CIN", "CLE", "PIT"]),
+    ("AFC South", ["HOU", "IND", "JAX", "TEN"]),
+    ("AFC West", ["DEN", "KC", "LAC", "LV"]),
+    ("NFC East", ["DAL", "NYG", "PHI", "WSH"]),
+    ("NFC North", ["CHI", "DET", "GB", "MIN"]),
+    ("NFC South", ["ATL", "CAR", "NO", "TB"]),
+    ("NFC West", ["ARI", "LAR", "SEA", "SF"]),
+]
+
+AU_HINTS = ("Australia", ", NSW", ", VIC", ", QLD", ", WA", ", SA", ", TAS", ", ACT", ", NT")
+
+
+def _is_aussie(birthplace: dict | str | None, name: str = "") -> bool:
+    if isinstance(birthplace, dict):
+        return (birthplace.get("country") or "") == "Australia"
+    if isinstance(birthplace, str) and any(birthplace.endswith(h) or h.strip(", ") == birthplace for h in AU_HINTS):
+        return True
+    return any(p["name"] == name for p in _load_aussies())
+
+
+@app.get("/api/teams")
+def api_teams():
+    payload = _get_json(f"{ESPN_SITE}/teams", ttl=86400)
+    by_abbr = {}
+    for entry in payload["sports"][0]["leagues"][0]["teams"]:
+        t = entry["team"]
+        logos = t.get("logos") or []
+        by_abbr[t["abbreviation"]] = {
+            "abbr": t["abbreviation"],
+            "location": t.get("location", ""),
+            "name": t.get("name", ""),
+            "displayName": t.get("displayName", ""),
+            "color": t.get("color"),
+            "altColor": t.get("alternateColor"),
+            "logo": logos[0]["href"] if logos else None,
+        }
+    return {"divisions": [
+        {"name": name, "teams": [by_abbr[a] for a in abbrs if a in by_abbr]}
+        for name, abbrs in DIVISIONS
+    ]}
+
+
+ROSTER_GROUP_LABELS = {
+    "offense": "Offense", "defense": "Defense", "specialTeam": "Special teams",
+    "injuredReserveOrOut": "Injured reserve / out", "suspended": "Suspended",
+    "practiceSquad": "Practice squad",
+}
+
+
+@app.get("/api/team/{abbr}")
+def api_team(abbr: str):
+    slug = abbr.lower()
+    try:
+        detail = _get_json(f"{ESPN_SITE}/teams/{slug}", ttl=21600)["team"]
+        roster = _get_json(f"{ESPN_SITE}/teams/{slug}/roster", ttl=21600)
+    except requests.HTTPError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown team {abbr}") from exc
+
+    logos = detail.get("logos") or []
+    rec_items = (detail.get("record") or {}).get("items") or [{}]
+    division = next((n for n, ab in DIVISIONS if detail.get("abbreviation") in ab), "")
+
+    next_event = None
+    ne = detail.get("nextEvent") or []
+    if ne:
+        next_event = {"name": ne[0].get("name", ""), "shortName": ne[0].get("shortName", ""),
+                      "date": ne[0].get("date", "")}
+
+    groups = []
+    for g in roster.get("athletes", []):
+        items = g.get("items", [])
+        if not items:
+            continue
+        players = []
+        for a in items:
+            players.append({
+                "id": a.get("id"),
+                "name": a.get("fullName", ""),
+                "jersey": a.get("jersey", ""),
+                "pos": (a.get("position") or {}).get("abbreviation", ""),
+                "age": a.get("age"),
+                "height": a.get("displayHeight", ""),
+                "weight": a.get("displayWeight", ""),
+                "college": (a.get("college") or {}).get("name", ""),
+                "exp": (a.get("experience") or {}).get("years"),
+                "headshot": (a.get("headshot") or {}).get("href"),
+                "aussie": _is_aussie(a.get("birthPlace"), a.get("fullName", "")),
+            })
+        players.sort(key=lambda p: (p["pos"], int(p["jersey"]) if str(p["jersey"]).isdigit() else 999))
+        groups.append({"key": g.get("position", ""),
+                       "label": ROSTER_GROUP_LABELS.get(g.get("position", ""), g.get("position", "").title()),
+                       "players": players})
+
+    return {
+        "team": {
+            "abbr": detail.get("abbreviation"),
+            "displayName": detail.get("displayName", ""),
+            "location": detail.get("location", ""),
+            "name": detail.get("name", ""),
+            "color": detail.get("color"),
+            "altColor": detail.get("alternateColor"),
+            "logo": logos[0]["href"] if logos else None,
+            "record": rec_items[0].get("summary", ""),
+            "standing": detail.get("standingSummary", ""),
+            "division": division,
+            "nextEvent": next_event,
+        },
+        "groups": groups,
+        "source": "ESPN public API · cached 6 h",
+    }
+
+
+@app.get("/api/player/{pid}")
+def api_player(pid: str):
+    try:
+        bio = _get_json(f"{ESPN_WEB}/athletes/{pid}", ttl=21600)
+        stats = _get_json(f"{ESPN_WEB}/athletes/{pid}/stats", ttl=21600)
+    except requests.HTTPError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown player {pid}") from exc
+    a = bio.get("athlete", bio)
+
+    team = a.get("team") or {}
+    birthplace = a.get("displayBirthPlace", "")
+    name = a.get("displayName", "")
+
+    # teamId → abbr map so season rows show the club (players move teams)
+    team_abbrs = {}
+    for t in (stats.get("teams") or {}).values() if isinstance(stats.get("teams"), dict) else []:
+        team_abbrs[str(t.get("id"))] = t.get("abbreviation", "")
+    if isinstance(stats.get("teams"), list):
+        for t in stats["teams"]:
+            team_abbrs[str(t.get("id"))] = t.get("abbreviation", "")
+
+    categories = []
+    for c in stats.get("categories", []):
+        seasons = []
+        for s in c.get("statistics", []):
+            seasons.append({
+                "season": (s.get("season") or {}).get("displayName", ""),
+                "team": team_abbrs.get(str(s.get("teamId")), (s.get("teamSlug") or "").upper()[:3]),
+                "stats": s.get("stats", []),
+            })
+        if seasons:
+            categories.append({
+                "name": c.get("displayName", c.get("name", "")),
+                "labels": c.get("labels", []),
+                "seasons": seasons,
+                "totals": c.get("totals", []),
+            })
+
+    news = []
+    try:
+        overview = _get_json(f"{ESPN_WEB}/athletes/{pid}/overview", ttl=3600)
+        for n in (overview.get("news") or [])[:4]:
+            link = ((n.get("links") or {}).get("web") or {}).get("href", "")
+            if n.get("headline") and link:
+                news.append({"headline": n["headline"], "link": link})
+    except Exception:
+        pass
+
+    summary = []
+    ss = a.get("statsSummary") or {}
+    for item in (ss.get("statistics") or []):
+        summary.append({"label": item.get("displayName", item.get("name", "")),
+                        "value": item.get("displayValue", "")})
+
+    return {
+        "player": {
+            "id": a.get("id"),
+            "name": name,
+            "jersey": a.get("displayJersey") or (("#" + a["jersey"]) if a.get("jersey") else ""),
+            "pos": (a.get("position") or {}).get("abbreviation", ""),
+            "headshot": (a.get("headshot") or {}).get("href"),
+            "age": a.get("age"),
+            "dob": a.get("displayDOB", ""),
+            "height": a.get("displayHeight", ""),
+            "weight": a.get("displayWeight", ""),
+            "college": (a.get("college") or {}).get("name", "") or (a.get("collegeAthlete") or {}).get("name", ""),
+            "draft": a.get("displayDraft", ""),
+            "experience": a.get("displayExperience", ""),
+            "debutYear": a.get("debutYear"),
+            "birthplace": birthplace,
+            "aussie": _is_aussie(birthplace, name),
+            "status": (a.get("status") or {}).get("name", ""),
+            "team": {
+                "abbr": team.get("abbreviation", ""),
+                "displayName": team.get("displayName", ""),
+                "color": team.get("color"),
+                "logo": (team.get("logos") or [{}])[0].get("href")
+                        or (f"https://a.espncdn.com/i/teamlogos/nfl/500/{team.get('abbreviation', '').lower()}.png"
+                            if team.get("abbreviation") else None),
+            },
+        },
+        "summary": summary,
+        "categories": categories,
+        "news": news,
+        "source": "ESPN public API · cached 6 h",
+    }
 
 
 @app.get("/api/debug")
