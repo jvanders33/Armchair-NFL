@@ -136,7 +136,7 @@ def _win_pct(record: str) -> float:
         return 0.5
 
 
-def _watch_score(spread, over_under, home_rec, away_rec, slot, has_aussie) -> float:
+def _watch_score(spread, over_under, home_rec, away_rec, slot, has_aussie, in_australia=False) -> float:
     score = 50.0
     if spread is not None:
         score -= min(24.0, abs(float(spread)) * 2.2)      # closeness
@@ -147,6 +147,8 @@ def _watch_score(spread, over_under, home_rec, away_rec, slot, has_aussie) -> fl
     score += _SLOT_BONUS.get(slot, 0)
     if has_aussie:
         score += 6
+    if in_australia:
+        score += 20  # an Australian platform ranks the game played in Australia first
     return round(score, 1)
 
 
@@ -161,6 +163,13 @@ def _load_aussies() -> list[dict]:
         return json.loads((DATA / "aussies.json").read_text(encoding="utf-8"))["players"]
     except Exception:
         return []
+
+
+def _load_experts() -> dict:
+    try:
+        return json.loads((DATA / "experts.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {}
 
 
 def _competitor(c: dict) -> dict:
@@ -239,11 +248,12 @@ def schedule(year: int | None = None, seasontype: int | None = None, week: int |
         slot = _slot(dt, st)
 
         game_aussies = aussie_by_team.get(h["abbr"], []) + aussie_by_team.get(a["abbr"], [])
-        score = _watch_score(spread, ou, h["record"], a["record"], slot, bool(game_aussies))
-
         status = ev.get("status", {}).get("type", {})
         bc = (comp.get("broadcasts") or [{}])[0].get("names", [])
         venue = comp.get("venue", {})
+        venue_name = venue.get("fullName", "")
+        in_australia = "Melbourne" in venue_name or "Australia" in str(venue.get("address", {}))
+        score = _watch_score(spread, ou, h["record"], a["record"], slot, bool(game_aussies), in_australia)
 
         games.append({
             "id": ev.get("id"),
@@ -270,14 +280,65 @@ def schedule(year: int | None = None, seasontype: int | None = None, week: int |
     games.sort(key=lambda g: (-g["watch"]["score"], g["date"]))
     gotw = next((g["id"] for g in games if g["status"]["state"] != "post"), games[0]["id"] if games else None)
 
+    # the VOICE layer — attach the Experts' calls for this week
+    experts = _load_experts()
+    week_key = f"{season.get('year')}-{st}-{wk.get('number')}"
+    week_experts = (experts.get("weeks") or {}).get(week_key, {})
+    calls = week_experts.get("calls", {})
+    experts_gotw_id = None
+    for g in games:
+        matchup = f"{g['away']['abbr']}@{g['home']['abbr']}"
+        if matchup in calls:
+            g["expertCall"] = calls[matchup]
+        if matchup == week_experts.get("gotw"):
+            experts_gotw_id = g["id"]
+
     return {
         "season": {"year": season.get("year"), "type": st},
         "week": {"number": wk.get("number")},
         "calendar": _calendar(payload),
         "gotw": gotw,
         "games": games,
+        "experts": {
+            "show": experts.get("show", {}),
+            "gotw": experts_gotw_id,
+            "episode": week_experts.get("episode"),
+        },
         "source": "ESPN public scoreboard API · odds by ESPN BET/DraftKings · cached 10 min",
     }
+
+
+@app.get("/api/road-to-the-g")
+def road_to_the_g():
+    """The MCG game (SF vs LAR, 11 Sep 2026) straight from the live feed + the series rail."""
+    experts = _load_experts()
+    game = None
+    try:
+        payload = _fetch_scoreboard(2026, 2, 1)
+        for ev in payload.get("events", []):
+            comp = (ev.get("competitions") or [{}])[0]
+            venue = (comp.get("venue") or {}).get("fullName", "")
+            if "Melbourne" in venue:
+                competitors = comp.get("competitors", [])
+                home = next((c for c in competitors if c.get("homeAway") == "home"), None)
+                away = next((c for c in competitors if c.get("homeAway") == "away"), None)
+                status = ev.get("status", {}).get("type", {})
+                game = {
+                    "id": ev.get("id"),
+                    "name": ev.get("name"),
+                    "shortName": ev.get("shortName"),
+                    "date": ev.get("date"),
+                    "venue": venue,
+                    "home": _competitor(home) if home else None,
+                    "away": _competitor(away) if away else None,
+                    "status": {"state": status.get("state", "pre"),
+                               "detail": status.get("shortDetail", ""),
+                               "completed": status.get("completed", False)},
+                }
+                break
+    except requests.RequestException:
+        pass
+    return {"game": game, "series": experts.get("road_to_the_g", {}), "show": experts.get("show", {})}
 
 
 @app.get("/api/aussies")

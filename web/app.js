@@ -68,6 +68,7 @@
     <div class="shell">
       <div id="loading" class="loading">Fetching the live slate…</div>
       <div id="content" hidden>
+        <section id="rtg"></section>
         <div class="section-h">Game of the Week</div>
         <section class="gotw" id="gotw"></section>
         <div class="section-h" style="margin-top:30px">The Slate <span class="n" id="slate-count"></span></div>
@@ -90,6 +91,94 @@
         <div class="aus" id="aus"></div>
       </div>
     </div>`;
+
+  // ---------- Road to the G (the deck's centrepiece, live from the feed) ----------
+  let rtgTimer = null;
+
+  function rtgStage(kick) {
+    const now = Date.now(), t = new Date(kick).getTime();
+    if (now > t + 4 * 864e5) return 2;               // wrap up
+    if (now > t - 7 * 864e5) return 1;               // game week
+    return 0;                                        // build up
+  }
+
+  function renderRtg(rtg) {
+    const el = $("rtg");
+    if (!rtg || !rtg.game) { el.innerHTML = ""; return; }
+    const g = rtg.game, s = rtg.series || {};
+    const stage = rtgStage(g.date);
+    const stages = ["Build up", "Game week", "Wrap up"];
+    const k = fmt(g.date);
+    const mel = new Intl.DateTimeFormat("en-AU", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Australia/Melbourne" }).format(new Date(g.date));
+    const done = g.status.completed;
+    const live = g.status.state === "in";
+
+    let centre;
+    if (done) {
+      centre = `<div class="rtg-count"><div class="rtg-score tnum">${esc(g.away.abbr)} ${esc(g.away.score ?? "")} — ${esc(g.home.score ?? "")} ${esc(g.home.abbr)}</div><div class="rtg-cd-lbl">Final · history made at the G</div></div>`;
+    } else if (live) {
+      centre = `<div class="rtg-count"><div class="rtg-score"><span class="badge-live">● Live</span> ${esc(g.status.detail)}</div><div class="rtg-cd-lbl">The NFL is at the MCG right now</div></div>`;
+    } else {
+      centre = `<div class="rtg-count" data-kick="${esc(g.date)}">
+        <div class="rtg-cd tnum" id="rtg-cd">—</div>
+        <div class="rtg-cd-lbl">until kick-off · ${esc(mel)} AEST</div>
+      </div>`;
+    }
+
+    el.innerHTML = `
+      <div class="rtg">
+        <div class="rtg-top">
+          <span class="rtg-ey">🏟 ${esc(s.title || "California to the G")}</span>
+          <span class="rtg-arc">${stages.map((x, i) => `<b class="${i === stage ? "on" : ""}">${x}</b>`).join("<i>→</i>")}</span>
+        </div>
+        <div class="rtg-body">
+          <div class="rtg-mu">
+            <img src="${esc(g.away.logo)}" alt="${esc(g.away.displayName)}">
+            <span class="vs">vs</span>
+            <img src="${esc(g.home.logo)}" alt="${esc(g.home.displayName)}">
+            <div class="rtg-names">
+              <div class="rtg-nm">${esc(g.away.name)} vs ${esc(g.home.name)}</div>
+              <div class="rtg-venue">${esc(g.venue)} · the NFL's first game in Australia</div>
+            </div>
+          </div>
+          ${centre}
+          <div class="rtg-cta">
+            <a class="watch" target="_blank" rel="noopener" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}"
+               href="https://www.disneyplus.com/?utm_source=armchair&utm_medium=rtg&utm_campaign=mcg&utm_content=${esc(g.away.abbr)}@${esc(g.home.abbr)}">
+               <span class="tv">▶</span> ${done ? "Relive it on Disney+" : "Watch it live on Disney+"}</a>
+            <div class="rtg-your-tz">${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}</div>
+          </div>
+        </div>
+        ${(s.episodes || []).length ? `
+        <div class="rtg-rail">
+          <div class="rtg-rail-h">${esc(s.sub || "")}</div>
+          <div class="rtg-eps">
+            ${s.episodes.map((e) => `
+              <a class="rtg-ep${e.url ? "" : " soon"}" ${e.url ? `href="${esc(e.url)}" target="_blank" rel="noopener"` : ""}>
+                <span class="n">EP ${esc(e.n)}</span>
+                <span class="t">${esc(e.title)}</span>
+                <span class="g">${esc(e.guest)}</span>
+                <span class="s">${e.url ? "▶ Watch" : "Coming soon"}</span>
+              </a>`).join("")}
+          </div>
+        </div>` : ""}
+      </div>`;
+
+    bindWatch(el);
+    clearInterval(rtgTimer);
+    const cd = $("rtg-cd");
+    if (cd) {
+      const tick = () => {
+        const ms = new Date(g.date).getTime() - Date.now();
+        if (ms <= 0) { cd.textContent = "KICK-OFF"; clearInterval(rtgTimer); return; }
+        const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5),
+              m = Math.floor(ms % 36e5 / 6e4), sec = Math.floor(ms % 6e4 / 1e3);
+        cd.textContent = `${d}d ${h}h ${m}m ${String(sec).padStart(2, "0")}s`;
+      };
+      tick();
+      rtgTimer = setInterval(tick, 1000);
+    }
+  }
 
   function why(g) {
     const bits = [];
@@ -142,17 +231,30 @@
     return `<span class="tier t${g.watch.tier}">${TIER_LABEL[g.watch.tier]}</span>`;
   }
 
+  function isExpertsPick(g) {
+    return hubData.experts && hubData.experts.gotw === g.id;
+  }
+
+  function expertCallHTML(g) {
+    if (!g.expertCall) return "";
+    const hosts = (hubData.experts && hubData.experts.show && hubData.experts.show.hosts) || "The Experts";
+    return `<blockquote class="ec">🎙 <span>${esc(g.expertCall)}</span><cite>— ${esc(hosts)}</cite></blockquote>`;
+  }
+
   function renderGotw() {
-    const g = hubData.games.find((x) => x.id === hubData.gotw) || hubData.games[0];
+    // the voice leads: the Experts' pick takes the marquee slot when they've made one
+    const expertsPick = hubData.experts && hubData.games.find((x) => x.id === hubData.experts.gotw && x.status.state !== "post");
+    const g = expertsPick || hubData.games.find((x) => x.id === hubData.gotw) || hubData.games[0];
     if (!g) { $("gotw").innerHTML = ""; return; }
     const k = fmt(g.date);
     const showScore = g.status.state !== "pre";
     $("gotw").innerHTML = `
-      <div class="ey">★ Marquee · ${TZ_LABEL[tz]} prime viewing</div>
+      <div class="ey">★ Marquee · ${TZ_LABEL[tz]} prime viewing${isExpertsPick(g) ? ` · <span class="ec-badge">🎙 The Experts' pick</span>` : ""}</div>
       <div class="body">
         <div>
           <div class="matchup">${teamHTML(g.away, true, showScore)}<span class="at">at</span>${teamHTML(g.home, true, showScore)}</div>
           <p class="why">${why(g)}</p>
+          ${expertCallHTML(g)}
           ${meter(g)}
         </div>
         <div class="kick">
@@ -182,7 +284,7 @@
       const on = starred.has(g.id);
       return `<article class="game" data-id="${esc(g.id)}">
         <div class="top">
-          ${statusBadge(g)}
+          <span class="badges">${statusBadge(g)}${isExpertsPick(g) ? `<span class="ec-badge">🎙 Experts' pick</span>` : ""}</span>
           <button class="star" data-star="${esc(g.id)}" aria-pressed="${on}" title="Add to my watchlist" aria-label="Add to watchlist">${on ? "★" : "☆"}</button>
         </div>
         <div class="mu">${teamHTML(g.away, false, showScore)}<span class="at">at</span>${teamHTML(g.home, false, showScore)}</div>
@@ -191,6 +293,7 @@
           <div class="whenwrap"><span class="when tnum">${k.wd} ${k.day} · ${k.tm}</span><span class="slot">${esc(g.slot)}${g.broadcast ? " · " + esc(g.broadcast) : ""}</span></div>
         </div>
         <p class="why">${why(g)}</p>
+        ${expertCallHTML(g)}
         <div class="foot">${aus}${watchBtn(g, "sm ghost")}</div>
       </article>`;
     }).join("");
@@ -272,9 +375,10 @@
     });
   }
 
+  let episodeHTML = "";
   function setTzNote() {
     $("tz-note").textContent = "Kick-offs converted live to " + TZ_LABEL[tz] + " time";
-    $("ribbon-sub").textContent = "Every game in " + TZ_LABEL[tz] + " time, one tap to stream.";
+    $("ribbon-sub").innerHTML = episodeHTML || ("Every game in " + TZ_LABEL[tz] + " time, one tap to stream.");
   }
 
   function bindHubControls() {
@@ -302,14 +406,23 @@
     $("content").hidden = true;
     const qs = weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "";
     try {
-      const [sched, aus] = await Promise.all([
+      const [sched, aus, rtg] = await Promise.all([
         fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
         aussies.length ? Promise.resolve(null) : fetchJSON("/api/aussies"),
+        fetchJSON("/api/road-to-the-g").catch(() => null),
       ]);
       hubData = sched;
       if (aus) aussies = aus.players || [];
       $("source-line").textContent = "Data: " + (hubData.source || "");
-      renderRibbon(); renderGotw(); renderSlate(); renderAussies(); setTzNote();
+      const ep = hubData.experts && hubData.experts.episode;
+      if (ep && ep.title) {
+        const show = (hubData.experts.show || {});
+        episodeHTML = `🎙 This week on ${esc(show.name || "the show")}: <b>${esc(ep.title)}</b>` +
+          (ep.url ? ` · <a href="${esc(ep.url)}" target="_blank" rel="noopener">listen</a>` : "");
+      } else {
+        episodeHTML = "";
+      }
+      renderRibbon(); renderRtg(rtg); renderGotw(); renderSlate(); renderAussies(); setTzNote();
       $("loading").hidden = true;
       $("content").hidden = false;
     } catch (err) {
@@ -479,6 +592,7 @@
   function route() {
     const h = location.hash || "#/";
     let m;
+    clearInterval(rtgTimer);
     window.scrollTo(0, 0);
     if ((m = h.match(/^#\/team\/([A-Za-z]{2,4})$/))) { setNav("teams"); showTeam(m[1].toUpperCase()); }
     else if ((m = h.match(/^#\/player\/(\d+)$/))) { setNav("teams"); showPlayer(m[1]); }

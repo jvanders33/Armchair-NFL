@@ -1,0 +1,38 @@
+{
+  "note": "The VOICE layer — Cam & Ben's weekly calls, updated alongside each episode drop. Keys are '{year}-{seasontype}-{week}' (seasontype 1=pre, 2=regular, 3=post). 'gotw' is 'AWAY@HOME'. Calls here are sample copy for the prototype — replace with the hosts' real lines each week.",
+  "show": {
+    "name": "Armchair Experts",
+    "hosts": "Cam Luke & Ben Graham",
+    "url": "https://www.youtube.com/@ArmchairExpertsNFL",
+    "tagline": "The trusted voice guiding Australia through the NFL season"
+  },
+  "road_to_the_g": {
+    "title": "California to the G",
+    "sub": "The story behind the NFL's arrival in Australia — with the people who made it happen. With Disney+ as Official Streaming Partner.",
+    "episodes": [
+      { "n": 1, "title": "The Announcement", "guest": "How the MCG got the game", "url": "" },
+      { "n": 2, "title": "The GM", "guest": "Charlotte Offord — NFL GM, Australia & NZ", "url": "" },
+      { "n": 3, "title": "The Trailblazer", "guest": "Ben Graham — from Geelong captain to the Super Bowl", "url": "" },
+      { "n": 4, "title": "The Superstar", "guest": "Todd Gurley on the Rams' travelling show", "url": "" },
+      { "n": 5, "title": "Game Week", "guest": "Inside the MCG as the NFL lands", "url": "" }
+    ]
+  },
+  "weeks": {
+    "2026-1-1": {
+      "gotw": "CAR@ARI",
+      "episode": { "title": "Football's back — what preseason actually tells you", "url": "" },
+      "calls": {
+        "CAR@ARI": "Ben's watching one thing only: how the rebuilt Carolina O-line travels. Preseason lies, but line play doesn't."
+      }
+    },
+    "2026-2-1": {
+      "gotw": "SF@LAR",
+      "episode": { "title": "GAME WEEK: the NFL is at the G", "url": "" },
+      "calls": {
+        "SF@LAR": "This is the one the whole journey points to — 100,000 at the MCG, two California heavyweights, and Australia hosting the NFL for the first time. Be in the building or be on the couch by 10:30am.",
+        "NE@SEA": "The other Thursday-window game — Dickson punting in prime time is the Aussie warm-up act before the main event.",
+        "TB@CIN": "Burrow against that Tampa front is the sneaky-good Sunday watch once the MCG dust settles."
+      }
+    }
+  }
+}
