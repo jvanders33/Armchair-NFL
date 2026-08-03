@@ -39,6 +39,11 @@ function footer(s, txt){
   s.addText(txt, { x:M, y:7.02, w:W-2*M, h:0.35, fontFace:BODY, fontSize:9.5, color:C.muted, margin:0, valign:"top" });
 }
 
+/* ---------------- SLIDE 0 — the flywheel (full bleed) ---------------- */
+const fw = p.addSlide();
+fw.background = { color:C.bg };
+fw.addImage({ path:"assets/flywheel.png", x:0, y:0, w:W, h:7.5 });
+
 /* ---------------- SLIDE A ---------------- */
 const a = p.addSlide();
 a.background = { color:C.bg };

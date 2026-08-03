@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Armchair Experts — the flywheel</title>
+<style>
+  html,body{margin:0;padding:0}
+  #stage{width:1500px;height:844px;position:relative;overflow:hidden;
+    font-family:"Arial Narrow","Roboto Condensed",Arial,sans-serif;
+    background:
+      radial-gradient(1100px 600px at 22% -10%, #E8143E 0%, transparent 55%),
+      radial-gradient(1300px 800px at 50% 120%, #6E0518 0%, transparent 60%),
+      linear-gradient(180deg,#C6002B 0%, #A00524 55%, #7A0A1F 100%);}
+  svg{position:absolute;inset:0}
+  .eyebrow{fill:#FFD5DD;font-family:Arial;font-size:15px;font-weight:bold;letter-spacing:5px}
+  .title{fill:#fff;font-size:52px;font-weight:bold;letter-spacing:1px}
+  .node-l{fill:#fff;font-size:23px;font-weight:bold;letter-spacing:1.2px}
+  .node-s{fill:#FFCFD8;font-family:Arial;font-size:12.5px;letter-spacing:.4px}
+  .cn{fill:#fff;font-size:34px;font-weight:bold;letter-spacing:1px}
+  .ct{fill:#FFD5DD;font-family:Arial;font-size:14px;font-weight:bold;letter-spacing:3.5px}
+  .cu{fill:#FFB3C0;font-family:Arial;font-size:13px;letter-spacing:.5px}
+  .cap{fill:#FFD5DD;font-family:Arial;font-size:14.5px;letter-spacing:.3px}
+  .ico{stroke:#fff;stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+</style>
+</head>
+<body>
+<div id="stage"><svg id="s" viewBox="0 0 1500 844" xmlns="http://www.w3.org/2000/svg"></svg></div>
+<script>
+const svg = document.getElementById("s");
+const NS = "http://www.w3.org/2000/svg";
+const CX = 750, CY = 468, RX = 424, RY = 238;
+const el = (tag, attrs, parent=svg) => {
+  const e = document.createElementNS(NS, tag);
+  for (const [k,v] of Object.entries(attrs)) e.setAttribute(k, v);
+  parent.appendChild(e); return e;
+};
+const txt = (s, x, y, cls, anchor="middle") => {
+  const t = el("text", {x, y, class:cls, "text-anchor":anchor}); t.textContent = s; return t;
+};
+const pt = (deg) => {
+  const r = deg * Math.PI/180;
+  return [CX + RX*Math.cos(r), CY + RY*Math.sin(r)];
+};
+
+/* defs: glow + arrowhead */
+const defs = el("defs", {});
+const f = el("filter", {id:"glow", x:"-40%", y:"-40%", width:"180%", height:"180%"}, defs);
+el("feGaussianBlur", {stdDeviation:"6", result:"b"}, f);
+const m = el("feMerge", {}, f);
+el("feMergeNode", {in:"b"}, m); el("feMergeNode", {in:"SourceGraphic"}, m);
+const mk = el("marker", {id:"arr", viewBox:"0 0 10 10", refX:"7", refY:"5", markerWidth:"7", markerHeight:"7", orient:"auto-start-reverse"}, defs);
+el("path", {d:"M0 0 L10 5 L0 10 z", fill:"#fff", opacity:"0.9"}, mk);
+
+/* neon ripple rings (deck motif) */
+[[RX+62,RY+46,.16],[RX+108,RY+82,.10],[RX+156,RY+120,.06]].forEach(([rx,ry,o])=>{
+  el("ellipse", {cx:CX, cy:CY+14, rx, ry, fill:"none", stroke:"#fff", "stroke-width":3, opacity:o, filter:"url(#glow)"});
+});
+
+/* title */
+txt("THE MODEL", CX, 52, "eyebrow");
+txt("ONE FLYWHEEL. EVERY TURN FEEDS THE NEXT.", CX, 106, "title");
+
+/* flywheel arrows — clockwise arcs between nodes */
+const ANG = [-90, -30, 30, 90, 150, 210];
+for (let i=0;i<6;i++){
+  const a1 = ANG[i]+17, a2 = ANG[(i+1)%6]-17;
+  const [x1,y1] = pt(a1), [x2,y2] = pt(a2);
+  el("path", {d:`M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${RX} ${RY} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`,
+    fill:"none", stroke:"#fff", "stroke-width":3, opacity:.75, "marker-end":"url(#arr)"});
+}
+
+/* centre disc */
+el("ellipse", {cx:CX, cy:CY, rx:196, ry:150, fill:"#5E0313", opacity:.92});
+el("ellipse", {cx:CX, cy:CY, rx:196, ry:150, fill:"none", stroke:"#fff", "stroke-width":3, filter:"url(#glow)"});
+const cnode = el("text", {x:CX, y:CY-18, class:"cn", "text-anchor":"middle"});
+const t1 = el("tspan", {}, cnode); t1.textContent = "ARMCHAIR";
+const td = el("tspan", {fill:"#FF8FA3"}, cnode); td.textContent = "·";
+const t2 = el("tspan", {}, cnode); t2.textContent = "EXPERTS";
+txt("THE NFL IN AUSTRALIA", CX, CY+16, "ct");
+txt("armchair-nfl.vercel.app", CX, CY+46, "cu");
+
+/* icons — hand-drawn white line art, 52px box centred on (0,0) */
+const ICONS = {
+  mic(g){ el("rect",{x:-9,y:-26,width:18,height:30,rx:9,class:"ico"},g);
+          el("path",{d:"M -17 -8 A 17 17 0 0 0 17 -8",class:"ico"},g);
+          el("line",{x1:0,y1:9,x2:0,y2:22,class:"ico"},g);
+          el("line",{x1:-10,y1:22,x2:10,y2:22,class:"ico"},g); },
+  clap(g){ el("rect",{x:-24,y:-12,width:48,height:32,rx:3,class:"ico"},g);
+           el("path",{d:"M -24 -12 L -19 -24 L 29 -18 L 24 -6 Z",class:"ico"},g);
+           el("line",{x1:-11,y1:-22.5,x2:-6,y2:-11,class:"ico"},g);
+           el("line",{x1:3,y1:-21,x2:8,y2:-9.5,class:"ico"},g);
+           el("line",{x1:17,y1:-19.5,x2:22,y2:-8,class:"ico"},g); },
+  social(g){ el("path",{d:"M -26 -20 h 30 v 22 h -18 l -8 8 v -8 h -4 z",class:"ico"},g);
+             el("path",{d:"M 8 -6 h 20 v 18 h -4 v 7 l -7 -7 h -9 z",class:"ico"},g);
+             el("path",{d:"M -11 -13 c -2.5 -4 -8.5 -2 -8.5 2 c 0 3 4 6 8.5 9 c 4.5 -3 8.5 -6 8.5 -9 c 0 -4 -6 -6 -8.5 -2 z",fill:"#fff",stroke:"none"},g); },
+  browser(g){ el("rect",{x:-26,y:-20,width:52,height:40,rx:4,class:"ico"},g);
+              el("line",{x1:-26,y1:-9,x2:26,y2:-9,class:"ico"},g);
+              el("circle",{cx:-19,cy:-14.5,r:1.8,fill:"#fff",stroke:"none"},g);
+              el("circle",{cx:-13,cy:-14.5,r:1.8,fill:"#fff",stroke:"none"},g);
+              el("line",{x1:-19,y1:0,x2:8,y2:0,class:"ico"},g);
+              el("line",{x1:-19,y1:8,x2:19,y2:8,class:"ico"},g); },
+  play(g){ el("circle",{cx:-4,cy:0,r:24,class:"ico"},g);
+           el("path",{d:"M -12 -11 L 8 0 L -12 11 Z",fill:"#fff",stroke:"none"},g);
+           el("line",{x1:22,y1:-16,x2:34,y2:-16,class:"ico"},g);
+           el("line",{x1:28,y1:-22,x2:28,y2:-10,class:"ico"},g); },
+  chart(g){ el("path",{d:"M -24 -22 V 20 H 26",class:"ico"},g);
+            el("rect",{x:-16,y:0,width:9,height:20,class:"ico"},g);
+            el("rect",{x:-2,y:-8,width:9,height:28,class:"ico"},g);
+            el("rect",{x:12,y:-18,width:9,height:38,class:"ico"},g); },
+};
+
+/* nodes — clockwise story: show → series → social → hub → Disney+ → data → back to show */
+const NODES = [
+  {a:-90, icon:"mic",     l:"THE WEEKLY SHOW",   s:"podcast · vodcast · Cam & Ben"},
+  {a:-30, icon:"clap",    l:"CALI TO THE 'G",    s:"the MCG narrative series"},
+  {a:30,  icon:"social",  l:"SOCIAL",            s:"clips · IG · TikTok · iHeart network"},
+  {a:90,  icon:"browser", l:"THE WEBSITE",       s:"what-to-watch hub · teams · live data"},
+  {a:150, icon:"play",    l:"WATCH ON DISNEY+",  s:"every touchpoint's one action"},
+  {a:210, icon:"chart",   l:"DATA & ATTRIBUTION",s:"what drove taps · sharpens the voice"},
+];
+NODES.forEach(n => {
+  const [x,y] = pt(n.a);
+  const cos = Math.cos(n.a * Math.PI/180);
+  const g = el("g", {transform:`translate(${x.toFixed(1)} ${(y-14).toFixed(1)})`});
+  ICONS[n.icon](g);
+  if (cos > 0.3) {          // right-side nodes: label beside icon, reading outward
+    txt(n.l, x+52, y-6, "node-l", "start");
+    txt(n.s, x+52, y+17, "node-s", "start");
+  } else if (cos < -0.3) {  // left-side nodes: mirrored
+    txt(n.l, x-52, y-6, "node-l", "end");
+    txt(n.s, x-52, y+17, "node-s", "end");
+  } else {                  // top & bottom: centred beneath the icon
+    txt(n.l, x, y+46, "node-l");
+    txt(n.s, x, y+68, "node-s");
+  }
+});
+
+/* caption */
+txt("The voice wins the audience · social amplifies it · the platform turns it into a daily habit · the habit converts on Disney+ · the data sharpens the voice.",
+  CX, 822, "cap");
+</script>
+</body>
+</html>
