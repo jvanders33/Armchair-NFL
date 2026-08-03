@@ -629,8 +629,8 @@
     try {
       const d = await fetch("/api/partner").then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); });
       const s = d.sample, k = s.kpis;
-      const CH = { amber: "#C4860F", blue: "#3B7BD0", green: "#2B9166" }; // validated chart marks
-      const surfColor = { gotw: CH.amber, rtg: CH.blue, wtw: CH.green };
+      const CH = { red: "#C93A52", blue: "#3B7BD0", green: "#2B9166" }; // validated chart marks
+      const surfColor = { gotw: CH.red, rtg: CH.blue, wtw: CH.green };
       const conv = (k.signups / k.taps * 100).toFixed(1);
       // funnel starts at taps — reach lives in the KPI row (412k would flatten these bars to slivers)
       const pctOfTaps = (n) => Math.round(n / k.taps * 100) + "% of taps";
@@ -660,18 +660,18 @@
           </div>
 
           <div class="section-h" style="margin-top:28px">The funnel <span class="n">· tap → subscriber</span></div>
-          <div class="panel">${hbars(funnel, CH.amber, k.taps)}</div>
+          <div class="panel">${hbars(funnel, CH.red, k.taps)}</div>
 
           <div class="cols2">
             <div>
               <div class="section-h" style="margin-top:28px">What's driving taps <span class="n">· by storyline</span></div>
-              <div class="panel">${hbars(s.storylines, CH.amber)}</div>
+              <div class="panel">${hbars(s.storylines, CH.red)}</div>
             </div>
             <div>
               <div class="section-h" style="margin-top:28px">Where taps happen <span class="n">· by surface</span></div>
-              <div class="panel">${hbars(s.surfaces.map((x) => ({ ...x, color: surfColor[x.key] })), CH.amber)}</div>
+              <div class="panel">${hbars(s.surfaces.map((x) => ({ ...x, color: surfColor[x.key] })), CH.red)}</div>
               <div class="section-h" style="margin-top:22px">Weekly taps <span class="n">· season arc</span></div>
-              <div class="panel">${sparkline(s.trend, CH.amber)}</div>
+              <div class="panel">${sparkline(s.trend, CH.red)}</div>
             </div>
           </div>
 

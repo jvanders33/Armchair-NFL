@@ -1,18 +1,20 @@
+/* Armchair Experts brand system — iHeart-red deck styling:
+   deep crimson-to-black gradients, red accents, white condensed display type. */
 :root{
-  --ground:#0B1220; --ground-2:#0E1626; --card:#141E2E; --card-2:#1A2740;
-  --ink:#F2F4F8; --ink-2:#AEB9CC; --muted:#8091A8; --line:#243349;
-  --accent:#FFB020; --accent-ink:#0B1220; --live:#E8483F; --go:#43C08A;
-  --shadow:0 12px 34px rgba(0,0,0,.42);
+  --ground:#0F0407; --ground-2:#180810; --card:#1E0C13; --card-2:#2A111B;
+  --ink:#F9F3F5; --ink-2:#DCC3CB; --muted:#A57E8B; --line:#43202C;
+  --accent:#F5294B; --accent-ink:#FFFFFF; --red-deep:#8C0F27; --glow-1:55%; --glow-2:30%; --live:#FFB020; --go:#43C58C;
+  --shadow:0 12px 34px rgba(0,0,0,.5);
   --disney:#5AA7FF;
   --f-body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-cond:"Arial Narrow","Roboto Condensed","Helvetica Neue Condensed","Helvetica Neue",sans-serif;
 }
 @media (prefers-color-scheme:light){
   :root{
-    --ground:#EEF1F6; --ground-2:#E7ECF3; --card:#FFFFFF; --card-2:#F4F6FA;
-    --ink:#0B1220; --ink-2:#33415A; --muted:#5E6E86; --line:#DBE2EC;
-    --accent:#B9761A; --accent-ink:#FFFFFF; --live:#D23B32; --go:#1E9E67;
-    --shadow:0 10px 26px rgba(20,40,80,.10); --disney:#1E5FC4;
+    --ground:#FBF6F7; --ground-2:#F5EBED; --card:#FFFFFF; --card-2:#F8EFF1;
+    --ink:#1A060C; --ink-2:#552E38; --muted:#8A5F6B; --line:#EBD6DB;
+    --accent:#C6002B; --accent-ink:#FFFFFF; --red-deep:#C6002B; --glow-1:12%; --glow-2:7%; --live:#B97400; --go:#1E9E67;
+    --shadow:0 10px 26px rgba(120,20,40,.10); --disney:#1E5FC4;
   }
 }
 
@@ -20,7 +22,8 @@
 body{margin:0}
 .wrap{
   background:
-    radial-gradient(1200px 500px at 75% -8%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+    radial-gradient(1300px 560px at 78% -10%, color-mix(in srgb, var(--red-deep) var(--glow-1), transparent), transparent 62%),
+    radial-gradient(900px 500px at -10% 108%, color-mix(in srgb, var(--red-deep) var(--glow-2), transparent), transparent 60%),
     var(--ground);
   color:var(--ink); font-family:var(--f-body);
   font-size:16px; line-height:1.5; -webkit-font-smoothing:antialiased;
@@ -112,8 +115,8 @@ table.stats a{color:var(--accent); text-decoration:none; font-weight:700}
 /* partner dashboard */
 .nav-partner{margin-left:auto}
 .partner-hero{background:
-  radial-gradient(800px 300px at 85% -30%, color-mix(in srgb, var(--disney) 30%, transparent), transparent 60%),
-  linear-gradient(120deg, #10203AE6, #10203A99), var(--card)}
+  radial-gradient(800px 300px at 85% -30%, color-mix(in srgb, var(--disney) 26%, transparent), transparent 60%),
+  linear-gradient(120deg, #8C0F27F0, #4A081599), var(--card)}
 .sample-badge{
   display:inline-block; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:800;
   background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); border-radius:6px; padding:2px 7px; color:#fff;
@@ -309,7 +312,7 @@ a.team{text-decoration:none; color:inherit}
 .tier.t1{background:var(--accent); color:var(--accent-ink)}
 .tier.t2{background:transparent; color:var(--accent); box-shadow:inset 0 0 0 1.2px color-mix(in srgb,var(--accent) 50%,transparent)}
 .tier.t3{background:var(--card-2); color:var(--muted)}
-.badge-live{background:var(--live);color:#fff;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;padding:4px 8px;border-radius:6px;animation:pulse 1.6s infinite}
+.badge-live{background:var(--live);color:#1A060C;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;padding:4px 8px;border-radius:6px;animation:pulse 1.6s infinite}
 .badge-final{background:var(--card-2);color:var(--ink-2);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;padding:4px 8px;border-radius:6px}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
 .star{background:none;border:none;cursor:pointer;color:var(--muted);font-size:17px;line-height:1;padding:2px;transition:color .12s,transform .12s}
