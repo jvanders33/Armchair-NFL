@@ -72,12 +72,11 @@ for (let i=0;i<6;i++){
 /* centre disc */
 el("ellipse", {cx:CX, cy:CY, rx:196, ry:150, fill:"#5E0313", opacity:.92});
 el("ellipse", {cx:CX, cy:CY, rx:196, ry:150, fill:"none", stroke:"#fff", "stroke-width":3, filter:"url(#glow)"});
-const cnode = el("text", {x:CX, y:CY-18, class:"cn", "text-anchor":"middle"});
+const cnode = el("text", {x:CX, y:CY-8, class:"cn", "text-anchor":"middle"});
 const t1 = el("tspan", {}, cnode); t1.textContent = "ARMCHAIR";
 const td = el("tspan", {fill:"#FF8FA3"}, cnode); td.textContent = "·";
 const t2 = el("tspan", {}, cnode); t2.textContent = "EXPERTS";
-txt("THE NFL IN AUSTRALIA", CX, CY+16, "ct");
-txt("armchair-nfl.vercel.app", CX, CY+46, "cu");
+txt("THE NFL IN AUSTRALIA", CX, CY+26, "ct");
 
 /* icons — hand-drawn white line art, 52px box centred on (0,0) */
 const ICONS = {
@@ -107,16 +106,24 @@ const ICONS = {
             el("rect",{x:-16,y:0,width:9,height:20,class:"ico"},g);
             el("rect",{x:-2,y:-8,width:9,height:28,class:"ico"},g);
             el("rect",{x:12,y:-18,width:9,height:38,class:"ico"},g); },
+  tvlive(g){ el("rect",{x:-26,y:-14,width:52,height:34,rx:4,class:"ico"},g);
+             el("line",{x1:-10,y1:-14,x2:-2,y2:-26,class:"ico"},g);
+             el("line",{x1:10,y1:-14,x2:2,y2:-26,class:"ico"},g);
+             el("circle",{cx:14,cy:-4,r:3.2,fill:"#fff",stroke:"none"},g);
+             el("path",{d:"M -16 -2 L -2 3 L -16 8 Z",fill:"#fff",stroke:"none"},g); },
+  star(g){ const pts=[]; for(let i=0;i<10;i++){const r=i%2?11:26;const a=(-90+i*36)*Math.PI/180;
+             pts.push((r*Math.cos(a)).toFixed(1)+","+(r*Math.sin(a)).toFixed(1));}
+           el("polygon",{points:pts.join(" "),class:"ico"},g); },
 };
 
-/* nodes — clockwise story: show → series → social → hub → Disney+ → data → back to show */
+/* nodes — clockwise story: show → series → game-day live → clips → website → star access → back */
 const NODES = [
-  {a:-90, icon:"mic",     l:"THE WEEKLY SHOW",   s:"podcast · vodcast · Cam & Ben"},
-  {a:-30, icon:"clap",    l:"CALI TO THE 'G",    s:"the MCG narrative series"},
-  {a:30,  icon:"social",  l:"SOCIAL",            s:"clips · IG · TikTok · iHeart network"},
-  {a:90,  icon:"browser", l:"THE WEBSITE",       s:"what-to-watch hub · teams · live data"},
-  {a:150, icon:"play",    l:"WATCH ON DISNEY+",  s:"every touchpoint's one action"},
-  {a:210, icon:"chart",   l:"DATA & ATTRIBUTION",s:"what drove taps · sharpens the voice"},
+  {a:-90, icon:"mic",     l:"THE WEEKLY SHOW",  s:"podcast · vodcast · Cam & Ben"},
+  {a:-30, icon:"clap",    l:"CALI TO THE 'G",   s:"narrative series · streaming on Disney+"},
+  {a:30,  icon:"tvlive",  l:"GAME-DAY LIVE",    s:"watchalongs · reactions · AEST prime"},
+  {a:90,  icon:"social",  l:"CLIPS & SOCIAL",   s:"Shorts · IG · TikTok · iHeart network"},
+  {a:150, icon:"browser", l:"THE WEBSITE",      s:"the daily habit · what to watch · teams"},
+  {a:210, icon:"star",    l:"THE AUSSIE CHAIR", s:"star access · recurring player guests"},
 ];
 NODES.forEach(n => {
   const [x,y] = pt(n.a);
@@ -135,9 +142,16 @@ NODES.forEach(n => {
   }
 });
 
-/* caption */
-txt("The voice wins the audience · social amplifies it · the platform turns it into a daily habit · the habit converts on Disney+ · the data sharpens the voice.",
-  CX, 822, "cap");
+/* foundation — data & attribution runs UNDER the wheel, not on it */
+const fbW = 1010, fbX = CX - fbW/2, fbY = 776, fbH = 48;
+el("rect", {x:fbX, y:fbY, width:fbW, height:fbH, rx:10, fill:"#5E0313", opacity:.85});
+el("rect", {x:fbX, y:fbY, width:fbW, height:fbH, rx:10, fill:"none", stroke:"#fff", "stroke-width":1.5, opacity:.55});
+const fg = el("g", {transform:`translate(${fbX+42} ${fbY+fbH/2}) scale(.62)`});
+ICONS.chart(fg);
+const ft = el("text", {x:fbX+78, y:fbY+fbH/2+6, class:"node-l", "font-size":"19px", "text-anchor":"start"});
+const f1 = el("tspan", {}, ft); f1.textContent = "UNDER THE WHEEL — DATA & ATTRIBUTION";
+const f2 = el("tspan", {fill:"#FFCFD8", "font-size":"14px", "font-family":"Arial", "font-weight":"normal", dx:"14"}, ft);
+f2.textContent = "audience · taps · sign-ups · the proof layer every partner sees";
 </script>
 </body>
 </html>
