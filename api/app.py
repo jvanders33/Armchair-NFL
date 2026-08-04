@@ -550,6 +550,51 @@ def api_player(pid: str):
     }
 
 
+# ---------- news feed (ListTrac pattern: Google News RSS, link-out only) ----------
+
+NEWS_URL = "https://news.google.com/rss/search?q=NFL%20when:2d&hl=en-US&gl=US&ceid=US:en"
+_news_cache: dict[str, tuple[float, list]] = {}
+
+
+@app.get("/api/news")
+def api_news():
+    hit = _news_cache.get("news")
+    if hit and time.time() - hit[0] < 900:  # 15-min cache
+        return {"stories": hit[1]}
+    import xml.etree.ElementTree as ET
+    try:
+        r = requests.get(NEWS_URL, timeout=15,
+                         headers={"User-Agent": "Mozilla/5.0 (ArmchairExperts prototype)"})
+        r.raise_for_status()
+        root = ET.fromstring(r.content)
+    except Exception:
+        return {"stories": hit[1] if hit else []}
+
+    stories, seen = [], set()
+    for it in root.findall(".//item"):
+        title = it.findtext("title") or ""
+        src_el = it.find("source")
+        source = src_el.text if src_el is not None else ""
+        # Google News titles end " - Source"; strip when the source tag repeats it
+        if source and title.endswith(" - " + source):
+            title = title[: -len(" - " + source)]
+        title = title.rstrip(" -")
+        key = title.lower()[:60]
+        if not title or key in seen:
+            continue
+        seen.add(key)
+        stories.append({
+            "title": title,
+            "link": it.findtext("link") or "",
+            "source": source,
+            "published": it.findtext("pubDate") or "",
+        })
+        if len(stories) >= 12:
+            break
+    _news_cache["news"] = (time.time(), stories)
+    return {"stories": stories}
+
+
 # ---------- partner dashboard (Measurement & Attribution, live) ----------
 # Live taps land in memory per serverless instance — enough to demo the loop.
 # Production path: swap _clicks for Upstash Redis REST (same pattern as ListTrac stars).

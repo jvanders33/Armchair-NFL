@@ -69,7 +69,11 @@
       <div id="loading" class="loading">Fetching the live slate…</div>
       <div id="content" hidden>
         <section id="rtg"></section>
-        <div class="section-h">Game of the Week</div>
+        <section id="news-wrap" hidden>
+          <div class="section-h" style="margin-top:28px">The Big Stories <span class="n">· live from the wires</span></div>
+          <div class="news-grid" id="news"></div>
+        </section>
+        <div class="section-h" style="margin-top:30px">Game of the Week</div>
         <section class="gotw" id="gotw"></section>
         <div class="section-h" style="margin-top:30px">The Slate <span class="n" id="slate-count"></span></div>
         <div class="controls">
@@ -334,6 +338,27 @@
     $("aus-note").textContent = playing.length ? "· this week" : "· off-week";
   }
 
+  function timeAgo(pub) {
+    const ms = Date.now() - new Date(pub).getTime();
+    if (!isFinite(ms) || ms < 0) return "";
+    const h = Math.floor(ms / 36e5);
+    if (h < 1) return Math.max(1, Math.floor(ms / 6e4)) + "m ago";
+    if (h < 24) return h + "h ago";
+    return Math.floor(h / 24) + "d ago";
+  }
+
+  function renderNews(news) {
+    const wrap = $("news-wrap");
+    const stories = news && news.stories ? news.stories : [];
+    if (!stories.length) { wrap.hidden = true; return; }
+    $("news").innerHTML = stories.map((s, i) => `
+      <a class="story${i === 0 ? " lead" : ""}" href="${esc(s.link)}" target="_blank" rel="noopener">
+        <span class="st-t">${esc(s.title)}</span>
+        <span class="st-m">${esc(s.source)}${s.published ? " · " + timeAgo(s.published) : ""}</span>
+      </a>`).join("");
+    wrap.hidden = false;
+  }
+
   function renderRibbon() {
     const s = hubData.season, w = hubData.week;
     const cal = hubData.calendar || [];
@@ -416,10 +441,11 @@
     $("content").hidden = true;
     const qs = weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "";
     try {
-      const [sched, aus, rtg] = await Promise.all([
+      const [sched, aus, rtg, news] = await Promise.all([
         fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
         aussies.length ? Promise.resolve(null) : fetchJSON("/api/aussies"),
         fetchJSON("/api/road-to-the-g").catch(() => null),
+        fetchJSON("/api/news").catch(() => null),
       ]);
       hubData = sched;
       if (aus) aussies = aus.players || [];
@@ -432,7 +458,7 @@
       } else {
         episodeHTML = "";
       }
-      renderRibbon(); renderRtg(rtg); renderGotw(); renderSlate(); renderAussies(); setTzNote();
+      renderRibbon(); renderRtg(rtg); renderNews(news); renderGotw(); renderSlate(); renderAussies(); setTzNote();
       $("loading").hidden = true;
       $("content").hidden = false;
     } catch (err) {
