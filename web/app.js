@@ -617,6 +617,48 @@
   }
 
   // =====================================================================
+  // SHOWS — the slate + the always-on runway (the anchor)
+  // =====================================================================
+
+  async function showShows() {
+    view.innerHTML = `<div class="shell"><div class="loading">Loading the slate…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/shows");
+      view.innerHTML = `<div class="shell">
+        <div class="section-h" style="margin-top:22px">The Shows <span class="n">· one brand, every code</span></div>
+        <div class="shows-grid">
+          ${d.shows.map((s) => `
+            <${s.url ? `a href="${esc(s.url)}" target="_blank" rel="noopener"` : "div"} class="show-card">
+              <div class="sc-top">
+                <span class="sc-sport">${esc(s.sport)}</span>
+                <span class="sc-status ${esc(s.status)}">${s.status === "live" ? "● Live now" : "Coming"}</span>
+              </div>
+              <div class="sc-title">${esc(s.title)}</div>
+              <div class="sc-hosts">${esc(s.hosts)}</div>
+              <div class="sc-cad">${esc(s.cadence)}</div>
+              <p class="sc-desc">${esc(s.desc)}</p>
+              ${s.highlight ? `<div class="sc-hl">★ ${esc(s.highlight)}</div>` : ""}
+              ${s.url ? `<div class="sc-watch">▶ Watch</div>` : ""}
+            </${s.url ? "a" : "div"}>`).join("")}
+        </div>
+
+        <div class="section-h" style="margin-top:34px">Always On <span class="n">· the year of Armchair — no dark weeks</span></div>
+        <div class="runway">
+          ${d.runway.map((r) => `
+            <div class="rw ${esc(r.state || "")}">
+              <span class="rw-when">${esc(r.when)}</span>
+              <span class="rw-dot"></span>
+              <span class="rw-what">${esc(r.what)}</span>
+            </div>`).join("")}
+        </div>
+        <p class="panel-note" style="margin-top:14px">The shows are the voice; this platform is the anchor between episodes — live schedules, teams, players and news, every day of the year.</p>
+      </div>`;
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load the slate (${esc(err.message)}).</div></div>`;
+    }
+  }
+
+  // =====================================================================
   // PARTNER dashboard (Measurement & Attribution, rendered live)
   // =====================================================================
 
@@ -744,6 +786,7 @@
     if ((m = h.match(/^#\/team\/([A-Za-z]{2,4})$/))) { setNav("teams"); showTeam(m[1].toUpperCase()); }
     else if ((m = h.match(/^#\/player\/(\d+)$/))) { setNav("teams"); showPlayer(m[1]); }
     else if (h === "#/teams") { setNav("teams"); showTeams(); }
+    else if (h === "#/shows") { setNav("shows"); showShows(); }
     else if (h === "#/partner") { setNav("partner"); showPartner(); }
     else { setNav("watch"); showHub(); }
   }

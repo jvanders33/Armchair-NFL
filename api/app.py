@@ -550,6 +550,14 @@ def api_player(pid: str):
     }
 
 
+@app.get("/api/shows")
+def api_shows():
+    try:
+        return json.loads((DATA / "shows.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {"shows": [], "runway": []}
+
+
 # ---------- news feed (ListTrac pattern: Google News RSS, link-out only) ----------
 
 NEWS_URL = "https://news.google.com/rss/search?q=NFL%20when:2d&hl=en-US&gl=US&ceid=US:en"

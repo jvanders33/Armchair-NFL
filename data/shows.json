@@ -1,0 +1,65 @@
+{
+  "note": "The content slate — the anchor for everything. Update as shows launch, links go live, and co-hosts are announced. Keep unannounced commercial details (co-host negotiations etc.) OUT of this file — it renders publicly.",
+  "shows": [
+    {
+      "id": "afl",
+      "title": "The AFL Show",
+      "hosts": "Cam Luke & Adam Cooney",
+      "sport": "AFL",
+      "status": "live",
+      "cadence": "Weekly, in season",
+      "url": "https://www.youtube.com/watch?v=gQ2gNGiNLa4",
+      "desc": "Sharp AFL analysis with a Brownlow medallist in the second chair — the show that built the audience."
+    },
+    {
+      "id": "cali",
+      "title": "Cali to the 'G",
+      "hosts": "Cam Luke",
+      "sport": "NFL",
+      "status": "live",
+      "cadence": "Series · daily re-release Sep 1–10",
+      "url": "",
+      "desc": "The story of the NFL's arrival in Australia — players, decision-makers and legends, building to the MCG.",
+      "highlight": "Every episode re-released one per day, Sep 1–10 — a ten-day countdown to kick-off."
+    },
+    {
+      "id": "nfl-weekly",
+      "title": "The NFL Weekly",
+      "hosts": "Cam Luke + co-host to be announced",
+      "sport": "NFL",
+      "status": "coming",
+      "cadence": "Weekly from Week 1 · September",
+      "url": "",
+      "desc": "Game-by-game through the season — what mattered, what's next, and what to watch in Australian time."
+    },
+    {
+      "id": "nbl-weekly",
+      "title": "The NBL Show",
+      "hosts": "Cam Luke + a different guest each week",
+      "sport": "NBL",
+      "status": "coming",
+      "cadence": "Weekly from NBL tip-off · October",
+      "url": "",
+      "desc": "The rotating guest chair, pointed at Australian basketball."
+    },
+    {
+      "id": "christmas",
+      "title": "A Sporting Christmas — 10 Years On",
+      "hosts": "Cam Luke",
+      "sport": "Multi-sport",
+      "status": "coming",
+      "cadence": "December · festive lead-up · 15 episodes",
+      "url": "",
+      "desc": "The 2016 miracle year of sport, three episodes a team: the Western Bulldogs, the Cronulla Sharks, the Cleveland Cavaliers, the Chicago Cubs, and Leicester City."
+    }
+  ],
+  "runway": [
+    { "when": "AUG", "what": "Cali to the 'G episodes roll · NFL preseason live in the What to Watch hub", "state": "now" },
+    { "when": "SEP 1–10", "what": "The countdown — one Cali to the 'G episode a day, ten days to the MCG", "state": "next" },
+    { "when": "SEP 11", "what": "The MCG game — 49ers vs Rams, the NFL's first game in Australia", "state": "next" },
+    { "when": "SEP–FEB", "what": "The NFL Weekly, every week of the season · the hub tracks all 272 games in AEST", "state": "" },
+    { "when": "OCT", "what": "The NBL Show tips off — second sport on the same platform", "state": "" },
+    { "when": "DEC", "what": "A Sporting Christmas — 10 years on from the 2016 miracle year", "state": "" },
+    { "when": "FEB", "what": "Super Bowl week — the season's biggest morning in Australia", "state": "" }
+  ]
+}
