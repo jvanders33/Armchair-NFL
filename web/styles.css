@@ -229,6 +229,67 @@ a.team{text-decoration:none; color:inherit}
 .rtg-ep .g{font-size:11px; color:var(--muted); line-height:1.35}
 .rtg-ep .s{font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-2); font-weight:700; margin-top:3px}
 
+/* landing — the network front door */
+body.landing .mast, body.landing .navband, body.landing .foot-note{display:none}
+body.landing .wrap{padding-bottom:0}
+.land{position:relative; min-height:100vh; display:flex; align-items:center; justify-content:center; overflow:hidden}
+.land-hosts{
+  position:absolute; right:-4%; bottom:0; height:92%; object-fit:contain; opacity:.42;
+  filter:grayscale(35%) contrast(1.05);
+  -webkit-mask-image:linear-gradient(90deg, transparent 0%, #000 30%);
+  mask-image:linear-gradient(90deg, transparent 0%, #000 30%);
+}
+@media (max-width:760px){.land-hosts{opacity:.22; right:-30%}}
+.land-core{position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:18px; padding:40px 20px 90px; text-align:center}
+.neon-frame{
+  padding:26px 34px; transform:rotate(-2deg);
+  border:3px solid var(--accent); border-radius:6px;
+  box-shadow:0 0 22px color-mix(in srgb, var(--accent) 65%, transparent),
+    inset 0 0 22px color-mix(in srgb, var(--accent) 30%, transparent);
+  background:rgba(0,0,0,.25);
+}
+.land-logo{width:min(400px, 72vw); display:block; border-radius:10px;
+  filter:drop-shadow(0 0 18px rgba(255,176,32,.55)) drop-shadow(0 6px 24px rgba(0,0,0,.5))}
+.land-tag{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; letter-spacing:.14em;
+  font-size:clamp(20px, 3.4vw, 30px); color:var(--ink); margin-top:8px;
+  text-shadow:0 0 16px color-mix(in srgb, var(--accent) 50%, transparent)}
+.land-sub{font-size:13px; color:var(--ink-2); letter-spacing:.04em}
+.channels{display:flex; gap:clamp(14px, 3.5vw, 40px); align-items:baseline; flex-wrap:wrap; justify-content:center; margin-top:16px}
+.channels a{
+  font-family:var(--f-cond); text-transform:uppercase; font-weight:700; letter-spacing:.28em;
+  font-size:clamp(18px, 2.6vw, 26px); color:var(--ink); text-decoration:none; padding:4px 2px;
+  border-bottom:2.5px solid transparent; transition:color .12s, border-color .12s, text-shadow .12s;
+}
+.channels a:hover{color:var(--live); border-bottom-color:var(--live);
+  text-shadow:0 0 14px color-mix(in srgb, var(--live) 60%, transparent)}
+.channels .ch-soon span{font-size:9px; letter-spacing:.14em; color:var(--accent); vertical-align:super; margin-left:4px}
+.channels .ch-partner{font-size:14px; letter-spacing:.2em; color:var(--muted); align-self:center}
+.land-strip{
+  display:inline-flex; align-items:center; margin-top:22px; text-decoration:none;
+  background:var(--card); border:1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius:999px; padding:10px 18px; color:var(--ink-2); font-size:13px; font-weight:600;
+}
+.land-strip b{color:var(--accent); margin-left:6px}
+.land-strip:hover{border-color:var(--accent); color:var(--ink)}
+.land-foot{
+  position:absolute; left:0; right:0; bottom:0; z-index:2; display:flex; justify-content:space-between;
+  gap:12px; flex-wrap:wrap; padding:14px 26px; font-size:11.5px; color:var(--muted);
+  border-top:1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  background:color-mix(in srgb, var(--ground) 55%, transparent); backdrop-filter:blur(4px);
+}
+.lf-partner b{color:var(--disney)}
+.lf-soc a{color:var(--ink-2); text-decoration:none; cursor:pointer}
+.lf-soc a:hover{color:var(--accent)}
+
+/* advent tiles (Cali to the 'G countdown) */
+.rtg-rail-t{color:var(--accent); letter-spacing:.1em}
+.adv-d{font-family:var(--f-cond); font-weight:700; font-size:13px; letter-spacing:.08em; color:var(--ink-2)}
+.rtg-ep.adv-locked{opacity:.55}
+.rtg-ep.adv-locked .t{color:var(--muted)}
+.rtg-ep.adv-today{border-color:var(--accent); box-shadow:0 0 14px color-mix(in srgb, var(--accent) 40%, transparent)}
+.rtg-ep.adv-today .adv-d{color:var(--accent)}
+.rtg-ep.adv-today .s{color:var(--accent); animation:pulse 1.6s infinite}
+
 /* shows hub + runway */
 .shows-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
 @media (max-width:900px){.shows-grid{grid-template-columns:repeat(2,1fr)}}
@@ -237,6 +298,7 @@ a.team{text-decoration:none; color:inherit}
   border:1px solid var(--line); border-radius:14px; background:var(--card); padding:16px 17px;
   transition:transform .12s ease, border-color .12s ease}
 a.show-card:hover{transform:translateY(-2px); border-color:var(--accent)}
+.sc-img{width:calc(100% + 34px); margin:-16px -17px 6px; height:132px; object-fit:cover; border-radius:13px 13px 0 0}
 .sc-top{display:flex; justify-content:space-between; align-items:center}
 .sc-sport{font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; font-weight:800; color:var(--disney)}
 .sc-status{font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:800; padding:3px 8px; border-radius:6px}

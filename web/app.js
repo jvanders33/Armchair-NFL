@@ -106,9 +106,44 @@
     return 0;                                        // build up
   }
 
+  function adventRailHTML(s) {
+    if (!s || !(s.episodes || []).length) return "";
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Australia/Melbourne" });
+    return `<div class="rtg-rail">
+      <div class="rtg-rail-h"><b class="rtg-rail-t">THE 10-DAY COUNTDOWN</b> — ${esc(s.sub || "")}</div>
+      <div class="rtg-eps">
+        ${s.episodes.map((e) => {
+          const state = !e.drop ? "open" : (e.drop < today ? "open" : (e.drop === today ? "today" : "locked"));
+          const dropLbl = e.drop ? "SEP " + parseInt(e.drop.slice(-2), 10) : "";
+          const clickable = e.url && state !== "locked";
+          const foot = state === "locked" ? "🔒 Unlocks " + dropLbl.replace("SEP", "Sep")
+                     : state === "today" ? "● TODAY'S DROP" + (e.url ? " · ▶ Watch" : "")
+                     : (e.url ? "▶ Watch" : "Out now · link soon");
+          return `<a class="rtg-ep adv-${state}${clickable ? "" : " soon"}"
+            ${clickable ? `href="${esc(e.url)}" target="_blank" rel="noopener"` : ""}>
+            <span class="adv-d">${esc(dropLbl)}</span>
+            <span class="n">EP ${esc(e.n)}</span>
+            <span class="t">${esc(e.title)}</span>
+            <span class="g">${esc(e.guest)}</span>
+            <span class="s">${foot}</span>
+          </a>`;
+        }).join("")}
+      </div>
+    </div>`;
+  }
+
   function renderRtg(rtg) {
     const el = $("rtg");
-    if (!rtg || !rtg.game) { el.innerHTML = ""; return; }
+    const hasEps = rtg && rtg.series && (rtg.series.episodes || []).length;
+    if (!rtg || (!rtg.game && !hasEps)) { el.innerHTML = ""; return; }
+    if (!rtg.game) {
+      // feed hiccup: keep the advent countdown alive without the game banner
+      el.innerHTML = `<div class="rtg">
+        <div class="rtg-top"><span class="rtg-ey">🏟 ${esc(rtg.series.title || "Cali to the 'G")}</span></div>
+        ${adventRailHTML(rtg.series)}
+      </div>`;
+      return;
+    }
     const g = rtg.game, s = rtg.series || {};
     const stage = rtgStage(g.date);
     const stages = ["Build up", "Game week", "Wrap up"];
@@ -153,19 +188,7 @@
             <div class="rtg-your-tz">${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}</div>
           </div>
         </div>
-        ${(s.episodes || []).length ? `
-        <div class="rtg-rail">
-          <div class="rtg-rail-h">${esc(s.sub || "")}</div>
-          <div class="rtg-eps">
-            ${s.episodes.map((e) => `
-              <a class="rtg-ep${e.url ? "" : " soon"}" ${e.url ? `href="${esc(e.url)}" target="_blank" rel="noopener"` : ""}>
-                <span class="n">EP ${esc(e.n)}</span>
-                <span class="t">${esc(e.title)}</span>
-                <span class="g">${esc(e.guest)}</span>
-                <span class="s">${e.url ? "▶ Watch" : "Coming soon"}</span>
-              </a>`).join("")}
-          </div>
-        </div>` : ""}
+        ${adventRailHTML(s)}
       </div>`;
 
     bindWatch(el);
@@ -617,6 +640,34 @@
   }
 
   // =====================================================================
+  // LANDING — the network front door (McAfee-style, Armchair brand)
+  // =====================================================================
+
+  function showLanding() {
+    view.innerHTML = `
+      <section class="land">
+        <img class="land-hosts" src="/img/hosts.jpg" alt="Cam Luke and Ben Graham">
+        <div class="land-core">
+          <div class="neon-frame"><img class="land-logo" src="/img/logo-badge.png" alt="Armchair Experts"></div>
+          <div class="land-tag">EVERY CODE. ONE ARMCHAIR.</div>
+          <div class="land-sub">The Australian sports network — voice up front, a live data spine underneath</div>
+          <nav class="channels" aria-label="Channels">
+            <a href="#/nfl">NFL</a>
+            <a href="https://list-trac.vercel.app" target="_blank" rel="noopener">AFL</a>
+            <a href="#/shows" class="ch-soon">NBL<span>OCT</span></a>
+            <a href="#/shows">SHOWS</a>
+            <a href="#/partner" class="ch-partner">PARTNER</a>
+          </nav>
+          <a class="land-strip" href="#/nfl">🏈 The 10-day countdown to the MCG starts Sep 1 — one episode a day&nbsp;<b>→</b></a>
+        </div>
+        <div class="land-foot">
+          <span class="lf-partner">Streaming partner <b>Disney+ · ESPN</b></span>
+          <span class="lf-soc"><a href="https://www.youtube.com/watch?v=gQ2gNGiNLa4" target="_blank" rel="noopener">YouTube</a> · <a>Instagram</a> · <a>TikTok</a> · <a>iHeart</a></span>
+        </div>
+      </section>`;
+  }
+
+  // =====================================================================
   // SHOWS — the slate + the always-on runway (the anchor)
   // =====================================================================
 
@@ -629,6 +680,7 @@
         <div class="shows-grid">
           ${d.shows.map((s) => `
             <${s.url ? `a href="${esc(s.url)}" target="_blank" rel="noopener"` : "div"} class="show-card">
+              ${s.img ? `<img class="sc-img" src="${esc(s.img)}" alt="" loading="lazy">` : ""}
               <div class="sc-top">
                 <span class="sc-sport">${esc(s.sport)}</span>
                 <span class="sc-status ${esc(s.status)}">${s.status === "live" ? "● Live now" : "Coming"}</span>
@@ -783,12 +835,15 @@
     let m;
     clearInterval(rtgTimer);
     window.scrollTo(0, 0);
-    if ((m = h.match(/^#\/team\/([A-Za-z]{2,4})$/))) { setNav("teams"); showTeam(m[1].toUpperCase()); }
+    const isLanding = h === "#/" || h === "" || h === "#";
+    document.body.classList.toggle("landing", isLanding);
+    if (isLanding) { setNav(""); showLanding(); }
+    else if ((m = h.match(/^#\/team\/([A-Za-z]{2,4})$/))) { setNav("teams"); showTeam(m[1].toUpperCase()); }
     else if ((m = h.match(/^#\/player\/(\d+)$/))) { setNav("teams"); showPlayer(m[1]); }
     else if (h === "#/teams") { setNav("teams"); showTeams(); }
     else if (h === "#/shows") { setNav("shows"); showShows(); }
     else if (h === "#/partner") { setNav("partner"); showPartner(); }
-    else { setNav("watch"); showHub(); }
+    else { setNav("watch"); showHub(); }  // #/nfl and anything else → the hub
   }
 
   window.addEventListener("hashchange", route);

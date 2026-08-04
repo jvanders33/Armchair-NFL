@@ -7,14 +7,20 @@
     "tagline": "The trusted voice guiding Australia through the NFL season"
   },
   "road_to_the_g": {
-    "title": "California to the G",
-    "sub": "The story behind the NFL's arrival in Australia — with the people who made it happen. Every episode re-releases one per day, Sep 1–10: a ten-day countdown to the MCG. With Disney+ as Official Streaming Partner.",
+    "title": "Cali to the 'G",
+    "sub": "The story behind the NFL's arrival in Australia. Every episode re-releases one per day, Sep 1–10 — the ten-day countdown to the MCG. With Disney+ as Official Streaming Partner.",
+    "advent_note": "Episode titles/guests are placeholders from the deck's guest list — swap in Cam's real running order. Drop = AEST date the ep unlocks; add url when live.",
     "episodes": [
-      { "n": 1, "title": "The Announcement", "guest": "How the MCG got the game", "url": "" },
-      { "n": 2, "title": "The GM", "guest": "Charlotte Offord — NFL GM, Australia & NZ", "url": "" },
-      { "n": 3, "title": "The Trailblazer", "guest": "Ben Graham — from Geelong captain to the Super Bowl", "url": "" },
-      { "n": 4, "title": "The Superstar", "guest": "Todd Gurley on the Rams' travelling show", "url": "" },
-      { "n": 5, "title": "Game Week", "guest": "Inside the MCG as the NFL lands", "url": "" }
+      { "n": 1,  "title": "The Announcement", "guest": "How the MCG got the game", "drop": "2026-09-01", "url": "" },
+      { "n": 2,  "title": "The GM", "guest": "Charlotte Offord — NFL GM, Australia & NZ", "drop": "2026-09-02", "url": "" },
+      { "n": 3,  "title": "The Trailblazer", "guest": "Ben Graham — Geelong captain to the Super Bowl", "drop": "2026-09-03", "url": "" },
+      { "n": 4,  "title": "The Superstar", "guest": "Todd Gurley on the Rams' travelling show", "drop": "2026-09-04", "url": "" },
+      { "n": 5,  "title": "The Minister", "guest": "Steve Dimopoulos — Victoria's play for the game", "drop": "2026-09-05", "url": "" },
+      { "n": 6,  "title": "The Flag Bearer", "guest": "Kodi Fuller — flag football's rise", "drop": "2026-09-06", "url": "" },
+      { "n": 7,  "title": "The Patriot", "guest": "Mack Hollins — a player's-eye view", "drop": "2026-09-07", "url": "" },
+      { "n": 8,  "title": "The Fans", "guest": "Australia's NFL tribe finds its moment", "drop": "2026-09-08", "url": "" },
+      { "n": 9,  "title": "The Arrival", "guest": "The 49ers & Rams land in Melbourne", "drop": "2026-09-09", "url": "" },
+      { "n": 10, "title": "Game Week", "guest": "Inside the MCG, the night before history", "drop": "2026-09-10", "url": "" }
     ]
   },
   "weeks": {

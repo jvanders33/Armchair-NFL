@@ -32,17 +32,27 @@ app = FastAPI(title="Armchair Experts API")
 _cache: dict[str, tuple[float, dict]] = {}
 
 
+# ESPN's edge (Akamai) blocks browser-like UAs from non-browser clients but passes
+# plain client UAs — send curl-style first, fall back to requests' default on 403.
+_UAS = ("curl/8.9.1", "python-requests/2.32")
+
+
 def _get_json(url: str, params: dict | None = None, ttl: int = CACHE_TTL) -> dict:
     key = url + "?" + json.dumps(params or {}, sort_keys=True)
     hit = _cache.get(key)
     if hit and time.time() - hit[0] < ttl:
         return hit[1]
-    r = requests.get(url, params=params, timeout=15,
-                     headers={"User-Agent": "Mozilla/5.0 (ArmchairExperts prototype)"})
-    r.raise_for_status()
-    data = r.json()
-    _cache[key] = (time.time(), data)
-    return data
+    last = None
+    for ua in _UAS:
+        r = requests.get(url, params=params, timeout=15, headers={"User-Agent": ua})
+        if r.status_code == 403:
+            last = r
+            continue
+        r.raise_for_status()
+        data = r.json()
+        _cache[key] = (time.time(), data)
+        return data
+    last.raise_for_status()
 
 
 def _fetch_scoreboard(year: int | None, seasontype: int | None, week: int | None) -> dict:
@@ -571,8 +581,7 @@ def api_news():
         return {"stories": hit[1]}
     import xml.etree.ElementTree as ET
     try:
-        r = requests.get(NEWS_URL, timeout=15,
-                         headers={"User-Agent": "Mozilla/5.0 (ArmchairExperts prototype)"})
+        r = requests.get(NEWS_URL, timeout=15, headers={"User-Agent": _UAS[0]})
         r.raise_for_status()
         root = ET.fromstring(r.content)
     except Exception:
