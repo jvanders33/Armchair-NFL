@@ -655,7 +655,7 @@
           <nav class="channels" aria-label="Channels">
             <a href="#/leagues">LEAGUES</a>
             <a href="#/shows">SHOWS</a>
-            <a href="#/shows">PODCASTS</a>
+            <a href="#/podcasts">PODCASTS</a>
             <a href="#/partner" class="ch-partner">PARTNER</a>
           </nav>
           <div class="land-soc" aria-label="Socials">
@@ -672,6 +672,63 @@
           <span class="lf-soc">Armchair Experts — voice up front, a live sports-data spine underneath</span>
         </div>
       </section>`;
+  }
+
+  // =====================================================================
+  // PODCASTS — Ringer-style fanned deck + episode list
+  // =====================================================================
+
+  const POD_COLORS = [
+    { bg: "#FFB020", ink: "#1A0E00" },   // Armchair gold
+    { bg: "#3D87E0", ink: "#FFFFFF" },   // Armchair blue
+    { bg: "#F5294B", ink: "#FFFFFF" },   // brand red
+    { bg: "#F6EDE4", ink: "#1A0E00" },   // chalk
+    { bg: "#2A111B", ink: "#F9F3F5" },   // deep
+  ];
+  const POD_TILT = [-6, 3, -2, 5, -4];
+
+  async function showPodcasts() {
+    view.innerHTML = `<div class="shell"><div class="loading">Loading the pod deck…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/shows");
+      const shows = d.shows;
+      const latest = (s) => (s.episodes && s.episodes[0]) || null;
+      view.innerHTML = `<div class="shell">
+        <div class="section-h" style="margin-top:22px">Podcasts <span class="n">· every show, on your couch</span></div>
+        <div class="pod-stage">
+          <div class="pod-deck">
+            ${shows.map((s, i) => {
+              const c = POD_COLORS[i % POD_COLORS.length];
+              const ep = latest(s);
+              const art = s.img || "/img/logo-badge.png";
+              const inner = `
+                <img class="pd-art" src="${esc(art)}" alt="" loading="lazy">
+                <div class="pd-show">${esc(s.title)}</div>
+                <div class="pd-ep">${ep ? esc(ep.title) : esc(s.cadence)}</div>
+                <span class="pd-play">${s.status === "live" ? "▶" : "…"}</span>`;
+              const style = `background:${c.bg}; color:${c.ink}; --tilt:${POD_TILT[i % POD_TILT.length]}deg`;
+              return ep && ep.url
+                ? `<a class="pod-card" style="${style}" href="${esc(ep.url)}" target="_blank" rel="noopener">${inner}</a>`
+                : `<div class="pod-card" style="${style}">${inner}</div>`;
+            }).join("")}
+          </div>
+        </div>
+
+        <div class="section-h" style="margin-top:30px">Latest episodes</div>
+        <div class="panel" style="padding:8px 18px">
+          ${shows.flatMap((s) => (s.episodes || []).map((ep) => `
+            <div class="ep-row">
+              <span class="ep-show">${esc(s.title)}</span>
+              <span class="ep-title">${esc(ep.title)}</span>
+              <span class="ep-meta">${esc(ep.date)} · ${esc(ep.len)}</span>
+              ${ep.url ? `<a class="watch sm ghost" href="${esc(ep.url)}" target="_blank" rel="noopener">▶ Play</a>` : `<span class="ep-soon">link soon</span>`}
+            </div>`)).join("") || `<div class="loading" style="padding:14px 0">Episode feeds land here as shows go live.</div>`}
+        </div>
+        <p class="panel-note" style="margin-top:12px">Prototype: episode metadata is illustrative — production plugs each show's YouTube/RSS feed straight into this page.</p>
+      </div>`;
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load podcasts (${esc(err.message)}).</div></div>`;
+    }
   }
 
   // =====================================================================
@@ -889,6 +946,7 @@
     else if ((m = h.match(/^#\/player\/(\d+)$/))) { setNav("teams"); showPlayer(m[1]); }
     else if (h === "#/teams") { setNav("teams"); showTeams(); }
     else if (h === "#/leagues") { setNav("leagues"); showLeagues(); }
+    else if (h === "#/podcasts") { setNav("podcasts"); showPodcasts(); }
     else if (h === "#/shows") { setNav("shows"); showShows(); }
     else if (h === "#/partner") { setNav("partner"); showPartner(); }
     else { setNav("watch"); showHub(); }  // #/nfl and anything else → the hub

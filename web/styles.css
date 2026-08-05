@@ -290,6 +290,43 @@ body.landing{
 .land-soc a:hover{border-color:var(--accent); color:var(--accent); transform:translateY(-2px);
   box-shadow:0 0 14px color-mix(in srgb, var(--accent) 45%, transparent)}
 
+/* podcasts — fanned deck + episode list */
+.pod-stage{
+  border:1px solid var(--line); border-radius:18px; padding:36px 20px 40px; overflow-x:auto;
+  background:
+    radial-gradient(700px 260px at 50% -30%, color-mix(in srgb, var(--red-deep) 45%, transparent), transparent 65%),
+    #120508;
+}
+.pod-deck{display:flex; justify-content:center; align-items:stretch; gap:2px; min-width:640px}
+.pod-card{
+  flex:0 0 190px; margin:0 -6px; padding:16px 15px 14px; border-radius:14px; text-decoration:none;
+  display:flex; flex-direction:column; gap:8px; position:relative;
+  transform:rotate(var(--tilt, 0deg)); transform-origin:50% 90%;
+  box-shadow:0 10px 26px rgba(0,0,0,.45);
+  transition:transform .16s ease, z-index 0s, box-shadow .16s ease;
+}
+.pod-card:hover{transform:rotate(0deg) translateY(-10px) scale(1.04); z-index:5;
+  box-shadow:0 18px 38px rgba(0,0,0,.55)}
+.pd-art{width:100%; aspect-ratio:16/10; object-fit:cover; border-radius:9px; background:rgba(0,0,0,.15)}
+.pd-show{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:17px; line-height:1.02}
+.pd-ep{font-size:11px; line-height:1.35; opacity:.85; font-weight:600}
+.pd-play{
+  margin-top:auto; align-self:center; width:34px; height:34px; border-radius:50%;
+  display:grid; place-items:center; font-size:13px;
+  background:rgba(0,0,0,.22); border:1.5px solid currentColor;
+}
+.ep-row{
+  display:grid; grid-template-columns:150px 1fr auto auto; gap:14px; align-items:center;
+  padding:11px 0; border-bottom:1px solid color-mix(in srgb, var(--line) 55%, transparent);
+}
+.ep-row:last-child{border-bottom:none}
+@media (max-width:720px){.ep-row{grid-template-columns:1fr auto; grid-auto-flow:dense}
+  .ep-show{grid-column:1 / -1}}
+.ep-show{font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--disney)}
+.ep-title{font-size:13.5px; font-weight:600; color:var(--ink)}
+.ep-meta{font-size:11px; color:var(--muted); white-space:nowrap}
+.ep-soon{font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+
 /* leagues picker */
 .lg-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:14px}
 @media (max-width:720px){.lg-grid{grid-template-columns:1fr}}
