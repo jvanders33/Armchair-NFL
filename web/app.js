@@ -647,6 +647,7 @@
     view.innerHTML = `
       <section class="land">
         <img class="land-hosts" src="/img/hosts.jpg" alt="Cam Luke and Ben Graham">
+        <div class="land-fade"></div>
         <div class="land-core">
           <div class="neon-frame"><img class="land-logo" src="/img/logo-badge.png" alt="Armchair Experts"></div>
           <div class="land-tag">EVERY CODE. ONE ARMCHAIR.</div>
