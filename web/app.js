@@ -650,22 +650,68 @@
         <div class="land-fade"></div>
         <div class="land-core">
           <div class="neon-frame"><img class="land-logo" src="/img/logo-badge.png" alt="Armchair Experts"></div>
-          <div class="land-tag">EVERY CODE. ONE ARMCHAIR.</div>
-          <div class="land-sub">The Australian sports network — voice up front, a live data spine underneath</div>
+          <div class="land-tag">EVERY SPORT. ONE ARMCHAIR.</div>
+          <div class="land-sub">The voice of sports fans in Australia</div>
           <nav class="channels" aria-label="Channels">
-            <a href="#/nfl">NFL</a>
-            <a href="https://list-trac.vercel.app" target="_blank" rel="noopener">AFL</a>
-            <a href="#/shows" class="ch-soon">NBL<span>OCT</span></a>
+            <a href="#/leagues">LEAGUES</a>
             <a href="#/shows">SHOWS</a>
+            <a href="#/shows">PODCASTS</a>
             <a href="#/partner" class="ch-partner">PARTNER</a>
           </nav>
+          <div class="land-soc" aria-label="Socials">
+            <a href="https://www.youtube.com/watch?v=gQ2gNGiNLa4" target="_blank" rel="noopener" title="YouTube">YT</a>
+            <a title="Instagram — handle to come">IG</a>
+            <a title="TikTok — handle to come">TT</a>
+            <a title="X — handle to come">𝕏</a>
+            <a title="iHeart">♥</a>
+          </div>
           <a class="land-strip" href="#/nfl">🏈 The 10-day countdown to the MCG starts Sep 1 — one episode a day&nbsp;<b>→</b></a>
         </div>
         <div class="land-foot">
           <span class="lf-partner">Streaming partner <b>Disney+ · ESPN</b></span>
-          <span class="lf-soc"><a href="https://www.youtube.com/watch?v=gQ2gNGiNLa4" target="_blank" rel="noopener">YouTube</a> · <a>Instagram</a> · <a>TikTok</a> · <a>iHeart</a></span>
+          <span class="lf-soc">Armchair Experts — voice up front, a live sports-data spine underneath</span>
         </div>
       </section>`;
+  }
+
+  // =====================================================================
+  // LEAGUES — the code picker (Spotrac pattern: one platform, many leagues)
+  // =====================================================================
+
+  const LEAGUES = [
+    { key: "NFL", name: "NFL", status: "live", tag: "American football",
+      desc: "What to Watch in your timezone · all 32 teams · every player's career · the big stories.",
+      cta: "Enter the NFL hub", href: "#/nfl" },
+    { key: "AFL", name: "AFL", status: "live", tag: "Australian football",
+      desc: "ListTrac — list management, trades, free agency, draft boards, mock drafts and player ratings.",
+      cta: "Open ListTrac", href: "https://list-trac.vercel.app", ext: true },
+    { key: "NBL", name: "NBL", status: "oct", tag: "Basketball",
+      desc: "The same what-to-watch engine, pointed at Australian hoops — lands with The NBL Show.",
+      cta: "Coming October", href: "" },
+    { key: "+", name: "More codes", status: "next", tag: "The engine generalises",
+      desc: "One spine under every sport: live fixtures → data → interactive tools → shareable content. New league, same platform.",
+      cta: "", href: "" },
+  ];
+
+  function showLeagues() {
+    view.innerHTML = `<div class="shell">
+      <div class="section-h" style="margin-top:22px">Leagues <span class="n">· one platform, every code</span></div>
+      <div class="lg-grid">
+        ${LEAGUES.map((l) => `
+          <${l.href ? `a href="${esc(l.href)}"${l.ext ? ` target="_blank" rel="noopener"` : ""}` : "div"} class="lg-card ${l.status === "next" ? "lg-muted" : ""}">
+            <div class="lg-top">
+              <span class="lg-key">${esc(l.key)}</span>
+              ${l.status === "live" ? `<span class="sc-status live">● Live</span>`
+                : l.status === "oct" ? `<span class="sc-status coming">Coming Oct</span>` : ""}
+            </div>
+            <div class="lg-name">${esc(l.name)}</div>
+            <div class="lg-tag">${esc(l.tag)}</div>
+            <p class="lg-desc">${esc(l.desc)}</p>
+            ${l.cta ? `<div class="sc-watch">${esc(l.cta)}${l.href ? " →" : ""}</div>` : ""}
+          </${l.href ? "a" : "div"}>`).join("")}
+      </div>
+      <p class="panel-note" style="margin-top:14px">Not just a content house — every league page runs on live data: fixtures in Australian time, teams, players, news and the tools fans come back to daily.</p>
+    </div>`;
   }
 
   // =====================================================================
@@ -842,6 +888,7 @@
     else if ((m = h.match(/^#\/team\/([A-Za-z]{2,4})$/))) { setNav("teams"); showTeam(m[1].toUpperCase()); }
     else if ((m = h.match(/^#\/player\/(\d+)$/))) { setNav("teams"); showPlayer(m[1]); }
     else if (h === "#/teams") { setNav("teams"); showTeams(); }
+    else if (h === "#/leagues") { setNav("leagues"); showLeagues(); }
     else if (h === "#/shows") { setNav("shows"); showShows(); }
     else if (h === "#/partner") { setNav("partner"); showPartner(); }
     else { setNav("watch"); showHub(); }  // #/nfl and anything else → the hub

@@ -280,6 +280,31 @@ body.landing{
   text-shadow:0 0 14px color-mix(in srgb, var(--accent) 60%, transparent)}
 .channels .ch-soon span{font-size:10px; letter-spacing:.14em; color:var(--accent); vertical-align:super; margin-left:6px}
 .channels .ch-partner{font-size:15px; letter-spacing:.24em; color:var(--muted); margin-top:4px}
+.land-soc{display:flex; gap:10px; margin-top:18px}
+.land-soc a{
+  width:42px; height:42px; border-radius:50%; display:grid; place-items:center; cursor:pointer;
+  border:1.5px solid color-mix(in srgb, var(--ink) 35%, transparent); color:var(--ink);
+  font-family:var(--f-cond); font-weight:700; font-size:15px; letter-spacing:.02em; text-decoration:none;
+  transition:border-color .12s, color .12s, box-shadow .12s, transform .12s;
+}
+.land-soc a:hover{border-color:var(--accent); color:var(--accent); transform:translateY(-2px);
+  box-shadow:0 0 14px color-mix(in srgb, var(--accent) 45%, transparent)}
+
+/* leagues picker */
+.lg-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:14px}
+@media (max-width:720px){.lg-grid{grid-template-columns:1fr}}
+.lg-card{display:flex; flex-direction:column; gap:5px; text-decoration:none; color:inherit;
+  border:1px solid var(--line); border-radius:16px; background:var(--card); padding:20px 22px;
+  transition:transform .12s ease, border-color .12s ease}
+a.lg-card:hover{transform:translateY(-2px); border-color:var(--accent)}
+.lg-muted{opacity:.75}
+.lg-top{display:flex; justify-content:space-between; align-items:center}
+.lg-key{font-family:var(--f-cond); font-weight:700; font-size:15px; letter-spacing:.2em; color:var(--accent);
+  border:1.5px solid color-mix(in srgb, var(--accent) 50%, transparent); border-radius:8px; padding:4px 10px}
+.lg-name{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:30px; line-height:1; margin-top:8px}
+.lg-tag{font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+.lg-desc{font-size:13px; color:var(--ink-2); line-height:1.5; margin:6px 0 0}
+
 .land-strip{
   display:inline-flex; align-items:center; margin-top:20px; text-decoration:none;
   background:color-mix(in srgb, var(--card) 80%, transparent); border:1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
