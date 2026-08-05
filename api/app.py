@@ -560,6 +560,14 @@ def api_player(pid: str):
     }
 
 
+@app.get("/api/christmas")
+def api_christmas():
+    try:
+        return json.loads((DATA / "christmas.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {"teams": []}
+
+
 @app.get("/api/shows")
 def api_shows():
     try:

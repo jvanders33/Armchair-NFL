@@ -732,6 +732,61 @@
   }
 
   // =====================================================================
+  // A SPORTING CHRISTMAS — the 2016 miracle year, told on the data spine
+  // =====================================================================
+
+  async function showChristmas() {
+    view.innerHTML = `<div class="shell"><div class="loading">Unwrapping 2016…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/christmas");
+      view.innerHTML = `
+        <div class="team-hero xmas-hero">
+          <div class="shell">
+            <a class="crumb" href="#/shows">← Shows</a>
+            <div class="th-row">
+              <div>
+                <div class="th-loc">🎄 December series · 15 episodes · ${esc(d.cadence.split("·")[2] || "three per team")}</div>
+                <h1 class="th-name">${esc(d.title)}</h1>
+                <div class="th-meta">${esc(d.sub)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="shell">
+          <div class="section-h" style="margin-top:24px">The year that kept topping itself</div>
+          <div class="runway">
+            ${d.timeline.map((t) => `
+              <div class="rw"><span class="rw-when">${esc(t.when)}</span><span class="rw-dot"></span><span class="rw-what">${esc(t.what)}</span></div>`).join("")}
+          </div>
+
+          ${d.teams.map((t, i) => `
+            <article class="xmas-card">
+              <div class="xc-stat">
+                <div class="xc-n tnum">${esc(t.stat)}</div>
+                <div class="xc-l">${esc(t.statLabel)}</div>
+              </div>
+              <div class="xc-body">
+                <div class="xc-top">
+                  <span class="sc-sport">${esc(t.comp)}</span>
+                  <span class="xc-date">${esc(t.won)}</span>
+                </div>
+                <h2 class="xc-team">${esc(t.team)}</h2>
+                <p class="xc-story">${esc(t.story)}</p>
+                <p class="xc-night">${esc(t.night)}</p>
+                <div class="xc-eps">
+                  ${d.episodes.map((e, n) => `<span class="xc-ep">EP ${n + 1} · ${esc(e)}<b>DEC</b></span>`).join("")}
+                </div>
+              </div>
+            </article>`).join("")}
+
+          <p class="panel-note" style="margin-top:14px">Three episodes per team, released through December — the festive lead-up. Every story gets the platform treatment: the drought, the odds, the numbers under the miracle.</p>
+        </div>`;
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load the series (${esc(err.message)}).</div></div>`;
+    }
+  }
+
+  // =====================================================================
   // LEAGUES — the code picker (Spotrac pattern: one platform, many leagues)
   // =====================================================================
 
@@ -783,7 +838,7 @@
         <div class="section-h" style="margin-top:22px">The Shows <span class="n">· one brand, every code</span></div>
         <div class="shows-grid">
           ${d.shows.map((s) => `
-            <${s.url ? `a href="${esc(s.url)}" target="_blank" rel="noopener"` : "div"} class="show-card">
+            <${s.url ? `a href="${esc(s.url)}"${s.url.startsWith("#") ? "" : ` target="_blank" rel="noopener"`}` : "div"} class="show-card">
               ${s.img ? `<img class="sc-img" src="${esc(s.img)}" alt="" loading="lazy">` : ""}
               <div class="sc-top">
                 <span class="sc-sport">${esc(s.sport)}</span>
@@ -947,6 +1002,7 @@
     else if (h === "#/teams") { setNav("teams"); showTeams(); }
     else if (h === "#/leagues") { setNav("leagues"); showLeagues(); }
     else if (h === "#/podcasts") { setNav("podcasts"); showPodcasts(); }
+    else if (h === "#/christmas") { setNav("shows"); showChristmas(); }
     else if (h === "#/shows") { setNav("shows"); showShows(); }
     else if (h === "#/partner") { setNav("partner"); showPartner(); }
     else { setNav("watch"); showHub(); }  // #/nfl and anything else → the hub

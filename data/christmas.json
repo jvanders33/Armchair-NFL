@@ -1,0 +1,66 @@
+{
+  "note": "A Sporting Christmas — 10 Years On. Editorial + data for the December series page. Episode titles are placeholders until Cam locks the running order.",
+  "title": "A Sporting Christmas — 10 Years On",
+  "sub": "Five teams. Five droughts. One impossible year. Ten years on from 2016 — the greatest year in sport.",
+  "cadence": "December · festive lead-up · three episodes per team",
+  "teams": [
+    {
+      "key": "LEI",
+      "team": "Leicester City",
+      "comp": "Premier League",
+      "won": "2 May 2016",
+      "stat": "5000-1",
+      "statLabel": "preseason title odds — the most famous number in betting history",
+      "story": "Nearly relegated in 2015, champions a year later. Ranieri's dilly-ding dilly-dong season, Vardy's 24 goals, Mahrez gliding — and a 132-year wait for a first top-flight title, over.",
+      "night": "The night: Tottenham drop points at Chelsea, and a title is won on someone else's ground."
+    },
+    {
+      "key": "CLE",
+      "team": "Cleveland Cavaliers",
+      "comp": "NBA",
+      "won": "19 June 2016",
+      "stat": "3–1",
+      "statLabel": "down in the Finals — to a 73-win team. No one had ever come back. They did.",
+      "story": "Cleveland hadn't won anything in 52 years. Then LeBron came home, The Block happened, Kyrie hit The Shot, and Game 7 in Oakland ended half a century of hurt.",
+      "night": "The night: 93-89 in Game 7, on the road, against the winningest regular-season team ever."
+    },
+    {
+      "key": "WB",
+      "team": "Western Bulldogs",
+      "comp": "AFL",
+      "won": "1 October 2016",
+      "stat": "62",
+      "statLabel": "years since the 1954 flag — and they won it from seventh",
+      "story": "Injured captain Bob Murphy watching on, Beveridge's boys winning four straight finals — three on the road — to break the AFL's most romantic drought. Then Bevo gave Murphy his medal.",
+      "night": "The night: 89-67 over Sydney, and the outer at the MCG sounds like Footscray."
+    },
+    {
+      "key": "CRO",
+      "team": "Cronulla Sharks",
+      "comp": "NRL",
+      "won": "2 October 2016",
+      "stat": "49",
+      "statLabel": "years without a premiership — the only foundation-era hurt left",
+      "story": "Fifty seasons, one famous porch light left on. Twenty-four hours after the Bulldogs, the Sharks beat the Storm by two points and a whole peninsula went up, up Cronulla.",
+      "night": "The night: 14-12 over Melbourne — a first title in club history, held on by fingertips."
+    },
+    {
+      "key": "CHC",
+      "team": "Chicago Cubs",
+      "comp": "MLB",
+      "won": "2 November 2016",
+      "stat": "108",
+      "statLabel": "years of the longest championship drought in American sport",
+      "story": "The Curse of the Billy Goat, a 3-1 series deficit, a Game 7 rain delay in Cleveland — and then, in the tenth inning, the Cubs actually did it. Grown adults cried at Wrigley for a week.",
+      "night": "The night: 8-7 in 10 innings, Game 7, after a rain delay that felt like 108 years."
+    }
+  ],
+  "episodes": ["The Drought", "The Season", "The Night"],
+  "timeline": [
+    { "when": "MAY", "what": "Leicester — 5000-1 comes in" },
+    { "when": "JUN", "what": "Cleveland — the 3-1 comeback" },
+    { "when": "OCT 1", "what": "Bulldogs — 62 years, from seventh" },
+    { "when": "OCT 2", "what": "Cronulla — first title ever" },
+    { "when": "NOV", "what": "Cubs — 108 years, Game 7, extra innings" }
+  ]
+}
