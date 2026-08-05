@@ -663,6 +663,52 @@ async def track(req: Request):
         return {"ok": False}
 
 
+# ---------- audience capture: newsletter + mailbag ----------
+# Prototype store (per-instance memory). Production path: Upstash / an ESP list.
+
+_subscribers: list[dict] = []
+_mailbag: list[dict] = []
+
+
+@app.post("/api/subscribe")
+async def subscribe(req: Request):
+    try:
+        data = json.loads(await req.body())
+        email = str(data.get("email", "")).strip()[:120]
+        if "@" not in email or "." not in email.split("@")[-1]:
+            return {"ok": False, "error": "That doesn't look like an email address."}
+        if not any(s["email"].lower() == email.lower() for s in _subscribers):
+            _subscribers.append({"email": email, "ts": time.time()})
+        return {"ok": True, "count": len(_subscribers)}
+    except Exception:
+        return {"ok": False, "error": "Couldn't save that — try again."}
+
+
+@app.post("/api/mailbag")
+async def mailbag(req: Request):
+    try:
+        data = json.loads(await req.body())
+        q = str(data.get("question", "")).strip()[:600]
+        name = str(data.get("name", "")).strip()[:60]
+        email = str(data.get("email", "")).strip()[:120]
+        if len(q) < 10:
+            return {"ok": False, "error": "Give the Experts a bit more to work with."}
+        _mailbag.append({"question": q, "name": name, "email": email, "ts": time.time()})
+        return {"ok": True, "count": len(_mailbag)}
+    except Exception:
+        return {"ok": False, "error": "Couldn't send that — try again."}
+
+
+@app.get("/api/audience")
+def audience():
+    """Demo visibility for the capture loop (counts + recent mailbag, no emails)."""
+    return {
+        "subscribers": len(_subscribers),
+        "mailbag": [{"question": m["question"], "name": m["name"]} for m in _mailbag[-10:]],
+        "note": "Per-instance prototype store — production wires an email platform + persistent DB.",
+    }
+
+
 @app.get("/api/partner")
 def partner():
     live = [{"medium": k[0], "campaign": k[1], "content": k[2], "count": v}

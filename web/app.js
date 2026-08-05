@@ -93,6 +93,32 @@
         <div class="slate" id="slate"></div>
         <div class="section-h" style="margin-top:32px">Aussies in the NFL <span class="n" id="aus-note">· this week</span></div>
         <div class="aus" id="aus"></div>
+
+        <div class="section-h" style="margin-top:34px">The Monday Armchair <span class="n">· every NFL Monday, 5 minutes with your coffee</span></div>
+        <div class="capture">
+          <div class="cap-card">
+            <div class="cap-h">📬 Get the Monday Armchair</div>
+            <p class="cap-p">Sunday football is <b>Monday daytime here</b> — the best sports day of the Australian week. Every Monday morning: today's slate in your time, the Experts' calls, Aussie watch and the mailbag.</p>
+            <form class="cap-form" id="sub-form">
+              <input type="email" id="sub-email" placeholder="your@email.com" required autocomplete="email">
+              <button class="watch" type="submit">Sign me up</button>
+            </form>
+            <div class="cap-note" id="sub-note"></div>
+          </div>
+          <div class="cap-card">
+            <div class="cap-h">🎙 Ask the Experts — the Mailbag</div>
+            <p class="cap-p">Got a question about the game, the MCG, or why punters are national heroes? <b>The best question each week gets answered on the show.</b></p>
+            <form class="cap-form cap-form-col" id="mb-form">
+              <textarea id="mb-q" rows="3" placeholder="Your question for Cam & Ben…" required></textarea>
+              <div class="cap-row">
+                <input type="text" id="mb-name" placeholder="Name & suburb (e.g. Chris from Geelong)">
+                <input type="email" id="mb-email" placeholder="Email (optional — so we can tell you if you're on the show)">
+              </div>
+              <button class="watch" type="submit">Send it in</button>
+            </form>
+            <div class="cap-note" id="mb-note"></div>
+          </div>
+        </div>
       </div>
     </div>`;
 
@@ -439,7 +465,29 @@
     $("ribbon-sub").innerHTML = episodeHTML || ("Every game in " + TZ_LABEL[tz] + " time, one tap to stream.");
   }
 
+  async function postJSON(url, body) {
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    return r.json();
+  }
+
+  function bindCapture() {
+    const subForm = $("sub-form"), mbForm = $("mb-form");
+    if (subForm) subForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const res = await postJSON("/api/subscribe", { email: $("sub-email").value }).catch(() => ({ ok: false, error: "Network hiccup — try again." }));
+      $("sub-note").textContent = res.ok ? "You're in — first issue lands Monday morning. ☕" : (res.error || "Try again.");
+      if (res.ok) { subForm.reset(); toast("Signed up for the Monday Armchair"); }
+    });
+    if (mbForm) mbForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const res = await postJSON("/api/mailbag", { question: $("mb-q").value, name: $("mb-name").value, email: $("mb-email").value }).catch(() => ({ ok: false, error: "Network hiccup — try again." }));
+      $("mb-note").textContent = res.ok ? "In the bag — listen out for your name on the show. 🎙" : (res.error || "Try again.");
+      if (res.ok) { mbForm.reset(); toast("Question sent to the Experts"); }
+    });
+  }
+
   function bindHubControls() {
+    bindCapture();
     view.querySelectorAll("[data-tz]").forEach((b) => {
       b.setAttribute("aria-pressed", String(b.getAttribute("data-tz") === tz));
       b.addEventListener("click", () => {

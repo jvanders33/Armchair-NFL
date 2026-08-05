@@ -290,6 +290,31 @@ body.landing{
 .land-soc a:hover{border-color:var(--accent); color:var(--accent); transform:translateY(-2px);
   box-shadow:0 0 14px color-mix(in srgb, var(--accent) 45%, transparent)}
 
+/* capture — Monday Armchair + mailbag */
+.capture{display:grid; grid-template-columns:1fr 1.15fr; gap:14px}
+@media (max-width:820px){.capture{grid-template-columns:1fr}}
+.cap-card{
+  border:1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius:16px;
+  background:
+    radial-gradient(500px 200px at 85% -30%, color-mix(in srgb, var(--red-deep) 40%, transparent), transparent 60%),
+    var(--card);
+  padding:20px 22px;
+}
+.cap-h{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:20px; letter-spacing:.03em}
+.cap-p{font-size:13px; color:var(--ink-2); line-height:1.5; margin:8px 0 12px}
+.cap-p b{color:var(--ink)}
+.cap-form{display:flex; gap:8px}
+.cap-form-col{flex-direction:column}
+.cap-row{display:flex; gap:8px; flex-wrap:wrap}
+.cap-row input{flex:1 1 180px}
+.cap-form input, .cap-form textarea{
+  flex:1; background:var(--card-2); border:1px solid var(--line); border-radius:10px;
+  color:var(--ink); font-family:var(--f-body); font-size:13px; padding:11px 13px; min-width:0; resize:vertical;
+}
+.cap-form input:focus, .cap-form textarea:focus{outline:none; border-color:var(--accent)}
+.cap-form .watch{align-self:flex-start; white-space:nowrap}
+.cap-note{font-size:12px; color:var(--go); font-weight:600; margin-top:8px; min-height:16px}
+
 /* A Sporting Christmas */
 .xmas-hero{background:
   radial-gradient(700px 280px at 88% -20%, color-mix(in srgb, #1E9E67 30%, transparent), transparent 60%),
