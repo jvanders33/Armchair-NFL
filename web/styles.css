@@ -798,3 +798,8 @@ a.show-card:hover .sc-img{transform:scale(1.04)}
 .hero-split.hero-solo .lead{min-height:400px}
 
 .roster-empty p{margin:0 0 14px; color:var(--ink-2); font-size:14px; line-height:1.55}
+
+/* a headline without art still earns its place — give it presence */
+.story.no-art{background:linear-gradient(160deg, color-mix(in srgb, var(--red-deep) 22%, var(--card)), var(--card))}
+.story.no-art .st-body{padding:16px 15px 15px; justify-content:center; min-height:104px}
+.story.no-art .st-t{font-size:15px; line-height:1.3}

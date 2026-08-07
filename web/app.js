@@ -75,7 +75,7 @@
         </div>
         ${league === "nfl" ? '<section id="rtg-rail"></section>' : ""}
         <section id="news-wrap" hidden>
-          <div class="section-h" style="margin-top:28px">The Big Stories <span class="n">· live from the wires</span></div>
+          <div class="section-h" style="margin-top:28px">The Big Stories <span class="n" id="news-note">· live from the wires</span></div>
           <div class="news-grid" id="news"></div>
         </section>
         <div class="section-h" style="margin-top:30px">Game of the Week</div>
@@ -228,7 +228,7 @@
           <span class="lead-tag">● Top story</span>
           <h2 class="lead-h">${esc(s.headline)}</h2>
           ${s.description ? `<p class="lead-d">${esc(s.description)}</p>` : ""}
-          <span class="lead-src">ESPN · read the story →</span>
+          <span class="lead-src">${esc(s.source || "")} · read the story →</span>
         </div>
       </a>
       <div class="lead-dots">
@@ -429,13 +429,18 @@
     const stories = (featured && featured.more) || [];
     if (!stories.length) { wrap.hidden = true; return; }
     $("news").innerHTML = stories.map((s) => `
-      <a class="story" href="${esc(s.link)}" target="_blank" rel="noopener">
-        <span class="st-img"><img src="${esc(s.image)}" alt="" loading="lazy"></span>
+      <a class="story${s.image ? "" : " no-art"}" href="${esc(s.link)}" target="_blank" rel="noopener">
+        ${s.image ? `<span class="st-img"><img src="${esc(s.image)}" alt="" loading="lazy"></span>` : ""}
         <span class="st-body">
           <span class="st-t">${esc(s.headline)}</span>
-          <span class="st-m">ESPN${s.published ? " · " + timeAgo(s.published) : ""}</span>
+          <span class="st-m">${esc(s.source || "")}${s.published ? " · " + timeAgo(s.published) : ""}</span>
         </span>
       </a>`).join("");
+    const note = $("news-note");
+    if (note && featured.outlets && featured.outlets.length) {
+      note.textContent = `· ${featured.count} stories from ${featured.outlets.length}+ outlets`;
+      note.title = featured.outlets.join(" · ");
+    }
     wrap.hidden = false;
   }
 

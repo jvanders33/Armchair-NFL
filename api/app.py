@@ -10,7 +10,10 @@ Run locally:  uvicorn api.app:app --app-dir <repo> --port 8020
 """
 import json
 import math
+import re
 import time
+import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -626,38 +629,207 @@ def api_christmas():
         return {"teams": []}
 
 
-@app.get("/api/featured")
-def featured(league: str = "nfl"):
-    """Image-led lead stories for the hub hero (ESPN news feed, 15-min cache).
+# ---------- news aggregation: the biggest stories, every outlet ----------
+# One feed is a wire service; many feeds is an editor. Same principle as the
+# AFL build's movement tracker — sweep everyone, rank what matters.
 
-    Editorially pinned items from experts.json ride at the front — the test is
-    impact, not nationality: the biggest story in the sport leads.
-    """
+GNEWS = "https://news.google.com/rss/search?q={}&hl=en-AU&gl=AU&ceid=AU:en"
+
+# Two tiers, same idea as the AFL build's movement tracker:
+#   outlet — named publishers with clean feeds, and crucially with photography
+#   sweep  — a Google News query that catches every masthead without a usable
+#            feed (News Corp, Nine, Seven, club sites, the paywalled ones)
+NEWS_FEEDS = {
+    "nfl": [
+        ("outlet", "The Athletic", "https://theathletic.com/nfl/?rss=1"),
+        ("outlet", "CBS Sports", "https://www.cbssports.com/rss/headlines/nfl/"),
+        ("outlet", "Pro Football Talk", "https://profootballtalk.nbcsports.com/feed/"),
+        ("outlet", "The Guardian", "https://www.theguardian.com/sport/nfl/rss"),
+        ("outlet", "Yahoo Sports", "https://sports.yahoo.com/nfl/rss.xml"),
+        ("outlet", "BBC Sport", "https://feeds.bbci.co.uk/sport/american-football/rss.xml"),
+        ("sweep", "", GNEWS.format("NFL%20when:3d")),
+    ],
+    "afl": [
+        ("outlet", "The Guardian", "https://www.theguardian.com/sport/australian-rules-football/rss"),
+        ("outlet", "The Age", "https://www.theage.com.au/rss/sport/afl.xml"),
+        ("outlet", "Sydney Morning Herald", "https://www.smh.com.au/rss/sport/afl.xml"),
+        ("outlet", "Zero Hanger", "https://zerohanger.com/feed/"),
+        ("outlet", "The Roar", "https://www.theroar.com.au/afl/feed/"),
+        ("sweep", "", GNEWS.format("AFL%20when:2d")),
+    ],
+    "nbl": [
+        ("outlet", "The Guardian", "https://www.theguardian.com/sport/basketball/rss"),
+        ("sweep", "", GNEWS.format("NBL%20basketball%20Australia%20when:7d")),
+    ],
+}
+
+
+NEWS_RELEVANCE = {
+    "nbl": re.compile(
+        r"NBL|Boomers|Opals|36ers|Taipans|Bullets|Breakers|JackJumpers|"
+        r"Hawks|Kings|Melbourne United|Phoenix|Wildcats|Australian basketball", re.I),
+}
+
+
+_IMG_TAGS = ("content", "thumbnail", "enclosure", "image")
+_IMG_RE = re.compile(r'<img[^>]+src=["\']([^"\']+)', re.I)
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _feed_image(item) -> str | None:
+    """RSS puts art in half a dozen places depending on the publisher."""
+    for t in item.iter():
+        tag = t.tag.split("}")[-1]
+        if tag in _IMG_TAGS:
+            url = t.get("url") or t.get("href")
+            if url and any(url.lower().split("?")[0].endswith(e) for e in (".jpg", ".jpeg", ".png", ".webp")):
+                return url
+            if url and ("image" in (t.get("type") or "") or tag == "thumbnail"):
+                return url
+    for field in ("description", "{http://purl.org/rss/1.0/modules/content/}encoded"):
+        blob = item.findtext(field) or ""
+        m = _IMG_RE.search(blob)
+        if m:
+            return m.group(1)
+    return None
+
+
+def _clean(text: str, limit: int = 200) -> str:
+    return _TAG_RE.sub("", text or "").replace("&nbsp;", " ").strip()[:limit]
+
+
+def _parse_feed(kind: str, source: str, url: str) -> list[dict]:
+    try:
+        r = requests.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0 (compatible; ArmchairExperts/1.0)"})
+        r.raise_for_status()
+        root = ET.fromstring(r.content)
+    except Exception:
+        return []
+    out = []
+    cap = 25 if kind == "sweep" else 12
+    for it in root.findall(".//item")[:cap]:
+        title = _clean(it.findtext("title") or "", 170)
+        link = (it.findtext("link") or "").strip()
+        if not title or not link:
+            continue
+        src = source
+        if kind == "sweep":
+            # Google News names the publisher in a <source> node and again as a
+            # " - Publisher" suffix on the headline; keep the former, drop the latter.
+            node = it.find("source")
+            src = (node.text if node is not None else "") or "Google News"
+            if src and title.endswith(" - " + src):
+                title = title[: -len(" - " + src)].rstrip(" -")
+        out.append({
+            "headline": title,
+            "description": "" if kind == "sweep" else _clean(it.findtext("description") or "", 180),
+            "image": _feed_image(it),
+            "link": link,
+            "source": src,
+            "published": it.findtext("pubDate") or "",
+        })
+    return out
+
+
+def _pub_ts(s: str) -> float:
+    for fmt in ("%a, %d %b %Y %H:%M:%S %z", "%a, %d %b %Y %H:%M:%S %Z", "%Y-%m-%dT%H:%M:%S%z"):
+        try:
+            return datetime.strptime(s.strip(), fmt).timestamp()
+        except (ValueError, AttributeError):
+            continue
+    return 0.0
+
+
+def _dedupe_key(headline: str) -> str:
+    words = re.sub(r"[^a-z0-9 ]", "", headline.lower()).split()
+    return " ".join(w for w in words if len(w) > 3)[:60]
+
+
+def _espn_api_stories(league: str) -> list[dict]:
+    """ESPN's JSON feed — its RSS has no art, but this does."""
     try:
         payload = _get_json(f"{_site(league)}/news", {"limit": "24"}, ttl=900)
     except requests.RequestException:
-        payload = {"articles": []}
+        return []
     out = []
-    for pin in ((_load_experts().get("featured_pins") or []) if league == "nfl" else []):
-        if pin.get("headline") and pin.get("image"):
-            out.append({"headline": pin["headline"], "description": pin.get("description", ""),
-                        "image": pin["image"], "link": pin.get("link", ""),
-                        "published": "", "pinned": True})
     for a in payload.get("articles", []):
         imgs = a.get("images") or []
         img = next((i.get("url") for i in imgs if i.get("url")), None)
         link = ((a.get("links") or {}).get("web") or {}).get("href", "")
-        if not (img and a.get("headline") and link):
+        if not (a.get("headline") and link):
             continue
         out.append({
-            "headline": a["headline"],
-            "description": (a.get("description") or "")[:180],
-            "image": img,
-            "link": link,
-            "published": a.get("published", ""),
+            "headline": a["headline"], "description": (a.get("description") or "")[:180],
+            "image": img, "link": link, "source": "ESPN", "published": a.get("published", ""),
         })
-    # lead = the hero carousel; more = the image grid beneath it
-    return {"stories": out[:5], "more": out[5:17], "source": "ESPN"}
+    return out
+
+
+def _aggregate_news(league: str) -> list[dict]:
+    cache_key = f"news:{league}"
+    hit = _cache.get(cache_key)
+    if hit and time.time() - hit[0] < 900:
+        return hit[1]
+
+    stories = []
+    feeds = NEWS_FEEDS.get(league, [])
+    with ThreadPoolExecutor(max_workers=min(10, len(feeds) + 1)) as ex:
+        futures = [ex.submit(_parse_feed, kind, name, url) for kind, name, url in feeds]
+        futures.append(ex.submit(_espn_api_stories, league))
+        for f in as_completed(futures, timeout=20):
+            try:
+                stories.extend(f.result() or [])
+            except Exception:
+                continue
+
+    rel = NEWS_RELEVANCE.get(league)
+    seen, merged = {}, []
+    for s in stories:
+        if rel and not rel.search(s["headline"] + " " + s.get("description", "")):
+            continue
+        k = _dedupe_key(s["headline"])
+        if not k:
+            continue
+        if k in seen:
+            # same story from two outlets — keep whichever has art
+            if not seen[k].get("image") and s.get("image"):
+                seen[k]["image"] = s["image"]
+            continue
+        seen[k] = s
+        merged.append(s)
+
+    for s in merged:
+        s["ts"] = _pub_ts(s.get("published", ""))
+    # freshest first, but a story with art outranks a bare headline of similar age
+    merged.sort(key=lambda s: (s["ts"] + (43200 if s.get("image") else 0)), reverse=True)
+    _cache[cache_key] = (time.time(), merged)
+    return merged
+
+
+@app.get("/api/featured")
+def featured(league: str = "nfl"):
+    """The biggest stories across every outlet — hero carousel + image grid.
+
+    Editorial pins ride at the front; after that it's freshness with a nudge
+    for stories that brought art, so the page always has pictures.
+    """
+    _cfg(league)
+    stories = []
+    for pin in ((_load_experts().get("featured_pins") or []) if league == "nfl" else []):
+        if pin.get("headline") and pin.get("image"):
+            stories.append({"headline": pin["headline"], "description": pin.get("description", ""),
+                            "image": pin["image"], "link": pin.get("link", ""),
+                            "source": pin.get("source", "Armchair Experts"),
+                            "published": "", "pinned": True})
+    stories += _aggregate_news(league)
+
+    withart = [s for s in stories if s.get("image")]
+    noart = [s for s in stories if not s.get("image")]
+    lead = withart[:5]                       # the carousel needs pictures
+    grid = (withart[5:17] + noart)[:12]      # the grid takes art first, then the rest
+    outlets = sorted({s["source"] for s in stories if s.get("source")})
+    return {"stories": lead, "more": grid, "outlets": outlets[:12],
+            "count": len(stories), "source": "aggregated"}
 
 
 @app.get("/api/shows")
