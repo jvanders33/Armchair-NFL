@@ -568,6 +568,30 @@ def api_christmas():
         return {"teams": []}
 
 
+@app.get("/api/featured")
+def featured():
+    """Image-led lead stories for the hub hero (ESPN news feed, 15-min cache)."""
+    try:
+        payload = _get_json(f"{ESPN_SITE}/news", ttl=900)
+    except requests.RequestException:
+        return {"stories": []}
+    out = []
+    for a in payload.get("articles", [])[:6]:
+        imgs = a.get("images") or []
+        img = next((i.get("url") for i in imgs if i.get("url")), None)
+        link = ((a.get("links") or {}).get("web") or {}).get("href", "")
+        if not (img and a.get("headline") and link):
+            continue
+        out.append({
+            "headline": a["headline"],
+            "description": (a.get("description") or "")[:180],
+            "image": img,
+            "link": link,
+            "published": a.get("published", ""),
+        })
+    return {"stories": out, "source": "ESPN"}
+
+
 @app.get("/api/shows")
 def api_shows():
     try:

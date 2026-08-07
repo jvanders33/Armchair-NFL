@@ -216,6 +216,51 @@ a.team{text-decoration:none; color:inherit}
 .team .rec .sc{color:var(--ink);font-weight:800;font-size:14px}
 .at{color:var(--muted); font-family:var(--f-cond); font-size:16px; padding:0 4px}
 
+/* hub hero — lead story left, MCG countdown right */
+.hero-split{display:grid; grid-template-columns:1.45fr 1fr; gap:16px; margin-top:20px; align-items:stretch}
+@media (max-width:900px){.hero-split{grid-template-columns:1fr}}
+.hero-split > *{min-width:0}
+
+.lead{
+  position:relative; display:block; border-radius:18px; overflow:hidden; text-decoration:none;
+  border:1px solid var(--line); min-height:340px; height:100%;
+  box-shadow:0 14px 38px rgba(0,0,0,.45);
+}
+.lead-img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:transform .5s ease}
+.lead:hover .lead-img{transform:scale(1.04)}
+.lead-scrim{position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(10,3,6,.05) 30%, rgba(10,3,6,.82) 72%, rgba(10,3,6,.96) 100%)}
+.lead-body{position:absolute; left:0; right:0; bottom:0; padding:22px 24px 24px}
+.lead-tag{
+  display:inline-block; font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; font-weight:800;
+  background:var(--accent); color:#fff; padding:4px 9px; border-radius:6px; margin-bottom:10px;
+  box-shadow:0 0 14px color-mix(in srgb,var(--accent) 55%, transparent);
+}
+.lead-h{
+  font-family:var(--f-display); font-weight:400; text-transform:uppercase; letter-spacing:.008em;
+  font-size:clamp(24px, 2.6vw, 33px); line-height:1.0; color:#fff; margin:0;
+  text-shadow:0 2px 16px rgba(0,0,0,.7);
+}
+.lead-d{font-size:13px; color:rgba(255,255,255,.82); line-height:1.45; margin:9px 0 0; max-width:52ch}
+.lead-src{display:inline-block; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:var(--accent); margin-top:10px}
+.lead-dots{position:absolute; top:16px; right:16px; display:flex; gap:6px; z-index:3}
+.lead-dot{
+  width:8px; height:8px; border-radius:50%; border:none; cursor:pointer; padding:0;
+  background:rgba(255,255,255,.42); transition:background .15s, transform .15s;
+}
+.lead-dot:hover{transform:scale(1.25)}
+.lead-dot.on{background:var(--accent); box-shadow:0 0 10px var(--accent)}
+
+/* countdown card in the right column */
+.rtg-tall{height:100%; display:flex; flex-direction:column; margin-top:0}
+.rtg-tall .rtg-stack{display:flex; flex-direction:column; align-items:center; gap:12px; padding:8px 20px 20px; text-align:center; flex:1; justify-content:center}
+.rtg-tall .rtg-mu img{width:56px; height:56px}
+.rtg-tall .rtg-nm{font-size:22px}
+.rtg-tall .rtg-cd{font-size:34px}
+.rtg-tall .rtg-arc{justify-content:center; margin-top:2px}
+.rtg-railonly{margin-top:16px}
+.rtg-railonly .rtg-rail{border-top:none}
+
 /* Road to the G */
 .rtg{
   margin-top:20px; border:1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
@@ -319,6 +364,26 @@ body.landing{
 }
 .land-soc a:hover{border-color:var(--accent); color:var(--accent); transform:translateY(-2px);
   box-shadow:0 0 14px color-mix(in srgb, var(--accent) 45%, transparent)}
+
+/* league sub-nav (sits under the primary nav, inside a league section) */
+.subnav{border-bottom:1px solid var(--line); background:color-mix(in srgb, var(--ground-2) 70%, transparent)}
+.subnav .shell{display:flex; align-items:center; gap:6px; padding:0 20px; overflow-x:auto; scrollbar-width:none}
+.subnav .shell::-webkit-scrollbar{display:none}
+.subnav .sn-league{
+  display:inline-flex; align-items:center; gap:8px; padding:9px 14px 9px 0; margin-right:6px; flex:none;
+  border-right:1px solid var(--line);
+}
+.subnav .sn-league img{width:24px; height:24px; object-fit:contain}
+.subnav .sn-league span{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:15px; letter-spacing:.1em; color:var(--ink)}
+.subnav a{
+  flex:none; display:inline-block; padding:10px 13px 8px; text-decoration:none;
+  font-family:var(--f-cond); text-transform:uppercase; letter-spacing:.08em; font-weight:600; font-size:14px;
+  color:var(--muted); border-bottom:2.5px solid transparent; transition:color .12s, border-color .12s;
+}
+.subnav a:hover{color:var(--ink-2)}
+.subnav a.on{color:var(--accent); border-bottom-color:var(--accent)}
+.nav-util:first-of-type{margin-left:auto}
+.nav-util{font-size:14px; color:color-mix(in srgb, var(--muted) 85%, transparent)}
 
 /* audience page */
 .aud-hero{background:

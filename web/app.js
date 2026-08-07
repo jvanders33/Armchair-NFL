@@ -56,7 +56,8 @@
   // WHAT TO WATCH (hub)
   // =====================================================================
 
-  const HUB_HTML = `
+  const hubHTML = () => `
+    ${nflSubnav("watch")}
     <div class="ribbon">
       <div class="shell">
         <button class="wknav" id="wk-prev" aria-label="Previous week">‹</button>
@@ -68,7 +69,11 @@
     <div class="shell">
       <div id="loading" class="loading">Fetching the live slate…</div>
       <div id="content" hidden>
-        <section id="rtg"></section>
+        <div class="hero-split">
+          <section id="lead"></section>
+          <section id="rtg"></section>
+        </div>
+        <section id="rtg-rail"></section>
         <section id="news-wrap" hidden>
           <div class="section-h" style="margin-top:28px">The Big Stories <span class="n">· live from the wires</span></div>
           <div class="news-grid" id="news"></div>
@@ -191,31 +196,30 @@
     }
 
     el.innerHTML = `
-      <div class="rtg">
+      <div class="rtg rtg-tall">
         <div class="rtg-top">
-          <span class="rtg-ey">🏟 ${esc(s.title || "California to the G")}</span>
-          <span class="rtg-arc">${stages.map((x, i) => `<b class="${i === stage ? "on" : ""}">${x}</b>`).join("<i>→</i>")}</span>
+          <span class="rtg-ey">🏟 ${esc(s.title || "Cali to the 'G")}</span>
         </div>
-        <div class="rtg-body">
+        <div class="rtg-stack">
           <div class="rtg-mu">
             <img src="${esc(g.away.logo)}" alt="${esc(g.away.displayName)}">
             <span class="vs">vs</span>
             <img src="${esc(g.home.logo)}" alt="${esc(g.home.displayName)}">
-            <div class="rtg-names">
-              <div class="rtg-nm">${esc(g.away.name)} vs ${esc(g.home.name)}</div>
-              <div class="rtg-venue">${esc(g.venue)} · the NFL's first game in Australia</div>
-            </div>
+          </div>
+          <div class="rtg-names">
+            <div class="rtg-nm">${esc(g.away.name)} vs ${esc(g.home.name)}</div>
+            <div class="rtg-venue">${esc(g.venue)} · the NFL's first game in Australia</div>
           </div>
           ${centre}
-          <div class="rtg-cta">
-            <a class="watch" target="_blank" rel="noopener" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}"
-               href="https://www.disneyplus.com/?utm_source=armchair&utm_medium=rtg&utm_campaign=mcg&utm_content=${esc(g.away.abbr)}@${esc(g.home.abbr)}">
-               <span class="tv">▶</span> ${done ? "Relive it on Disney+" : "Watch it live on Disney+"}</a>
-            <div class="rtg-your-tz">${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}</div>
-          </div>
+          <a class="watch" target="_blank" rel="noopener" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}"
+             href="https://www.disneyplus.com/?utm_source=armchair&utm_medium=rtg&utm_campaign=mcg&utm_content=${esc(g.away.abbr)}@${esc(g.home.abbr)}">
+             <span class="tv">▶</span> ${done ? "Relive it on Disney+" : "Watch it live on Disney+"}</a>
+          <div class="rtg-your-tz">${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}</div>
+          <div class="rtg-arc">${stages.map((x, i) => `<b class="${i === stage ? "on" : ""}">${x}</b>`).join("<i>→</i>")}</div>
         </div>
-        ${adventRailHTML(s)}
       </div>`;
+    const rail = $("rtg-rail");
+    if (rail) rail.innerHTML = `<div class="rtg rtg-railonly">${adventRailHTML(s)}</div>`;
 
     bindWatch(el);
     clearInterval(rtgTimer);
@@ -231,6 +235,52 @@
       tick();
       rtgTimer = setInterval(tick, 1000);
     }
+  }
+
+  // ---------- lead story (image-led, auto-rotating) ----------
+  let leadTimer = null, leadIdx = 0, leadStories = [];
+
+  function paintLead() {
+    const el = $("lead");
+    if (!el || !leadStories.length) return;
+    const s = leadStories[leadIdx];
+    el.innerHTML = `
+      <a class="lead" href="${esc(s.link)}" target="_blank" rel="noopener">
+        <img class="lead-img" src="${esc(s.image)}" alt="">
+        <div class="lead-scrim"></div>
+        <div class="lead-body">
+          <span class="lead-tag">● Top story</span>
+          <h2 class="lead-h">${esc(s.headline)}</h2>
+          ${s.description ? `<p class="lead-d">${esc(s.description)}</p>` : ""}
+          <span class="lead-src">ESPN · read the story →</span>
+        </div>
+      </a>
+      <div class="lead-dots">
+        ${leadStories.map((_, i) => `<button class="lead-dot${i === leadIdx ? " on" : ""}" data-lead="${i}" aria-label="Story ${i + 1}"></button>`).join("")}
+      </div>`;
+    el.querySelectorAll("[data-lead]").forEach((b) => {
+      b.addEventListener("click", () => {
+        leadIdx = +b.getAttribute("data-lead");
+        clearInterval(leadTimer);
+        paintLead();
+        leadTimer = setInterval(rotateLead, 7000);
+      });
+    });
+  }
+
+  function rotateLead() {
+    if (!leadStories.length) return;
+    leadIdx = (leadIdx + 1) % leadStories.length;
+    paintLead();
+  }
+
+  function renderLead(featured) {
+    clearInterval(leadTimer);
+    leadStories = (featured && featured.stories) || [];
+    leadIdx = 0;
+    if (!leadStories.length) { const el = $("lead"); if (el) el.innerHTML = ""; return; }
+    paintLead();
+    leadTimer = setInterval(rotateLead, 7000);
   }
 
   function why(g) {
@@ -512,11 +562,12 @@
     $("content").hidden = true;
     const qs = weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "";
     try {
-      const [sched, aus, rtg, news] = await Promise.all([
+      const [sched, aus, rtg, news, featured] = await Promise.all([
         fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
         aussies.length ? Promise.resolve(null) : fetchJSON("/api/aussies"),
         fetchJSON("/api/road-to-the-g").catch(() => null),
         fetchJSON("/api/news").catch(() => null),
+        fetchJSON("/api/featured").catch(() => null),
       ]);
       hubData = sched;
       if (aus) aussies = aus.players || [];
@@ -529,7 +580,7 @@
       } else {
         episodeHTML = "";
       }
-      renderRibbon(); renderRtg(rtg); renderNews(news); renderGotw(); renderSlate(); renderAussies(); setTzNote();
+      renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(news); renderGotw(); renderSlate(); renderAussies(); setTzNote();
       $("loading").hidden = true;
       $("content").hidden = false;
     } catch (err) {
@@ -538,7 +589,7 @@
   }
 
   function showHub() {
-    view.innerHTML = HUB_HTML;
+    view.innerHTML = hubHTML();
     bindHubControls();
     loadHub();
   }
@@ -551,7 +602,7 @@
     view.innerHTML = `<div class="shell"><div class="loading">Loading the 32 clubs…</div></div>`;
     try {
       const d = await fetchJSON("/api/teams");
-      view.innerHTML = `<div class="shell">
+      view.innerHTML = `${nflSubnav("teams")}<div class="shell">
         ${pageHero("NFL", `All <em>32 teams</em>.`, "Every roster, every player, every career. Pick a club and go as deep as you like.")}
         ${d.divisions.map((div) => `
           <div class="div-h">${esc(div.name)}</div>
@@ -584,6 +635,7 @@
       }
       const aussieCount = d.groups.reduce((n, g) => n + g.players.filter((p) => p.aussie).length, 0);
       view.innerHTML = `
+        ${nflSubnav("teams")}
         <div class="team-hero" style="background:linear-gradient(120deg,#${esc(t.color || "222")}E6,#${esc(t.color || "222")}66),var(--card)">
           <div class="shell">
             <a class="crumb" href="#/teams">← All teams</a>
@@ -647,6 +699,7 @@
         p.birthplace ? "Born: " + p.birthplace : "",
       ].filter(Boolean);
       view.innerHTML = `
+        ${nflSubnav("teams")}
         <div class="team-hero" style="background:linear-gradient(120deg,#${esc(p.team.color || "222")}E6,#${esc(p.team.color || "222")}66),var(--card)">
           <div class="shell">
             ${p.team.abbr ? `<a class="crumb" href="#/team/${esc(p.team.abbr)}">← ${esc(p.team.displayName)}</a>` : `<a class="crumb" href="#/teams">← Teams</a>`}
@@ -838,6 +891,20 @@
   // LEAGUES — the code picker (Spotrac pattern: one platform, many leagues)
   // =====================================================================
 
+  // League sub-nav — NFL's own pages live here, not in the primary nav.
+  function nflSubnav(active) {
+    const items = [
+      { k: "watch", label: "What to Watch", href: "#/nfl" },
+      { k: "teams", label: "Teams & Players", href: "#/teams" },
+    ];
+    return `<nav class="subnav" aria-label="NFL sections"><div class="shell">
+      <a class="sn-league" href="#/leagues" title="All leagues">
+        <img src="${LG_LOGO("nfl")}" alt=""><span>NFL</span>
+      </a>
+      ${items.map((i) => `<a href="${i.href}" class="${i.k === active ? "on" : ""}">${esc(i.label)}</a>`).join("")}
+    </div></nav>`;
+  }
+
   // Shared page hero — big condensed title with the accent word picked out.
   function pageHero(eyebrowTxt, titleHTML, subTxt) {
     return `<div class="pg-head">
@@ -847,7 +914,7 @@
     </div>`;
   }
 
-  const LG_LOGO = (k) => `https://a.espncdn.com/i/teamlogos/leagues/500-dark/${k}.png`;
+  function LG_LOGO(k) { return `https://a.espncdn.com/i/teamlogos/leagues/500-dark/${k}.png`; }
   const LEAGUES = [
     { key: "NFL", name: "NFL", logo: LG_LOGO("nfl"), c1: "#013369", c2: "#D50A0A", status: "live",
       tag: "American football", line: "Every game in your time",
@@ -1152,6 +1219,7 @@
     const h = location.hash || "#/";
     let m;
     clearInterval(rtgTimer);
+    clearInterval(leadTimer);
     window.scrollTo(0, 0);
     const isLanding = h === "#/" || h === "" || h === "#";
     document.body.classList.toggle("landing", isLanding);
