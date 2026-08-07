@@ -576,7 +576,7 @@ def featured():
     impact, not nationality: the biggest story in the sport leads.
     """
     try:
-        payload = _get_json(f"{ESPN_SITE}/news", ttl=900)
+        payload = _get_json(f"{ESPN_SITE}/news", {"limit": "24"}, ttl=900)
     except requests.RequestException:
         payload = {"articles": []}
     out = []
@@ -585,7 +585,7 @@ def featured():
             out.append({"headline": pin["headline"], "description": pin.get("description", ""),
                         "image": pin["image"], "link": pin.get("link", ""),
                         "published": "", "pinned": True})
-    for a in payload.get("articles", [])[:6]:
+    for a in payload.get("articles", []):
         imgs = a.get("images") or []
         img = next((i.get("url") for i in imgs if i.get("url")), None)
         link = ((a.get("links") or {}).get("web") or {}).get("href", "")
@@ -598,7 +598,8 @@ def featured():
             "link": link,
             "published": a.get("published", ""),
         })
-    return {"stories": out[:6], "source": "ESPN"}
+    # lead = the hero carousel; more = the image grid beneath it
+    return {"stories": out[:5], "more": out[5:17], "source": "ESPN"}
 
 
 @app.get("/api/shows")

@@ -99,31 +99,6 @@
         <div class="section-h" style="margin-top:32px">Aussies in the NFL <span class="n" id="aus-note">· this week</span></div>
         <div class="aus" id="aus"></div>
 
-        <div class="section-h" style="margin-top:34px">The Monday Armchair <span class="n">· every NFL Monday, 5 minutes with your coffee</span></div>
-        <div class="capture">
-          <div class="cap-card">
-            <div class="cap-h">📬 Get the Monday Armchair</div>
-            <p class="cap-p">Sunday football is <b>Monday daytime here</b> — the best sports day of the Australian week. Every Monday morning: today's slate in your time, the Experts' calls, Aussie watch and the mailbag.</p>
-            <form class="cap-form" id="sub-form">
-              <input type="email" id="sub-email" placeholder="your@email.com" required autocomplete="email">
-              <button class="watch" type="submit">Sign me up</button>
-            </form>
-            <div class="cap-note" id="sub-note"></div>
-          </div>
-          <div class="cap-card">
-            <div class="cap-h">🎙 Ask the Experts — the Mailbag</div>
-            <p class="cap-p">Got a question about the game, the MCG, or why punters are national heroes? <b>The best question each week gets answered on the show.</b></p>
-            <form class="cap-form cap-form-col" id="mb-form">
-              <textarea id="mb-q" rows="3" placeholder="Your question for Cam & Ben…" required></textarea>
-              <div class="cap-row">
-                <input type="text" id="mb-name" placeholder="Name & suburb (e.g. Chris from Geelong)">
-                <input type="email" id="mb-email" placeholder="Email (optional — so we can tell you if you're on the show)">
-              </div>
-              <button class="watch" type="submit">Send it in</button>
-            </form>
-            <div class="cap-note" id="mb-note"></div>
-          </div>
-        </div>
       </div>
     </div>`;
 
@@ -447,14 +422,17 @@
     return Math.floor(h / 24) + "d ago";
   }
 
-  function renderNews(news) {
+  function renderNews(featured) {
     const wrap = $("news-wrap");
-    const stories = news && news.stories ? news.stories : [];
+    const stories = (featured && featured.more) || [];
     if (!stories.length) { wrap.hidden = true; return; }
-    $("news").innerHTML = stories.map((s, i) => `
-      <a class="story${i === 0 ? " lead" : ""}" href="${esc(s.link)}" target="_blank" rel="noopener">
-        <span class="st-t">${esc(s.title)}</span>
-        <span class="st-m">${esc(s.source)}${s.published ? " · " + timeAgo(s.published) : ""}</span>
+    $("news").innerHTML = stories.map((s) => `
+      <a class="story" href="${esc(s.link)}" target="_blank" rel="noopener">
+        <span class="st-img"><img src="${esc(s.image)}" alt="" loading="lazy"></span>
+        <span class="st-body">
+          <span class="st-t">${esc(s.headline)}</span>
+          <span class="st-m">ESPN${s.published ? " · " + timeAgo(s.published) : ""}</span>
+        </span>
       </a>`).join("");
     wrap.hidden = false;
   }
@@ -538,7 +516,6 @@
   }
 
   function bindHubControls() {
-    bindCapture();
     view.querySelectorAll("[data-tz]").forEach((b) => {
       b.setAttribute("aria-pressed", String(b.getAttribute("data-tz") === tz));
       b.addEventListener("click", () => {
@@ -563,16 +540,15 @@
     $("content").hidden = true;
     const qs = weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "";
     try {
-      const [sched, aus, rtg, news, featured] = await Promise.all([
+      const [sched, aus, rtg, featured] = await Promise.all([
         fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
         aussies.length ? Promise.resolve(null) : fetchJSON("/api/aussies"),
         fetchJSON("/api/road-to-the-g").catch(() => null),
-        fetchJSON("/api/news").catch(() => null),
         fetchJSON("/api/featured").catch(() => null),
       ]);
       hubData = sched;
       if (aus) aussies = aus.players || [];
-      $("source-line").textContent = "Data: " + (hubData.source || "");
+
       const ep = hubData.experts && hubData.experts.episode;
       if (ep && ep.title) {
         const show = (hubData.experts.show || {});
@@ -581,7 +557,7 @@
       } else {
         episodeHTML = "";
       }
-      renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(news); renderGotw(); renderSlate(); renderAussies(); setTzNote();
+      renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(featured); renderGotw(); renderSlate(); renderAussies(); setTzNote();
       $("loading").hidden = true;
       $("content").hidden = false;
     } catch (err) {
@@ -969,14 +945,33 @@
             </div>
           </${l.href ? "a" : "div"}>`).join("")}
       </div>
-      <div class="lg-more">
-        <div>
-          <div class="lg-more-h">More codes, same spine</div>
-          <p class="lg-more-p">Live fixtures → data → interactive tools → shareable content. Adding a league is a configuration, not a rebuild — which is what makes this a platform rather than a website.</p>
+      <div class="section-h" style="margin-top:36px">The Monday Armchair <span class="n">· five minutes with your coffee</span></div>
+      <div class="capture">
+        <div class="cap-card">
+          <div class="cap-h">📬 Get the Monday Armchair</div>
+          <p class="cap-p">The week in sport, in your inbox — what happened, what's on, and what's worth your time.</p>
+          <form class="cap-form" id="sub-form">
+            <input type="email" id="sub-email" placeholder="your@email.com" required autocomplete="email">
+            <button class="watch" type="submit">Sign me up</button>
+          </form>
+          <div class="cap-note" id="sub-note"></div>
         </div>
-        <span class="lg-more-plus">+</span>
+        <div class="cap-card">
+          <div class="cap-h">🎙 Ask the Experts</div>
+          <p class="cap-p"><b>The best question each week gets answered on the show.</b></p>
+          <form class="cap-form cap-form-col" id="mb-form">
+            <textarea id="mb-q" rows="3" placeholder="Your question for the Experts…" required></textarea>
+            <div class="cap-row">
+              <input type="text" id="mb-name" placeholder="Name & suburb (e.g. Chris from Geelong)">
+              <input type="email" id="mb-email" placeholder="Email (optional)">
+            </div>
+            <button class="watch" type="submit">Send it in</button>
+          </form>
+          <div class="cap-note" id="mb-note"></div>
+        </div>
       </div>
     </div>`;
+    bindCapture();
   }
 
   // =====================================================================
