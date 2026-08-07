@@ -1,3 +1,15 @@
+/* ---- Type: self-hosted, no external requests ----
+   Anton = the shout (heroes, league names, wordmark).
+   Barlow Condensed = the workhorse condensed (section heads, nav, labels).
+   Inter = body copy. */
+@font-face{font-family:'Anton';src:url('/fonts/Anton-400.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Barlow Condensed';src:url('/fonts/BarlowCondensed-600.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Barlow Condensed';src:url('/fonts/BarlowCondensed-700.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'Inter';src:url('/fonts/Inter-400.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Inter';src:url('/fonts/Inter-500.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:'Inter';src:url('/fonts/Inter-600.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Inter';src:url('/fonts/Inter-700.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap}
+
 /* Armchair Experts brand system — iHeart-red deck styling:
    deep crimson-to-black gradients, red accents, white condensed display type. */
 :root{
@@ -6,8 +18,9 @@
   --accent:#F5294B; --accent-ink:#FFFFFF; --red-deep:#8C0F27; --glow-1:55%; --glow-2:30%; --live:#FFB020; --go:#43C58C;
   --shadow:0 12px 34px rgba(0,0,0,.5);
   --disney:#5AA7FF;
-  --f-body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --f-cond:"Arial Narrow","Roboto Condensed","Helvetica Neue Condensed","Helvetica Neue",sans-serif;
+  --f-body:'Inter',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-cond:'Barlow Condensed',"Arial Narrow","Roboto Condensed",sans-serif;
+  --f-display:'Anton','Barlow Condensed',"Arial Narrow",sans-serif;
 }
 /* Committed dark — this brand doesn't hedge. Light-mode viewers get the same
    look the show has (cf. McAfee, Barstool): one identity, no washed-out variant. */
@@ -33,8 +46,8 @@ a{color:inherit}
 .mast .shell{display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; padding-top:22px; padding-bottom:14px}
 .brand{display:flex; align-items:center; gap:12px}
 .brand .mark{
-  font-family:var(--f-cond); font-weight:700; letter-spacing:.015em; text-transform:uppercase;
-  font-size:34px; line-height:.9; color:var(--ink);
+  font-family:var(--f-display); font-weight:400; letter-spacing:.005em; text-transform:uppercase;
+  font-size:31px; line-height:.9; color:var(--ink);
   text-shadow:0 0 26px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 .brand .mark em{font-style:normal; color:var(--accent)}
@@ -74,7 +87,7 @@ a{color:inherit}
 .th-logo{width:84px;height:84px;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.35))}
 .ph{width:110px;height:82px;object-fit:contain;background:rgba(255,255,255,.14);border-radius:12px}
 .th-loc{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.8); font-weight:700}
-.th-name{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:clamp(40px,5.2vw,60px); line-height:.92; color:#fff; text-shadow:0 3px 24px rgba(0,0,0,.5)}
+.th-name{font-family:var(--f-display); text-transform:uppercase; font-weight:400; font-size:clamp(38px,4.9vw,57px); line-height:.94; letter-spacing:.008em; color:#fff; text-shadow:0 3px 24px rgba(0,0,0,.5)}
 .th-meta{font-size:13px; color:rgba(255,255,255,.85); margin-top:6px}
 .th-next{font-size:12px; color:rgba(255,255,255,.7); margin-top:4px}
 .th-watermark{position:absolute; right:-30px; top:-20px; width:180px; opacity:.14; pointer-events:none}
@@ -134,7 +147,7 @@ table.stats a{color:var(--accent); text-decoration:none; font-weight:700}
 .stat{border:1px solid var(--line); border-radius:16px; background:var(--card); padding:18px 19px;
   box-shadow:0 8px 22px rgba(0,0,0,.26); transition:transform .16s ease, border-color .16s ease}
 .stat:hover{transform:translateY(-2px); border-color:color-mix(in srgb, var(--accent) 40%, var(--line))}
-.stat-v{font-family:var(--f-cond); font-weight:700; font-size:44px; line-height:.92;
+.stat-v{font-family:var(--f-display); font-weight:400; font-size:42px; line-height:.95; letter-spacing:.01em;
   text-shadow:0 0 24px color-mix(in srgb, var(--accent) 22%, transparent)}
 .stat-l{font-size:12px; font-weight:700; margin-top:5px}
 .stat-s{font-size:11px; color:var(--muted); margin-top:2px}
@@ -185,7 +198,7 @@ a.team{text-decoration:none; color:inherit}
 
 .section-h{
   display:flex; align-items:baseline; gap:12px; margin:30px 0 14px; position:relative;
-  font-family:var(--f-cond); text-transform:uppercase; letter-spacing:.03em; font-weight:700; font-size:29px;
+  font-family:var(--f-display); text-transform:uppercase; letter-spacing:.015em; font-weight:400; font-size:27px;
   line-height:1; padding-left:16px;
 }
 .section-h::before{
@@ -198,7 +211,7 @@ a.team{text-decoration:none; color:inherit}
 .team{display:flex; align-items:center; gap:11px}
 .logo{width:40px;height:40px;flex:none;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
 .logo.sm{width:30px;height:30px}
-.team .nm{font-family:var(--f-cond);text-transform:uppercase;font-weight:700;font-size:36px;line-height:.9;letter-spacing:.005em}
+.team .nm{font-family:var(--f-display);text-transform:uppercase;font-weight:400;font-size:33px;line-height:.9;letter-spacing:.005em}
 .team .rec{color:var(--muted);font-size:12px;margin-top:2px}
 .team .rec .sc{color:var(--ink);font-weight:800;font-size:14px}
 .at{color:var(--muted); font-family:var(--f-cond); font-size:16px; padding:0 4px}
@@ -226,7 +239,7 @@ a.team{text-decoration:none; color:inherit}
 .rtg-nm{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:24px; line-height:.95}
 .rtg-venue{color:var(--ink-2); font-size:12.5px; margin-top:3px}
 .rtg-count{text-align:center}
-.rtg-cd{font-family:var(--f-cond); font-weight:700; font-size:34px; letter-spacing:.02em; line-height:.95}
+.rtg-cd{font-family:var(--f-display); font-weight:400; font-size:32px; letter-spacing:.02em; line-height:.95}
 .rtg-score{font-family:var(--f-cond); font-weight:700; font-size:28px}
 .rtg-cd-lbl{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-top:4px}
 .rtg-cta{display:flex; flex-direction:column; align-items:center; gap:7px}
@@ -282,14 +295,14 @@ body.landing{
 }
 .land-logo{width:min(330px, 62vw); display:block; border-radius:10px;
   filter:drop-shadow(0 0 18px rgba(255,176,32,.55)) drop-shadow(0 6px 24px rgba(0,0,0,.5))}
-.land-tag{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; letter-spacing:.12em;
-  font-size:clamp(22px, 3vw, 32px); color:var(--ink); margin-top:10px;
+.land-tag{font-family:var(--f-display); text-transform:uppercase; font-weight:400; letter-spacing:.06em;
+  font-size:clamp(21px, 2.8vw, 30px); color:var(--ink); margin-top:10px;
   text-shadow:0 0 16px color-mix(in srgb, var(--accent) 50%, transparent)}
 .land-sub{font-size:13px; color:var(--ink-2); letter-spacing:.04em; max-width:44ch}
 .channels{display:flex; flex-direction:column; align-items:flex-start; gap:6px; margin-top:14px}
 .channels a{
-  font-family:var(--f-cond); text-transform:uppercase; font-weight:700; letter-spacing:.3em;
-  font-size:clamp(24px, 2.9vw, 34px); color:var(--ink); text-decoration:none; padding:2px 0;
+  font-family:var(--f-display); text-transform:uppercase; font-weight:400; letter-spacing:.24em;
+  font-size:clamp(22px, 2.7vw, 31px); color:var(--ink); text-decoration:none; padding:2px 0;
   border-left:4px solid transparent; padding-left:14px; margin-left:-18px;
   transition:color .12s, border-color .12s, text-shadow .12s, padding-left .12s;
 }
@@ -366,7 +379,7 @@ body.landing{
 @media (max-width:720px){.xmas-card{grid-template-columns:1fr; gap:12px}}
 .xc-stat{border-right:1px solid var(--line); padding-right:20px; display:flex; flex-direction:column; justify-content:center}
 @media (max-width:720px){.xc-stat{border-right:none; border-bottom:1px solid var(--line); padding:0 0 12px}}
-.xc-n{font-family:var(--f-cond); font-weight:700; font-size:56px; line-height:.9; color:var(--accent)}
+.xc-n{font-family:var(--f-display); font-weight:400; font-size:53px; line-height:.94; letter-spacing:.01em; color:var(--accent)}
 .xc-l{font-size:11px; color:var(--muted); line-height:1.45; margin-top:8px}
 .xc-top{display:flex; justify-content:space-between; align-items:baseline; gap:10px}
 .xc-date{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
@@ -424,8 +437,8 @@ body.landing{
   color:var(--accent); margin-bottom:12px;
 }
 .pg-h1{
-  font-family:var(--f-cond); text-transform:uppercase; font-weight:700; letter-spacing:-.005em;
-  font-size:clamp(46px, 7vw, 82px); line-height:.88; color:var(--ink); margin:0;
+  font-family:var(--f-display); text-transform:uppercase; font-weight:400; letter-spacing:.002em;
+  font-size:clamp(44px, 6.6vw, 78px); line-height:.9; color:var(--ink); margin:0;
   text-shadow:0 0 40px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 .pg-h1 em{font-style:normal; color:var(--accent)}
@@ -470,8 +483,8 @@ a.lg-card:hover .lg-logo{transform:scale(1.06) rotate(-2deg)}
 .lg-badge.live{background:var(--accent); color:#fff; box-shadow:0 0 14px color-mix(in srgb,var(--accent) 55%, transparent)}
 .lg-badge.soon{background:rgba(0,0,0,.4); color:var(--ink-2); border:1px solid rgba(255,255,255,.2)}
 .lg-name{
-  font-family:var(--f-cond); text-transform:uppercase; font-weight:700; letter-spacing:.005em;
-  font-size:clamp(40px, 5vw, 56px); line-height:.9; margin-top:16px; color:#fff;
+  font-family:var(--f-display); text-transform:uppercase; font-weight:400; letter-spacing:.01em;
+  font-size:clamp(38px, 4.7vw, 53px); line-height:.92; margin-top:16px; color:#fff;
   text-shadow:0 3px 18px rgba(0,0,0,.6);
 }
 .lg-line{font-size:12px; letter-spacing:.16em; text-transform:uppercase; font-weight:700; color:var(--ink-2); margin-top:8px}
@@ -532,7 +545,7 @@ a.show-card:hover .sc-img{transform:scale(1.04)}
 .sc-status{font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:800; padding:4px 9px; border-radius:7px}
 .sc-status.live{background:var(--accent); color:#fff; box-shadow:0 0 12px color-mix(in srgb,var(--accent) 50%, transparent)}
 .sc-status.coming{background:var(--card-2); color:var(--muted); border:1px solid var(--line)}
-.sc-title{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:29px; line-height:.97; margin-top:6px}
+.sc-title{font-family:var(--f-display); text-transform:uppercase; font-weight:400; font-size:27px; letter-spacing:.008em; line-height:.97; margin-top:6px}
 .sc-hosts{font-size:12px; color:var(--ink-2); font-weight:600}
 .sc-cad{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
 .sc-desc{font-size:12.5px; color:var(--ink-2); line-height:1.45; margin:4px 0 0}
@@ -604,7 +617,7 @@ a.show-card:hover .sc-img{transform:scale(1.04)}
   border-left:1px solid var(--line); padding-left:22px}
 @media (max-width:720px){.kick{border-left:none; padding-left:0; border-top:1px solid var(--line); padding-top:16px}}
 .kick .when{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:15px; letter-spacing:.03em}
-.kick .big{font-family:var(--f-cond); font-size:34px; font-weight:700; line-height:.9; letter-spacing:.01em}
+.kick .big{font-family:var(--f-display); font-size:32px; font-weight:400; line-height:.9; letter-spacing:.01em}
 .kick .slot{font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
 
 /* win prob meter */
