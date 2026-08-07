@@ -22,8 +22,30 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 DATA = ROOT / "data"
 
-ESPN_SITE = "https://site.api.espn.com/apis/site/v2/sports/football/nfl"
-ESPN_WEB = "https://site.web.api.espn.com/apis/common/v3/sports/football/nfl"
+ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports"
+ESPN_WEB_BASE = "https://site.web.api.espn.com/apis/common/v3/sports"
+
+# Every league the platform serves. Adding one is a config entry, not a rebuild.
+LEAGUES_CFG = {
+    "nfl": {"path": "football/nfl", "name": "NFL", "tz": "America/New_York", "slots": "us"},
+    "afl": {"path": "australian-football/afl", "name": "AFL", "tz": "Australia/Melbourne", "slots": "au"},
+    "nbl": {"path": "basketball/nbl", "name": "NBL", "tz": "Australia/Melbourne", "slots": "au"},
+}
+
+
+def _cfg(league: str) -> dict:
+    c = LEAGUES_CFG.get((league or "nfl").lower())
+    if not c:
+        raise HTTPException(status_code=404, detail=f"Unknown league {league}")
+    return c
+
+
+def _site(league: str) -> str:
+    return f"{ESPN_BASE}/{_cfg(league)['path']}"
+
+
+ESPN_SITE = f"{ESPN_BASE}/football/nfl"          # NFL shortcuts kept for existing callers
+ESPN_WEB = f"{ESPN_WEB_BASE}/football/nfl"
 ESPN_SCOREBOARD = f"{ESPN_SITE}/scoreboard"
 CACHE_TTL = 600  # seconds; the slate changes slowly, live scores are fine at 10 min for v1
 
@@ -55,7 +77,8 @@ def _get_json(url: str, params: dict | None = None, ttl: int = CACHE_TTL) -> dic
     last.raise_for_status()
 
 
-def _fetch_scoreboard(year: int | None, seasontype: int | None, week: int | None) -> dict:
+def _fetch_scoreboard(year: int | None, seasontype: int | None, week: int | None,
+                     league: str = "nfl") -> dict:
     params = {}
     if year:
         params["dates"] = str(year)  # ESPN takes the season year via `dates`, not `year`
@@ -63,7 +86,7 @@ def _fetch_scoreboard(year: int | None, seasontype: int | None, week: int | None
         params["seasontype"] = str(seasontype)
     if week:
         params["week"] = str(week)
-    return _get_json(ESPN_SCOREBOARD, params)
+    return _get_json(f"{_site(league)}/scoreboard", params)
 
 
 # ---------- odds → win probability ----------
@@ -100,6 +123,23 @@ def _home_win_prob(odds: dict | None) -> float | None:
 
 
 # ---------- kickoff slot labelling (US Eastern windows) ----------
+
+def _slot_au(dt_utc: datetime, tzname: str) -> str:
+    """Australian codes play local nights and weekend afternoons — label those."""
+    try:
+        from zoneinfo import ZoneInfo
+        lt = dt_utc.astimezone(ZoneInfo(tzname))
+    except Exception:
+        from datetime import timedelta
+        lt = dt_utc + timedelta(hours=10)
+    wd, hr = lt.weekday(), lt.hour
+    day = lt.strftime("%A")
+    if hr >= 18:
+        return f"{day} night"
+    if wd >= 5:
+        return f"{day} afternoon" if hr >= 12 else f"{day} early"
+    return f"{day} {'afternoon' if hr >= 12 else 'morning'}"
+
 
 def _slot(dt_utc: datetime, seasontype: int) -> str:
     try:
@@ -205,6 +245,11 @@ def _calendar(payload: dict) -> list[dict]:
     out = []
     try:
         for cal in payload["leagues"][0]["calendar"]:
+            # Week-based leagues (NFL, AFL) nest entries under a season type;
+            # date-based ones (NBL) hand back a flat list of ISO strings — skip those,
+            # the slate still renders, there's just no week stepper.
+            if not isinstance(cal, dict):
+                continue
             st = int(cal.get("value", 0))
             for e in cal.get("entries", []):
                 out.append({
@@ -220,9 +265,11 @@ def _calendar(payload: dict) -> list[dict]:
 
 
 @app.get("/api/schedule")
-def schedule(year: int | None = None, seasontype: int | None = None, week: int | None = None):
+def schedule(year: int | None = None, seasontype: int | None = None, week: int | None = None,
+             league: str = "nfl"):
+    cfg = _cfg(league)
     try:
-        payload = _fetch_scoreboard(year, seasontype, week)
+        payload = _fetch_scoreboard(year, seasontype, week, league)
     except requests.RequestException as exc:
         raise HTTPException(status_code=502, detail=f"ESPN feed unavailable: {exc}") from exc
 
@@ -255,9 +302,10 @@ def schedule(year: int | None = None, seasontype: int | None = None, week: int |
             dt = datetime.fromisoformat(ev["date"].replace("Z", "+00:00")).astimezone(timezone.utc)
         except (KeyError, ValueError):
             continue
-        slot = _slot(dt, st)
+        slot = _slot(dt, st) if cfg["slots"] == "us" else _slot_au(dt, cfg["tz"])
 
-        game_aussies = aussie_by_team.get(h["abbr"], []) + aussie_by_team.get(a["abbr"], [])
+        game_aussies = (aussie_by_team.get(h["abbr"], []) + aussie_by_team.get(a["abbr"], [])
+                        if league == "nfl" else [])
         status = ev.get("status", {}).get("type", {})
         bc = (comp.get("broadcasts") or [{}])[0].get("names", [])
         venue = comp.get("venue", {})
@@ -291,7 +339,7 @@ def schedule(year: int | None = None, seasontype: int | None = None, week: int |
     gotw = next((g["id"] for g in games if g["status"]["state"] != "post"), games[0]["id"] if games else None)
 
     # the VOICE layer — attach the Experts' calls for this week
-    experts = _load_experts()
+    experts = _load_experts() if league == "nfl" else {}
     week_key = f"{season.get('year')}-{st}-{wk.get('number')}"
     week_experts = (experts.get("weeks") or {}).get(week_key, {})
     calls = week_experts.get("calls", {})
@@ -314,7 +362,8 @@ def schedule(year: int | None = None, seasontype: int | None = None, week: int |
             "gotw": experts_gotw_id,
             "episode": week_experts.get("episode"),
         },
-        "source": "ESPN public scoreboard API · odds by ESPN BET/DraftKings · cached 10 min",
+        "league": league,
+        "source": "ESPN public scoreboard API · cached 10 min",
     }
 
 
@@ -381,8 +430,8 @@ def _is_aussie(birthplace: dict | str | None, name: str = "") -> bool:
 
 
 @app.get("/api/teams")
-def api_teams():
-    payload = _get_json(f"{ESPN_SITE}/teams", ttl=86400)
+def api_teams(league: str = "nfl"):
+    payload = _get_json(f"{_site(league)}/teams", ttl=86400)
     by_abbr = {}
     for entry in payload["sports"][0]["leagues"][0]["teams"]:
         t = entry["team"]
@@ -396,10 +445,14 @@ def api_teams():
             "altColor": t.get("alternateColor"),
             "logo": logos[0]["href"] if logos else None,
         }
-    return {"divisions": [
-        {"name": name, "teams": [by_abbr[a] for a in abbrs if a in by_abbr]}
-        for name, abbrs in DIVISIONS
-    ]}
+    if league == "nfl":
+        return {"divisions": [
+            {"name": name, "teams": [by_abbr[a] for a in abbrs if a in by_abbr]}
+            for name, abbrs in DIVISIONS
+        ]}
+    # AFL and the NBL run single ladders — one group, alphabetical
+    return {"divisions": [{"name": _cfg(league)["name"] + " clubs",
+                           "teams": sorted(by_abbr.values(), key=lambda t: t["displayName"])}]}
 
 
 ROSTER_GROUP_LABELS = {
@@ -410,17 +463,22 @@ ROSTER_GROUP_LABELS = {
 
 
 @app.get("/api/team/{abbr}")
-def api_team(abbr: str):
+def api_team(abbr: str, league: str = "nfl"):
     slug = abbr.lower()
+    site = _site(league)
     try:
-        detail = _get_json(f"{ESPN_SITE}/teams/{slug}", ttl=21600)["team"]
-        roster = _get_json(f"{ESPN_SITE}/teams/{slug}/roster", ttl=21600)
+        detail = _get_json(f"{site}/teams/{slug}", ttl=21600)["team"]
     except requests.HTTPError as exc:
         raise HTTPException(status_code=404, detail=f"Unknown team {abbr}") from exc
+    try:
+        # ESPN publishes rosters for the NFL but not (yet) for the AFL or NBL
+        roster = _get_json(f"{site}/teams/{slug}/roster", ttl=21600)
+    except requests.HTTPError:
+        roster = {"athletes": []}
 
     logos = detail.get("logos") or []
     rec_items = (detail.get("record") or {}).get("items") or [{}]
-    division = next((n for n, ab in DIVISIONS if detail.get("abbreviation") in ab), "")
+    division = next((n for n, ab in DIVISIONS if detail.get("abbreviation") in ab), "") if league == "nfl" else ""
 
     next_event = None
     ne = detail.get("nextEvent") or []
@@ -446,7 +504,7 @@ def api_team(abbr: str):
                 "college": (a.get("college") or {}).get("name", ""),
                 "exp": (a.get("experience") or {}).get("years"),
                 "headshot": (a.get("headshot") or {}).get("href"),
-                "aussie": _is_aussie(a.get("birthPlace"), a.get("fullName", "")),
+                "aussie": _is_aussie(a.get("birthPlace"), a.get("fullName", "")) if league == "nfl" else False,
             })
         players.sort(key=lambda p: (p["pos"], int(p["jersey"]) if str(p["jersey"]).isdigit() else 999))
         groups.append({"key": g.get("position", ""),
@@ -569,18 +627,18 @@ def api_christmas():
 
 
 @app.get("/api/featured")
-def featured():
+def featured(league: str = "nfl"):
     """Image-led lead stories for the hub hero (ESPN news feed, 15-min cache).
 
     Editorially pinned items from experts.json ride at the front — the test is
     impact, not nationality: the biggest story in the sport leads.
     """
     try:
-        payload = _get_json(f"{ESPN_SITE}/news", {"limit": "24"}, ttl=900)
+        payload = _get_json(f"{_site(league)}/news", {"limit": "24"}, ttl=900)
     except requests.RequestException:
         payload = {"articles": []}
     out = []
-    for pin in (_load_experts().get("featured_pins") or []):
+    for pin in ((_load_experts().get("featured_pins") or []) if league == "nfl" else []):
         if pin.get("headline") and pin.get("image"):
             out.append({"headline": pin["headline"], "description": pin.get("description", ""),
                         "image": pin["image"], "link": pin.get("link", ""),

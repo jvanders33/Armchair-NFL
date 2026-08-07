@@ -69,11 +69,11 @@
     <div class="shell">
       <div id="loading" class="loading">Fetching the live slate…</div>
       <div id="content" hidden>
-        <div class="hero-split">
+        <div class="hero-split${league === "nfl" ? "" : " hero-solo"}">
           <section id="lead"></section>
-          <section id="rtg"></section>
+          ${league === "nfl" ? '<section id="rtg"></section>' : ""}
         </div>
-        <section id="rtg-rail"></section>
+        ${league === "nfl" ? '<section id="rtg-rail"></section>' : ""}
         <section id="news-wrap" hidden>
           <div class="section-h" style="margin-top:28px">The Big Stories <span class="n">· live from the wires</span></div>
           <div class="news-grid" id="news"></div>
@@ -96,8 +96,8 @@
           <span class="ctl-note" id="tz-note"></span>
         </div>
         <div class="slate" id="slate"></div>
-        <div class="section-h" style="margin-top:32px">Aussies in the NFL <span class="n" id="aus-note">· this week</span></div>
-        <div class="aus" id="aus"></div>
+        ${league === "nfl" ? `<div class="section-h" style="margin-top:32px">Aussies in the NFL <span class="n" id="aus-note">· this week</span></div>
+        <div class="aus" id="aus"></div>` : ""}
 
       </div>
     </div>`;
@@ -140,6 +140,7 @@
 
   function renderRtg(rtg) {
     const el = $("rtg");
+    if (!el) return;
     const hasEps = rtg && rtg.series && (rtg.series.episodes || []).length;
     if (!rtg || (!rtg.game && !hasEps)) { el.innerHTML = ""; return; }
     if (!rtg.game) {
@@ -280,7 +281,7 @@
 
   function teamHTML(t, big, showScore) {
     const score = showScore && t.score != null ? ` <span class="sc tnum">${esc(t.score)}</span>` : "";
-    return `<a class="team" href="#/team/${esc(t.abbr)}">
+    return `<a class="team" href="#/${league}/team/${esc(t.abbr)}">
       <img class="logo${big ? "" : " sm"}" src="${esc(t.logo)}" alt="${esc(t.displayName)} logo" loading="lazy">
       <div><div class="nm">${esc(t.name)}</div><div class="rec">${esc(t.record)}${score}</div></div>
     </a>`;
@@ -382,6 +383,7 @@
   }
 
   function renderAussies() {
+    if (!$("aus")) return;
     const byTeam = {};
     hubData.games.forEach((g) => {
       [g.home.abbr, g.away.abbr].forEach((ab) => { byTeam[ab] = g; });
@@ -443,7 +445,10 @@
     const idx = cal.findIndex((c) => c.seasontype === s.type && c.week === w.number);
     const label = idx >= 0 ? cal[idx].label : "Week " + w.number;
     const stName = { 1: "Preseason", 2: "", 3: "Postseason" }[s.type] || "";
-    $("wk-label").textContent = [stName, label].filter(Boolean).join(" · ") + " · What to Watch";
+    const lgName = (LEAGUE_UI[league] || {}).name || "";
+    $("wk-label").textContent = w.number
+      ? [stName, label].filter(Boolean).join(" · ") + " · What to Watch"
+      : lgName + " · What to Watch";
     $("wk-prev").disabled = idx <= 0;
     $("wk-next").disabled = idx < 0 || idx >= cal.length - 1;
     $("wk-prev").onclick = () => { if (idx > 0) jumpWeek(cal[idx - 1]); };
@@ -538,13 +543,13 @@
   async function loadHub() {
     $("loading").hidden = false;
     $("content").hidden = true;
-    const qs = weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "";
+    const qs = (weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "?") + `&league=${league}`;
     try {
       const [sched, aus, rtg, featured] = await Promise.all([
         fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
-        aussies.length ? Promise.resolve(null) : fetchJSON("/api/aussies"),
-        fetchJSON("/api/road-to-the-g").catch(() => null),
-        fetchJSON("/api/featured").catch(() => null),
+        league === "nfl" && !aussies.length ? fetchJSON("/api/aussies") : Promise.resolve(null),
+        league === "nfl" ? fetchJSON("/api/road-to-the-g").catch(() => null) : Promise.resolve(null),
+        fetchJSON(`/api/featured?league=${league}`).catch(() => null),
       ]);
       hubData = sched;
       if (aus) aussies = aus.players || [];
@@ -578,14 +583,20 @@
   async function showTeams() {
     view.innerHTML = `<div class="shell"><div class="loading">Loading the 32 clubs…</div></div>`;
     try {
-      const d = await fetchJSON("/api/teams");
+      const d = await fetchJSON(`/api/teams?league=${league}`);
       view.innerHTML = `${nflSubnav("teams")}<div class="shell">
-        ${pageHero("NFL", `All <em>32 teams</em>.`, "Every roster, every player, every career. Pick a club and go as deep as you like.")}
+        ${(() => {
+          const ui = LEAGUE_UI[league] || LEAGUE_UI.nfl;
+          const n = d.divisions.reduce((t, x) => t + x.teams.length, 0);
+          const noun = league === "nfl" ? "teams" : "clubs";
+          return pageHero(ui.name, `All <em>${n} ${noun}</em>.`,
+            "Every roster, every player, every career. Pick a club and go as deep as you like.");
+        })()}
         ${d.divisions.map((div) => `
           <div class="div-h">${esc(div.name)}</div>
           <div class="teams-grid">
             ${div.teams.map((t) => `
-              <a class="team-card" href="#/team/${esc(t.abbr)}">
+              <a class="team-card" href="#/${league}/team/${esc(t.abbr)}">
                 <img src="${esc(t.logo)}" alt="" loading="lazy">
                 <div><div class="loc">${esc(t.location)}</div><div class="tnm">${esc(t.name)}</div></div>
               </a>`).join("")}
@@ -603,7 +614,7 @@
   async function showTeam(abbr) {
     view.innerHTML = `<div class="shell"><div class="loading">Loading ${esc(abbr)}…</div></div>`;
     try {
-      const d = await fetchJSON("/api/team/" + encodeURIComponent(abbr));
+      const d = await fetchJSON(`/api/team/${encodeURIComponent(abbr)}?league=${league}`);
       const t = d.team;
       let next = "";
       if (t.nextEvent && t.nextEvent.date) {
@@ -621,13 +632,21 @@
               <div>
                 <div class="th-loc">${esc(t.location)}</div>
                 <h1 class="th-name">${esc(t.name)}</h1>
-                <div class="th-meta">${esc(t.record)} · ${esc(t.standing)} · ${esc(t.division)}${aussieCount ? ` · 🇦🇺 ${aussieCount} Aussie${aussieCount > 1 ? "s" : ""} on the list` : ""}</div>
+                <div class="th-meta">${[t.record, t.standing, t.division,
+                    aussieCount ? `🇦🇺 ${aussieCount} Aussie${aussieCount > 1 ? "s" : ""} on the list` : ""
+                  ].filter(Boolean).map(esc).join(" · ")}</div>
                 ${next ? `<div class="th-next">${next}</div>` : ""}
               </div>
             </div>
           </div>
         </div>
         <div class="shell">
+          ${!d.groups.length ? `
+            <div class="section-h" style="margin-top:26px">The list</div>
+            <div class="panel roster-empty">
+              <p>Player lists for the ${esc((LEAGUE_UI[league] || {}).name || "")} aren't in the live feed yet — fixtures, results and ladder are.</p>
+              ${league === "afl" ? `<a class="watch" href="https://list-trac.vercel.app" target="_blank" rel="noopener">Full list, contracts &amp; trades on ListTrac →</a>` : ""}
+            </div>` : ""}
           ${d.groups.map((g) => `
             <div class="section-h" style="margin-top:26px">${esc(g.label)} <span class="n">· ${g.players.length}</span></div>
             <div class="tbl-wrap"><table class="roster">
@@ -651,7 +670,7 @@
             </table></div>`).join("")}
         </div>`;
       view.querySelectorAll("[data-player]").forEach((tr) => {
-        const go = () => { location.hash = "#/player/" + tr.getAttribute("data-player"); };
+        const go = () => { location.hash = `#/${league}/player/` + tr.getAttribute("data-player"); };
         tr.addEventListener("click", go);
         tr.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
       });
@@ -868,19 +887,32 @@
   // LEAGUES — the code picker (Spotrac pattern: one platform, many leagues)
   // =====================================================================
 
-  // League sub-nav — NFL's own pages live here, not in the primary nav.
-  function nflSubnav(active) {
+  // Every league runs the same shell. Adding one is an entry here plus a config
+  // row on the API — the pages, hero, news and team views all come for free.
+  const LEAGUE_UI = {
+    nfl: { name: "NFL", label: "NFL", teamsLabel: "Teams & Players", tools: [] },
+    afl: { name: "AFL", label: "AFL", teamsLabel: "Clubs & Players",
+           tools: [{ label: "ListTrac ↗", href: "https://list-trac.vercel.app", ext: true,
+                     title: "List management, trades, contracts, drafts" }] },
+    nbl: { name: "NBL", label: "NBL", teamsLabel: "Clubs & Players", tools: [] },
+  };
+  let league = "nfl";
+
+  function leagueSubnav(lg, active) {
+    const ui = LEAGUE_UI[lg] || LEAGUE_UI.nfl;
     const items = [
-      { k: "watch", label: "What to Watch", href: "#/nfl" },
-      { k: "teams", label: "Teams & Players", href: "#/teams" },
+      { k: "watch", label: "What to Watch", href: `#/${lg}` },
+      { k: "teams", label: ui.teamsLabel, href: `#/${lg}/teams` },
     ];
-    return `<nav class="subnav" aria-label="NFL sections"><div class="shell">
+    return `<nav class="subnav" aria-label="${esc(ui.name)} sections"><div class="shell">
       <a class="sn-league" href="#/leagues" title="All leagues">
-        <img src="${LG_LOGO("nfl")}" alt=""><span>NFL</span>
+        <img src="${LG_LOGO(lg)}" alt=""><span>${esc(ui.label)}</span>
       </a>
       ${items.map((i) => `<a href="${i.href}" class="${i.k === active ? "on" : ""}">${esc(i.label)}</a>`).join("")}
+      ${ui.tools.map((t) => `<a href="${esc(t.href)}"${t.ext ? ' target="_blank" rel="noopener"' : ""} class="sn-tool" title="${esc(t.title || "")}">${esc(t.label)}</a>`).join("")}
     </div></nav>`;
   }
+  const nflSubnav = (active) => leagueSubnav(league, active);
 
   // Shared page hero — big condensed title with the accent word picked out.
   function pageHero(eyebrowTxt, titleHTML, subTxt) {
@@ -898,13 +930,13 @@
       desc: "What to Watch in AEST · all 32 teams · every player's career · the big stories, live.",
       cta: "Enter the NFL hub", href: "#/nfl" },
     { key: "AFL", name: "AFL", logo: LG_LOGO("afl"), c1: "#003C9D", c2: "#D50A0A", status: "live",
-      tag: "Australian football", line: "The list-management home",
-      desc: "ListTrac — trades, free agency, contracts, draft boards, mock drafts and player ratings.",
-      cta: "Open ListTrac", href: "https://list-trac.vercel.app", ext: true },
-    { key: "NBL", name: "NBL", logo: LG_LOGO("nbl"), c1: "#0B1F3A", c2: "#E4002B", status: "oct",
-      tag: "Basketball", line: "Tips off in October",
-      desc: "The same what-to-watch engine, pointed at Australian hoops — lands with The NBL Show.",
-      cta: "Coming October", href: "" },
+      tag: "Australian football", line: "Every round, every club",
+      desc: "The live ladder and fixture, all 19 clubs and their lists — plus ListTrac for trades, contracts and the draft.",
+      cta: "Enter the AFL hub", href: "#/afl" },
+    { key: "NBL", name: "NBL", logo: LG_LOGO("nbl"), c1: "#0B1F3A", c2: "#E4002B", status: "live",
+      tag: "Basketball", line: "Every game, every club",
+      desc: "The same what-to-watch engine pointed at Australian hoops — fixtures, clubs and rosters.",
+      cta: "Enter the NBL hub", href: "#/nbl" },
     { key: "RACING", name: "Racing", logo: "", c1: "#1E5E3A", c2: "#C9A227", status: "next",
       tag: "The punt", line: "Built around Spring",
       desc: "The fourth code — form, previews and the big carnivals. Format in the works.",
@@ -1219,17 +1251,23 @@
     window.scrollTo(0, 0);
     const isLanding = h === "#/" || h === "" || h === "#";
     document.body.classList.toggle("landing", isLanding);
+    const LG = "(nfl|afl|nbl)";
     if (isLanding) { setNav(""); showLanding(); }
-    else if ((m = h.match(/^#\/team\/([A-Za-z]{2,4})$/))) { setNav("teams"); showTeam(m[1].toUpperCase()); }
-    else if ((m = h.match(/^#\/player\/(\d+)$/))) { setNav("teams"); showPlayer(m[1]); }
-    else if (h === "#/teams") { setNav("teams"); showTeams(); }
+    else if ((m = h.match(new RegExp(`^#/${LG}/team/([A-Za-z]{2,5})$`)))) { league = m[1]; setNav("leagues"); showTeam(m[2].toUpperCase()); }
+    else if ((m = h.match(new RegExp(`^#/${LG}/player/(\d+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
+    else if ((m = h.match(new RegExp(`^#/${LG}/teams$`)))) { league = m[1]; setNav("leagues"); showTeams(); }
+    else if ((m = h.match(new RegExp(`^#/${LG}$`)))) { league = m[1]; setNav("leagues"); showHub(); }
+    // legacy NFL-only paths
+    else if ((m = h.match(/^#\/team\/([A-Za-z]{2,4})$/))) { league = "nfl"; setNav("leagues"); showTeam(m[1].toUpperCase()); }
+    else if ((m = h.match(/^#\/player\/(\d+)$/))) { league = "nfl"; setNav("leagues"); showPlayer(m[1]); }
+    else if (h === "#/teams") { league = "nfl"; setNav("leagues"); showTeams(); }
     else if (h === "#/leagues") { setNav("leagues"); showLeagues(); }
     else if (h === "#/podcasts") { setNav("podcasts"); showPodcasts(); }
     else if (h === "#/christmas") { setNav("shows"); showChristmas(); }
     else if (h === "#/audience") { setNav("audience"); showAudience(); }
     else if (h === "#/shows") { setNav("shows"); showShows(); }
     else if (h === "#/partner") { setNav("partner"); showPartner(); }
-    else { setNav("watch"); showHub(); }  // #/nfl and anything else → the hub
+    else { league = "nfl"; setNav("leagues"); showHub(); }
   }
 
   window.addEventListener("hashchange", route);
