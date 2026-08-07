@@ -54,7 +54,14 @@ a{color:inherit}
 
 /* nav band */
 .navband{border-bottom:1px solid var(--line); background:color-mix(in srgb, var(--card) 55%, transparent)}
-.navband .shell{display:flex; gap:4px; padding:0 20px}
+.navband .shell{display:flex; gap:4px; padding:0 20px; overflow-x:auto; scrollbar-width:none}
+.navband .shell::-webkit-scrollbar{display:none}
+.navband a{flex:none}
+@media (max-width:760px){
+  .navband .shell{gap:2px; padding:0 12px}
+  .navband a{padding:10px 9px 8px; font-size:13.5px; letter-spacing:.04em}
+  .nav-partner{margin-left:0}
+}
 .navband a{
   display:inline-block; padding:11px 14px 9px; text-decoration:none;
   font-family:var(--f-cond); text-transform:uppercase; letter-spacing:.06em; font-weight:700; font-size:15px;
@@ -289,6 +296,29 @@ body.landing{
 }
 .land-soc a:hover{border-color:var(--accent); color:var(--accent); transform:translateY(-2px);
   box-shadow:0 0 14px color-mix(in srgb, var(--accent) 45%, transparent)}
+
+/* audience page */
+.aud-hero{background:
+  radial-gradient(700px 300px at 82% -25%, color-mix(in srgb, var(--disney) 24%, transparent), transparent 60%),
+  linear-gradient(120deg, #8C0F27F0, #40091799), var(--card)}
+.stat-hi{border-color:color-mix(in srgb, var(--accent) 55%, var(--line))}
+.stat-hi .stat-v{color:var(--accent)}
+.ch-row{
+  display:grid; grid-template-columns:150px 210px 1fr; gap:14px; align-items:baseline; padding:12px 0;
+  border-bottom:1px solid color-mix(in srgb, var(--line) 55%, transparent);
+}
+.ch-row:last-child{border-bottom:none}
+@media (max-width:760px){.ch-row{grid-template-columns:1fr; gap:3px}}
+.ch-name{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:16px; letter-spacing:.03em}
+.ch-metric{font-size:16px; font-weight:700; color:var(--accent)}
+.ch-metric b{font-size:11px; font-weight:600; color:var(--muted); letter-spacing:.04em}
+.ch-note{font-size:12.5px; color:var(--ink-2); line-height:1.45}
+.ind{
+  display:inline-block; margin-left:7px; font-size:8.5px; letter-spacing:.12em; text-transform:uppercase;
+  font-weight:800; color:var(--muted); border:1px solid var(--line); border-radius:5px; padding:2px 5px; vertical-align:middle;
+}
+.who-list{margin:0; padding-left:18px; color:var(--ink-2); font-size:13px; line-height:1.75}
+.who-list li{margin-bottom:5px}
 
 /* capture — Monday Armchair + mailbag */
 .capture{display:grid; grid-template-columns:1fr 1.15fr; gap:14px}

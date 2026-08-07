@@ -921,6 +921,80 @@
   }
 
   // =====================================================================
+  // AUDIENCE — who we are / who's listening (the top of every pitch deck)
+  // =====================================================================
+
+  async function showAudience() {
+    view.innerHTML = `<div class="shell"><div class="loading">Loading the audience…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/audience-profile");
+      const h = d.headline, o = d.opportunity;
+      const ind = (v) => v ? "" : `<span class="ind" title="Indicative — to be replaced with platform-exported figures">indicative</span>`;
+      view.innerHTML = `
+        <div class="team-hero aud-hero">
+          <div class="shell">
+            <div class="th-row">
+              <div>
+                <div class="th-loc">The audience · updated ${esc(d.updated)}</div>
+                <h1 class="th-name">Who's in the armchair</h1>
+                <div class="th-meta">A national sports audience built over seven years on television — now consolidating onto one platform.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="shell">
+          <div class="kpis" style="margin-top:22px">
+            <div class="stat"><div class="stat-v tnum">${esc(h.reach)}</div><div class="stat-l">Monthly reach</div><div class="stat-s">${esc(h.reachLabel)}</div></div>
+            <div class="stat"><div class="stat-v tnum">${esc(h.years)}</div><div class="stat-l">Years on air</div><div class="stat-s">${esc(h.yearsLabel)}</div></div>
+            <div class="stat"><div class="stat-v tnum">${esc(h.codes)}</div><div class="stat-l">Codes covered</div><div class="stat-s">${esc(h.codesLabel)}</div></div>
+            <div class="stat stat-hi"><div class="stat-v tnum">${esc(o.stat)}</div><div class="stat-l">The upside</div><div class="stat-s">${esc(o.statLabel)}</div></div>
+          </div>
+
+          <div class="section-h" style="margin-top:28px">Where they are <span class="n">· channel by channel</span></div>
+          <div class="panel" style="padding:8px 18px">
+            ${d.channels.map((c) => `
+              <div class="ch-row">
+                <span class="ch-name">${esc(c.name)}</span>
+                <span class="ch-metric tnum">${esc(c.metric)} <b>${esc(c.unit)}</b>${ind(c.verified)}</span>
+                <span class="ch-note">${esc(c.note)}</span>
+              </div>`).join("")}
+          </div>
+
+          <div class="cols2">
+            <div>
+              <div class="section-h" style="margin-top:28px">${esc(o.title)}</div>
+              <div class="panel"><p class="cap-p" style="margin:0">${esc(o.body)}</p></div>
+            </div>
+            <div>
+              <div class="section-h" style="margin-top:28px">Who they are</div>
+              <div class="panel">
+                <ul class="who-list">${d.who.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-h" style="margin-top:28px">The trajectory <span class="n">· fragmented → consolidated → measured</span></div>
+          <div class="runway">
+            ${d.trajectory.map((t) => `
+              <div class="rw ${esc(t.state || "")}"><span class="rw-when">${esc(t.when)}</span><span class="rw-dot"></span><span class="rw-what">${esc(t.what)}</span></div>`).join("")}
+          </div>
+
+          <div class="section-h" style="margin-top:28px">The credentials</div>
+          <div class="teams-grid">
+            ${d.proof.map((p) => `
+              <div class="team-card" style="cursor:default">
+                <div><div class="tnm" style="font-size:22px">${esc(p.n)}</div><div class="loc" style="text-transform:none; letter-spacing:0; margin-top:4px; line-height:1.4">${esc(p.l)}</div></div>
+              </div>`).join("")}
+          </div>
+
+          <p class="panel-note" style="margin-top:16px">Figures marked <span class="ind">indicative</span> are the host's current working numbers and will be replaced with platform-exported analytics. Every figure on this page becomes live and audited once the platform's own tracking is running — that's the point of it.</p>
+        </div>`;
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load the audience (${esc(err.message)}).</div></div>`;
+    }
+  }
+
+  // =====================================================================
   // PARTNER dashboard (Measurement & Attribution, rendered live)
   // =====================================================================
 
@@ -1054,6 +1128,7 @@
     else if (h === "#/leagues") { setNav("leagues"); showLeagues(); }
     else if (h === "#/podcasts") { setNav("podcasts"); showPodcasts(); }
     else if (h === "#/christmas") { setNav("shows"); showChristmas(); }
+    else if (h === "#/audience") { setNav("audience"); showAudience(); }
     else if (h === "#/shows") { setNav("shows"); showShows(); }
     else if (h === "#/partner") { setNav("partner"); showPartner(); }
     else { setNav("watch"); showHub(); }  // #/nfl and anything else → the hub

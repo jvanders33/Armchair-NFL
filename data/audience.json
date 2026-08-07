@@ -1,0 +1,66 @@
+{
+  "note": "PUBLIC-FACING audience page. Numbers sourced from Cam (Aug 2026 meeting). `verified:false` renders an 'indicative' marker — replace with platform-exported figures before this goes to an agency. NEVER put production costs, revenue splits or unannounced talent deals in this file.",
+  "updated": "August 2026",
+  "headline": {
+    "reach": "20,000+",
+    "reachLabel": "monthly reach across audio, video and social",
+    "years": "7",
+    "yearsLabel": "years on national broadcast television",
+    "codes": "4",
+    "codesLabel": "codes: AFL · NFL · NBL · Racing"
+  },
+  "channels": [
+    {
+      "name": "Podcast (audio)",
+      "metric": "5,000–6,000",
+      "unit": "listeners per week",
+      "note": "Weekly AFL show. Loyal, habitual, appointment listening.",
+      "verified": false
+    },
+    {
+      "name": "YouTube",
+      "metric": "5,000–7,000",
+      "unit": "views per week",
+      "note": "Two shows every Monday, cut into shorter episodes.",
+      "verified": false
+    },
+    {
+      "name": "Instagram / TikTok",
+      "metric": "15,000–20,000",
+      "unit": "views per video (peak)",
+      "note": "Short-form clips travel well beyond the follower base.",
+      "verified": false
+    },
+    {
+      "name": "Radio",
+      "metric": "Daily",
+      "unit": "national sports radio",
+      "note": "Cam is on air weekday afternoons — a standing promotional channel.",
+      "verified": true
+    }
+  ],
+  "opportunity": {
+    "title": "The gap — and why it's the opportunity",
+    "body": "Short-form clips regularly do 15–20k views off a following of a few hundred. The content outperforms the infrastructure by a factor of thirty. That gap isn't a content problem — it's a capture problem, and it's the single thing this platform is built to close: one destination, one audience, one set of numbers.",
+    "stat": "30×",
+    "statLabel": "views-to-followers ratio on short form — reach without retention"
+  },
+  "who": [
+    "Australians who follow the game seriously — not the highlights, the actual sport.",
+    "Streaming-native: they subscribe, they follow talent across platforms, they watch on their own schedule.",
+    "Concentrated in the metro markets and the 18–44 demo every code and broadcaster is chasing.",
+    "Multi-code by nature — the AFL listener is also the person watching the NFL at the MCG."
+  ],
+  "trajectory": [
+    { "when": "NOW", "what": "~20k monthly reach, fragmented across four separate show identities", "state": "now" },
+    { "when": "SEP", "what": "The platform consolidates it — one destination, MCG moment, capture live", "state": "next" },
+    { "when": "DEC", "what": "Four codes on one masthead, email list and weekly habit established", "state": "" },
+    { "when": "2027", "what": "Target: 100,000 connected fans — measured, contactable, commercially addressable", "state": "" }
+  ],
+  "proof": [
+    { "n": "7 yrs", "l": "Prime-time broadcast pedigree — Channel Seven" },
+    { "n": "Brownlow", "l": "Adam Cooney in the second chair for AFL" },
+    { "n": "Super Bowl", "l": "Ben Graham — first Australian to play in one" },
+    { "n": "MCG '26", "l": "Positioned on the NFL's biggest ever Australian moment" }
+  ]
+}

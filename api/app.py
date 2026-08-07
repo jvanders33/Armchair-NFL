@@ -699,8 +699,17 @@ async def mailbag(req: Request):
         return {"ok": False, "error": "Couldn't send that — try again."}
 
 
-@app.get("/api/audience")
-def audience():
+@app.get("/api/audience-profile")
+def audience_profile():
+    """The public audience story (data/audience.json) — the top of every pitch deck."""
+    try:
+        return json.loads((DATA / "audience.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {"channels": []}
+
+
+@app.get("/api/capture-stats")
+def capture_stats():
     """Demo visibility for the capture loop (counts + recent mailbag, no emails)."""
     return {
         "subscribers": len(_subscribers),
