@@ -162,7 +162,7 @@ title(s6, "Not a pitch deck. A platform.");
 sub(s6, "The show launches onto infrastructure that's already built and running on live data — every NFL game in Australian time, all 32 teams, every player, and the measurement layer that proves what the audience does.");
 try {
   s6.addImage({ path: "assets/landing.png", x: M, y: 2.95, w: 6.05, h: 3.79 });
-  s6.addImage({ path: "assets/advent.png", x: M + 6.35, y: 2.95, w: 6.05, h: 3.79 });
+  s6.addImage({ path: "assets/hub.png", x: M + 6.35, y: 2.95, w: 6.05, h: 3.79 });
 } catch (e) { /* screenshots optional */ }
 foot(s6, "armchair-nfl.vercel.app — live now · built on the Armchair data engine");
 

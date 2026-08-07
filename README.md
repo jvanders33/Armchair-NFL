@@ -1,20 +1,31 @@
-# Armchair Experts — the Australian NFL Platform
+# Armchair Experts — Every Sport. One Armchair.
 
-Turning **Armchair Experts** (Cam Luke & Ben Graham's NFL podcast/video show) from a media brand into a Spotrac/Tankathon-style **platform for the NFL in Australia** — a personality-led *voice* on top of a data-driven *utility* layer, monetised through a Disney+/ESPN streaming partnership.
+The platform behind **Armchair Experts** (Cam Luke) — the voice of sports fans in Australia. One masthead over every code: the shows are the voice, this is the anchor between them.
 
-Built on the **ListTrac engine** (the AFL list-management platform's data → product pipeline), repointed at the NFL. Kept separate from `Desktop/ListTrac/`, which continues independently.
+**Live: [armchair-nfl.vercel.app](https://armchair-nfl.vercel.app)**
 
-## The first real module: What to Watch
+Built on the **ListTrac engine** (the AFL list-management platform's data → product pipeline), generalised so a new league is a config entry rather than a rebuild.
 
-A live weekly hub answering the only question that matters for an Australian NFL fan: **what's worth watching, when does it kick off in my timezone, and where do I stream it.**
+## What's live
 
-- **Live schedule + odds** from ESPN's public scoreboard feed (real fixtures, spreads, totals, records, broadcasters, team logos).
-- **Win-probability meters** — de-vigged moneylines, spread-logistic fallback.
-- **Watchability model** — every game scored (closeness of line + expected points + team quality + prime-time window + Aussie involvement) and tiered *Must-watch / Worth it / Deep cut*; the top game becomes Game of the Week.
-- **Australian timezones** — Sydney / Brisbane / Perth conversion, client-side.
-- **Aussies in the NFL** — curated layer (`data/aussies.json`) flagging every game with an Australian on the field.
-- **Tracked Disney+ CTAs** — every card is a conversion surface carrying UTM parameters (the attribution story from the pitch).
-- **Week navigation** across preseason → regular season → playoffs (ESPN calendar-driven), live scores and finals shown in-place.
+| Surface | What it does |
+|---|---|
+| **Landing** | The network front door — logo, tagline, channel menu (Leagues / Shows / Podcasts), socials |
+| **Leagues** | The code picker: NFL, AFL, NBL live; racing to come. Newsletter signup + Ask the Experts mailbag |
+| **League hubs** (`#/nfl`, `#/afl`, `#/nbl`) | Rotating image-led top story, live fixtures with watchability ranking, aggregated news, clubs and players. NFL adds the MCG countdown, the 10-day advent rail and the Experts' calls |
+| **Clubs & players** | Every club, every roster, career stats (NFL); AFL clubs hand off to ListTrac for lists, contracts and trades |
+| **Shows** | The full slate with status, plus the Always On runway — the year with no dark weeks |
+| **Podcasts** | Fanned show deck + latest episodes |
+| **A Sporting Christmas** | The 2016 miracle year, five teams, told on the data spine |
+| `#/audience`, `#/partner` | Pitch collateral — deliberately **not** in site nav |
+
+## Architecture
+
+**One shell, every code.** Adding a league is two rows: `LEAGUES_CFG` in `api/app.py` (ESPN sport path, timezone, slot style) and `LEAGUE_UI` in `web/app.js` (labels, tools). Everything else — hub, hero, news, fixtures, clubs, routing — comes for free.
+
+**News is aggregated, not single-source.** Two tiers per league: named publishers with clean feeds (which carry the photography) plus a Google News sweep that catches every masthead without a usable feed. Fetched in parallel, deduped on headline, ranked by recency with a nudge toward stories that brought art. ~50–60 stories from 9–12 outlets per league, 15-minute cache.
+
+**Watchability** ranks each fixture on line closeness, expected points, team quality and timeslot. The NFL has odds so it gets win-probability meters; the Australian codes don't, so the model degrades to form and slot.
 
 ## Run it
 
@@ -23,34 +34,35 @@ pip install -r requirements.txt
 uvicorn api.app:app --app-dir . --port 8020
 ```
 
-Then open http://localhost:8020.
+Note: uvicorn does **not** hot-reload `api/app.py` here — restart after backend edits or you'll debug stale code.
 
-## Deploy (Vercel)
+## Deploy
 
-Same pattern as ListTrac: everything routes through the Python function `api/index.py` (see `vercel.json`); FastAPI serves both the API and the `web/` static SPA. Import the repo in Vercel and it deploys as-is. **Do not rename `web/` to `public/`** — Vercel strips that folder name from Python bundles.
+Everything routes through the Python function `api/index.py` (see `vercel.json`); FastAPI serves both the API and the `web/` SPA. Push to `main` and Vercel redeploys. **Don't rename `web/` to `public/`** — Vercel strips that name from Python bundles.
+
+## Editing content
+
+| File | Holds |
+|---|---|
+| `data/shows.json` | The slate and the Always On runway |
+| `data/experts.json` | Weekly Experts' calls, the Cali to the 'G advent calendar (Sep 1–10 drop dates), optional pinned hero stories |
+| `data/christmas.json` | A Sporting Christmas editorial |
+| `data/audience.json` | Audience figures for the pitch page (`verified: false` renders an "indicative" chip) |
+| `data/aussies.json` | Aussies-in-the-NFL layer |
+
+Keep unannounced commercial details (co-host negotiations, revenue splits, funding) **out of these files** — they render publicly.
 
 ## Structure
 
 | Path | What it is |
 |---|---|
-| `api/app.py` | FastAPI — `/api/schedule` (normalised ESPN slate, 10-min cache), `/api/aussies`, `/api/debug`, static serving |
-| `web/` | No-build vanilla SPA — the What to Watch hub |
-| `data/aussies.json` | Hand-curated Aussies-in-the-NFL list — **maintain each season / after cut-down day** |
-| `scraper/` | (empty for now) future NFL data ingestion — nflverse, Spotrac, Over The Cap |
-| `pitch/` | Pitch assets: hub concept prototype, the Disney+ deck slides — Audience & Reach, Measurement & Attribution, and a live-platform slide with real screenshots (`Armchair-Disney-slides.pptx`, rebuilt via `gen-slides.js`; refresh `assets/*.png` with new captures first) — and the platform map |
+| `api/app.py` | FastAPI — league registry, schedule, news aggregation, teams, players, capture, partner metrics |
+| `web/` | No-build vanilla SPA + self-hosted fonts (Anton / Barlow Condensed / Inter) |
+| `data/` | Editable content files |
+| `pitch/` | Deck generators and assets — Disney+ slides, the "Running it Back" Gurley proposal, the flywheel, the Monday Armchair sample issue |
 
-## Pitch context
+## Design system
 
-- **One-liner:** Armchair = *Men in Blazers' market position + a Spotrac/Tankathon data spine* — a combination nobody has built for a foreign league in a new market. The voice wins the audience; the utility wins the daily year-round habit; Disney+ gets a measurable ROI story instead of a seasonal sponsorship.
-- **Deck feedback:** strong media buy, but it sells a *voice* when Disney+ will pay more for a *habit*. Two gaps closed in `pitch/`: prove the audience (Audience & Reach slide), show attribution (Measurement & Attribution slide).
-- Published artifacts: [hub prototype](https://claude.ai/code/artifact/0401f863-55ec-42b4-b805-f623c0202867) · [two slides](https://claude.ai/code/artifact/0626fa7b-5167-406b-91ad-ce2f8f2c5453) · [platform map](https://claude.ai/code/artifact/6b459ebe-32a0-4601-a6a6-15967d07d349)
+Committed dark (no light variant — the brand doesn't hedge), iHeart red `#F5294B` on near-black `#0F0407`, Anton for display, accent-slab section headers, official league marks, depth on every card. Asset URLs are versioned (`?v=`) — **bump on every CSS/JS change** or cached browsers keep the old files.
 
-## Roadmap (ListTrac playbook, NFL edition)
-
-1. **What to Watch** (this) — the weekly habit anchor.
-2. Contracts & cap module — NFL data is public (Spotrac / Over The Cap), so unlike the AFL build, dollars *can* be shown.
-3. Draft module — Tankathon-style order tracker + mock draft (the ListTrac mock-draft engine generalises).
-4. Aussies tracker — deep profiles, snap counts, the pathway pipeline (college punters etc.).
-5. Shareable content — top-10 builders, watchlist cards, the social PNG pipeline from ListTrac.
-
-*Prototype for pitch purposes; not affiliated with or endorsed by the NFL, ESPN or Disney+. Team marks are used for identification only.*
+*Prototype for pitch purposes. Not affiliated with the NFL, ESPN, Disney+, the AFL or the NBL. League and team marks used for identification only.*
