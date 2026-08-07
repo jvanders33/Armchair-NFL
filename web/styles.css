@@ -803,3 +803,11 @@ a.show-card:hover .sc-img{transform:scale(1.04)}
 .story.no-art{background:linear-gradient(160deg, color-mix(in srgb, var(--red-deep) 22%, var(--card)), var(--card))}
 .story.no-art .st-body{padding:16px 15px 15px; justify-content:center; min-height:104px}
 .story.no-art .st-t{font-size:15px; line-height:1.3}
+
+/* mailbag fields stack on small screens — two flex inputs pushed the card wide */
+@media (max-width:560px){
+  .cap-row{flex-direction:column}
+  .cap-row input{flex:1 1 auto; width:100%}
+  .cap-form input, .cap-form textarea{min-width:0; max-width:100%}
+  .cap-card{overflow:hidden}
+}
