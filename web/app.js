@@ -838,42 +838,70 @@
   // LEAGUES — the code picker (Spotrac pattern: one platform, many leagues)
   // =====================================================================
 
+  const LG_LOGO = (k) => `https://a.espncdn.com/i/teamlogos/leagues/500-dark/${k}.png`;
   const LEAGUES = [
-    { key: "NFL", name: "NFL", status: "live", tag: "American football",
-      desc: "What to Watch in your timezone · all 32 teams · every player's career · the big stories.",
+    { key: "NFL", name: "NFL", logo: LG_LOGO("nfl"), c1: "#013369", c2: "#D50A0A", status: "live",
+      tag: "American football", line: "Every game in your time",
+      desc: "What to Watch in AEST · all 32 teams · every player's career · the big stories, live.",
       cta: "Enter the NFL hub", href: "#/nfl" },
-    { key: "AFL", name: "AFL", status: "live", tag: "Australian football",
-      desc: "ListTrac — list management, trades, free agency, draft boards, mock drafts and player ratings.",
+    { key: "AFL", name: "AFL", logo: LG_LOGO("afl"), c1: "#003C9D", c2: "#D50A0A", status: "live",
+      tag: "Australian football", line: "The list-management home",
+      desc: "ListTrac — trades, free agency, contracts, draft boards, mock drafts and player ratings.",
       cta: "Open ListTrac", href: "https://list-trac.vercel.app", ext: true },
-    { key: "NBL", name: "NBL", status: "oct", tag: "Basketball",
+    { key: "NBL", name: "NBL", logo: LG_LOGO("nbl"), c1: "#0B1F3A", c2: "#E4002B", status: "oct",
+      tag: "Basketball", line: "Tips off in October",
       desc: "The same what-to-watch engine, pointed at Australian hoops — lands with The NBL Show.",
       cta: "Coming October", href: "" },
-    { key: "RACING", name: "Racing", status: "next", tag: "The punt",
-      desc: "The fourth code — form, previews and the big carnivals, built around Spring. Format in the works.",
-      cta: "", href: "" },
-    { key: "+", name: "More codes", status: "next", tag: "The engine generalises",
-      desc: "One spine under every sport: live fixtures → data → interactive tools → shareable content. New league, same platform.",
+    { key: "RACING", name: "Racing", logo: "", c1: "#1E5E3A", c2: "#C9A227", status: "next",
+      tag: "The punt", line: "Built around Spring",
+      desc: "The fourth code — form, previews and the big carnivals. Format in the works.",
       cta: "", href: "" },
   ];
 
   function showLeagues() {
     view.innerHTML = `<div class="shell">
-      <div class="section-h" style="margin-top:22px">Leagues <span class="n">· one platform, every code</span></div>
+      <div class="lg-head">
+        <h1 class="lg-h1">Every sport.<br><em>One armchair.</em></h1>
+        <p class="lg-sub">Four codes, one platform. Live fixtures, real data, and the tools fans come back to daily — under one masthead.</p>
+      </div>
       <div class="lg-grid">
         ${LEAGUES.map((l) => `
-          <${l.href ? `a href="${esc(l.href)}"${l.ext ? ` target="_blank" rel="noopener"` : ""}` : "div"} class="lg-card ${l.status === "next" ? "lg-muted" : ""}">
-            <div class="lg-top">
-              <span class="lg-key">${esc(l.key)}</span>
-              ${l.status === "live" ? `<span class="sc-status live">● Live</span>`
-                : l.status === "oct" ? `<span class="sc-status coming">Coming Oct</span>` : ""}
+          <${l.href ? `a href="${esc(l.href)}"${l.ext ? ` target="_blank" rel="noopener"` : ""}` : "div"}
+            class="lg-card ${l.status === "next" ? "lg-muted" : ""}"
+            style="--c1:${l.c1}; --c2:${l.c2}">
+            <div class="lg-wash"></div>
+            <div class="lg-inner">
+              <div class="lg-top">
+                ${l.logo ? `<img class="lg-logo" src="${esc(l.logo)}" alt="${esc(l.name)} logo" loading="lazy">`
+                         : `<span class="lg-logo lg-monogram" aria-hidden="true">
+                              <svg viewBox="0 0 100 100" width="74" height="74">
+                                <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="4"/>
+                                <path d="M32 68 V44 a18 18 0 0 1 36 0 V68" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>
+                                <rect x="26" y="68" width="14" height="7" rx="3.5" fill="currentColor"/>
+                                <rect x="60" y="68" width="14" height="7" rx="3.5" fill="currentColor"/>
+                              </svg>
+                            </span>`}
+                ${l.status === "live" ? `<span class="lg-badge live">● Live</span>`
+                  : l.status === "oct" ? `<span class="lg-badge soon">Oct</span>`
+                  : `<span class="lg-badge soon">Soon</span>`}
+              </div>
+              <div class="lg-name">${esc(l.name)}</div>
+              <div class="lg-line">${esc(l.line)}</div>
+              <p class="lg-desc">${esc(l.desc)}</p>
+              <div class="lg-foot">
+                <span class="lg-tag">${esc(l.tag)}</span>
+                ${l.cta ? `<span class="lg-cta">${esc(l.cta)}${l.href ? " →" : ""}</span>` : ""}
+              </div>
             </div>
-            <div class="lg-name">${esc(l.name)}</div>
-            <div class="lg-tag">${esc(l.tag)}</div>
-            <p class="lg-desc">${esc(l.desc)}</p>
-            ${l.cta ? `<div class="sc-watch">${esc(l.cta)}${l.href ? " →" : ""}</div>` : ""}
           </${l.href ? "a" : "div"}>`).join("")}
       </div>
-      <p class="panel-note" style="margin-top:14px">Not just a content house — every league page runs on live data: fixtures in Australian time, teams, players, news and the tools fans come back to daily.</p>
+      <div class="lg-more">
+        <div>
+          <div class="lg-more-h">More codes, same spine</div>
+          <p class="lg-more-p">Live fixtures → data → interactive tools → shareable content. Adding a league is a configuration, not a rebuild — which is what makes this a platform rather than a website.</p>
+        </div>
+        <span class="lg-more-plus">+</span>
+      </div>
     </div>`;
   }
 
