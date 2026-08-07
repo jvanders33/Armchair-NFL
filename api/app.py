@@ -665,6 +665,14 @@ NEWS_FEEDS = {
 
 
 NEWS_RELEVANCE = {
+    # "NFL" turns up in music and business copy; insist on football context.
+    "nfl": re.compile(
+        r"NFL|football|quarterback|touchdown|Super Bowl|preseason|training camp|"
+        r"QB|draft|roster|Chiefs|Eagles|49ers|Rams|Cowboys|Patriots|Packers|Ravens", re.I),
+    "afl": re.compile(
+        r"AFL|AFLW|footy|Brownlow|premiership|Magpies|Blues|Demons|Tigers|Cats|"
+        r"Bombers|Hawks|Swans|Giants|Suns|Lions|Dockers|Eagles|Crows|Power|Saints|Bulldogs|"
+        r"Kangaroos|marking|goal|final", re.I),
     "nbl": re.compile(
         r"NBL|Boomers|Opals|36ers|Taipans|Bullets|Breakers|JackJumpers|"
         r"Hawks|Kings|Melbourne United|Phoenix|Wildcats|Australian basketball", re.I),
