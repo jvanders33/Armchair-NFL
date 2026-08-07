@@ -88,6 +88,16 @@
       "url": "#/christmas",
       "desc": "The 2016 miracle year of sport, three episodes a team: the Western Bulldogs, the Cronulla Sharks, the Cleveland Cavaliers, the Chicago Cubs, and Leicester City.",
       "highlight": "The 2016 stories page is live — the droughts, the odds, the nights."
+    },
+    {
+      "id": "racing",
+      "title": "The Racing Slate",
+      "hosts": "Cam Luke",
+      "sport": "Racing",
+      "status": "coming",
+      "cadence": "Format in the works · built around the Spring Carnival",
+      "url": "",
+      "desc": "The fourth code — form, previews and the big carnivals. Cam already makes it; the platform gives it a home."
     }
   ],
   "runway": [
@@ -114,6 +124,11 @@
     {
       "when": "OCT",
       "what": "The NBL Show tips off — second sport on the same platform",
+      "state": ""
+    },
+    {
+      "when": "OCT–NOV",
+      "what": "Spring Carnival — racing content joins the platform for Cox Plate and Cup week",
       "state": ""
     },
     {
