@@ -552,7 +552,7 @@
     try {
       const d = await fetchJSON("/api/teams");
       view.innerHTML = `<div class="shell">
-        <div class="section-h" style="margin-top:18px">Teams</div>
+        ${pageHero("NFL", `All <em>32 teams</em>.`, "Every roster, every player, every career. Pick a club and go as deep as you like.")}
         ${d.divisions.map((div) => `
           <div class="div-h">${esc(div.name)}</div>
           <div class="teams-grid">
@@ -742,7 +742,7 @@
       const shows = d.shows;
       const latest = (s) => (s.episodes && s.episodes[0]) || null;
       view.innerHTML = `<div class="shell">
-        <div class="section-h" style="margin-top:22px">Podcasts <span class="n">· every show, on your couch</span></div>
+        ${pageHero("Listen", `<em>Podcasts</em>.`, "Every show, on your couch. Pick a deck, hit play — or scroll for the latest episodes across the network.")}
         <div class="pod-stage">
           <div class="pod-deck">
             ${shows.map((s, i) => {
@@ -838,6 +838,15 @@
   // LEAGUES — the code picker (Spotrac pattern: one platform, many leagues)
   // =====================================================================
 
+  // Shared page hero — big condensed title with the accent word picked out.
+  function pageHero(eyebrowTxt, titleHTML, subTxt) {
+    return `<div class="pg-head">
+      ${eyebrowTxt ? `<div class="pg-eyebrow">${eyebrowTxt}</div>` : ""}
+      <h1 class="pg-h1">${titleHTML}</h1>
+      ${subTxt ? `<p class="pg-sub">${esc(subTxt)}</p>` : ""}
+    </div>`;
+  }
+
   const LG_LOGO = (k) => `https://a.espncdn.com/i/teamlogos/leagues/500-dark/${k}.png`;
   const LEAGUES = [
     { key: "NFL", name: "NFL", logo: LG_LOGO("nfl"), c1: "#013369", c2: "#D50A0A", status: "live",
@@ -860,10 +869,7 @@
 
   function showLeagues() {
     view.innerHTML = `<div class="shell">
-      <div class="lg-head">
-        <h1 class="lg-h1">Every sport.<br><em>One armchair.</em></h1>
-        <p class="lg-sub">Four codes, one platform. Live fixtures, real data, and the tools fans come back to daily — under one masthead.</p>
-      </div>
+      ${pageHero("The codes", `Every sport.<br><em>One armchair.</em>`, "Four codes, one platform. Live fixtures, real data, and the tools fans come back to daily — under one masthead.")}
       <div class="lg-grid">
         ${LEAGUES.map((l) => `
           <${l.href ? `a href="${esc(l.href)}"${l.ext ? ` target="_blank" rel="noopener"` : ""}` : "div"}
@@ -914,7 +920,7 @@
     try {
       const d = await fetchJSON("/api/shows");
       view.innerHTML = `<div class="shell">
-        <div class="section-h" style="margin-top:22px">The Shows <span class="n">· one brand, every code</span></div>
+        ${pageHero("The slate", `The <em>shows</em>.`, "One brand, every code — the weekly habits, the series, and the specials. What's live now and what's landing next.")}
         <div class="shows-grid">
           ${d.shows.map((s) => `
             <${s.url ? `a href="${esc(s.url)}"${s.url.startsWith("#") ? "" : ` target="_blank" rel="noopener"`}` : "div"} class="show-card">
