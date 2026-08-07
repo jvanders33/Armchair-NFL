@@ -283,21 +283,24 @@
     leadTimer = setInterval(rotateLead, 7000);
   }
 
+  // The case for watching, in order of what actually matters in the sport.
+  // The Aussie angle is a footnote, not the headline — the game leads.
   function why(g) {
     const bits = [];
     const sp = g.odds && g.odds.spread != null ? Math.abs(g.odds.spread) : null;
     const ou = g.odds && g.odds.overUnder;
     const hot = (r) => { const [w, l] = (r || "0-0").split("-").map(Number); return w + l > 0 && w / (w + l) >= 0.65; };
     if (g.status.state === "in") bits.push("Live right now — " + g.status.detail);
+    if (hot(g.home.record) && hot(g.away.record)) bits.push("two of the form teams in football");
     if (sp !== null && sp <= 2.5) bits.push("a genuine coin-flip");
     else if (sp !== null && sp <= 4.5) bits.push("tight line");
     if (ou && ou >= 48) bits.push("shootout script (O/U " + ou + ")");
-    if (hot(g.home.record) && hot(g.away.record)) bits.push("two form sides");
-    if (/Night Football/.test(g.slot)) bits.push("prime-time window");
-    if (g.aussies.length) bits.push("🇦🇺 " + g.aussies.map((a) => a.name).join(" & ") + " on the field");
+    if (/Night Football/.test(g.slot)) bits.push("the prime-time window");
     if (!bits.length) bits.push(g.odds && g.odds.details ? "Line: " + g.odds.details : "One for the completists");
     let s = bits.join(" · ");
-    return s.charAt(0).toUpperCase() + s.slice(1) + ".";
+    s = s.charAt(0).toUpperCase() + s.slice(1) + ".";
+    if (g.aussies.length) s += ` <span class="aus-note">🇦🇺 ${esc(g.aussies.map((a) => a.name).join(" & "))}</span>`;
+    return s;
   }
 
   function teamHTML(t, big, showScore) {
@@ -381,9 +384,7 @@
     $("slate").innerHTML = list.map((g) => {
       const k = fmt(g.date);
       const showScore = g.status.state !== "pre";
-      const aus = g.aussies.length
-        ? `<span class="aus-flag" title="${esc(g.aussies[0].hook)}">🇦🇺 ${esc(g.aussies.map((a) => a.name + " (" + a.pos + ")").join(", "))}</span>`
-        : `<span></span>`;
+      const aus = `<span></span>`;  // the Aussie note now rides quietly inside why()
       const on = starred.has(g.id);
       return `<article class="game" data-id="${esc(g.id)}">
         <div class="top">

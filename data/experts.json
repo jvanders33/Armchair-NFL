@@ -6,6 +6,9 @@
     "url": "https://www.youtube.com/@ArmchairExpertsNFL",
     "tagline": "The trusted voice guiding Australia through the NFL season"
   },
+  "featured_pins_note": "Optional editorial override for the hub's lead-story carousel. Pinned items run first. The test is IMPACT — the biggest story in the sport — not whether it has an Australian angle. Leave empty to run ESPN's live feed straight. Fields: headline, description, image (absolute URL), link.",
+  "featured_pins": [],
+
   "road_to_the_g": {
     "title": "Cali to the 'G",
     "sub": "The story behind the NFL's arrival in Australia. Every episode re-releases one per day, Sep 1–10 — the ten-day countdown to the MCG. With Disney+ as Official Streaming Partner.",

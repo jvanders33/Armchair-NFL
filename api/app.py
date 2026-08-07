@@ -156,9 +156,9 @@ def _watch_score(spread, over_under, home_rec, away_rec, slot, has_aussie, in_au
     score += quality * 40                                  # combined team quality
     score += _SLOT_BONUS.get(slot, 0)
     if has_aussie:
-        score += 6
+        score += 2   # a light tiebreak, not a thumb on the scale — the sport leads
     if in_australia:
-        score += 20  # an Australian platform ranks the game played in Australia first
+        score += 20  # the MCG game is a genuine once-ever event, not a local-interest nudge
     return round(score, 1)
 
 
@@ -570,12 +570,21 @@ def api_christmas():
 
 @app.get("/api/featured")
 def featured():
-    """Image-led lead stories for the hub hero (ESPN news feed, 15-min cache)."""
+    """Image-led lead stories for the hub hero (ESPN news feed, 15-min cache).
+
+    Editorially pinned items from experts.json ride at the front — the test is
+    impact, not nationality: the biggest story in the sport leads.
+    """
     try:
         payload = _get_json(f"{ESPN_SITE}/news", ttl=900)
     except requests.RequestException:
-        return {"stories": []}
+        payload = {"articles": []}
     out = []
+    for pin in (_load_experts().get("featured_pins") or []):
+        if pin.get("headline") and pin.get("image"):
+            out.append({"headline": pin["headline"], "description": pin.get("description", ""),
+                        "image": pin["image"], "link": pin.get("link", ""),
+                        "published": "", "pinned": True})
     for a in payload.get("articles", [])[:6]:
         imgs = a.get("images") or []
         img = next((i.get("url") for i in imgs if i.get("url")), None)
@@ -589,7 +598,7 @@ def featured():
             "link": link,
             "published": a.get("published", ""),
         })
-    return {"stories": out, "source": "ESPN"}
+    return {"stories": out[:6], "source": "ESPN"}
 
 
 @app.get("/api/shows")
