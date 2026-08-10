@@ -42,7 +42,7 @@ const s1 = slide();
 s1.addShape(p.ShapeType.roundRect, { x: 0.9, y: 1.35, w: 6.7, h: 3.35, fill: { color: "1A0810" }, line: { color: C.accent, width: 2.5 }, rectRadius: 0.06 });
 s1.addText("A PROPOSAL FOR TODD GURLEY", { x: 1.25, y: 1.7, w: 6, h: 0.3, fontFace: BODY, fontSize: 11, bold: true, color: C.gold, charSpacing: 3.5, margin: 0 });
 s1.addText("RUNNING\nIT BACK", { x: 1.2, y: 2.1, w: 6.2, h: 1.9, fontFace: DISP, fontSize: 76, bold: true, color: C.ink, lineSpacingMultiple: 0.86, margin: 0, valign: "top" });
-s1.addText("Two NFL seasons. One Olympic Games. Both in your city.", { x: 1.25, y: 4.0, w: 6.2, h: 0.35, fontFace: BODY, fontSize: 13, color: C.ink2, margin: 0 });
+s1.addText("Two NFL seasons. One Olympic Games. Both in your city.", { x: 1.25, y: 4.02, w: 6.2, h: 0.4, fontFace: BODY, fontSize: 14, bold: true, color: C.gold, margin: 0 });
 s1.addText([
   { text: "Todd Gurley", options: { color: C.accent, bold: true } },
   { text: "  ·  Cam Luke", options: { color: C.ink2 } },

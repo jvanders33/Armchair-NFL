@@ -3,3 +3,6 @@ __pycache__/
 .vercel/
 node_modules/
 *.local.json
+
+# PowerPoint slide exports (regenerated on demand)
+pitch/preview*/
