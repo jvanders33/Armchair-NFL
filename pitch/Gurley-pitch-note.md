@@ -1,6 +1,6 @@
 # RUNNING IT BACK — the note to Todd
 
-*Plain-English version for Cam to send (email or message). Deck follows separately.
+*Plain-English version for Cam to send (email or message). NFL only — the Olympics sit in a separate conversation with iHeart. Deck follows separately.
 Everything in **[brackets]** needs a number from Cam/iHeart before this goes out.*
 
 ---
@@ -9,7 +9,7 @@ Todd,
 
 Great to see you Saturday. Here's the idea properly written down, like I said I would.
 
-**The short version:** a show we build together — you in LA, me in Melbourne — that runs across three seasons and finishes at the LA Olympics. You'd own a piece of it, not just host it.
+**The short version:** a show we build together — you in LA, me in Melbourne — running across two NFL seasons, with Super Bowl week in your city in the middle of it. You'd own a piece of it, not just host it.
 
 ---
 
@@ -23,17 +23,17 @@ The best part: **Sunday football in America is Monday daytime in Australia.** Ev
 
 ---
 
-## THE THREE SEASONS
+## THE SHAPE OF IT
 
-This isn't a one-season podcast. It's a three-year run with a finish line:
+This isn't a one-season podcast. It's a two-year run with a marquee in the middle:
 
-**Season 1 — NFL 2026/27.** Weekly show. You in LA, me in Melbourne. Then **four shows on the ground at Super Bowl LXI — at SoFi, in your city, February 2027** — both of us there.
+**Season 1 — NFL 2026/27.** Weekly show. You in LA, me in Melbourne. We launch straight into the MCG game, when the whole country is watching football for the first time.
 
-**Season 2 — NFL 2027/28.** Weekly again, with an audience that's had a full year to build, and a Super Bowl run to close it out.
+**Super Bowl LXI — February 2027.** SoFi Stadium, your city. **Four shows on the ground across the week, both of us there.** The biggest week in the sport, with a season of the show already behind us.
 
-**Season 3 — LA 2028.** The Olympics come to your city. We go **daily** for the Games, both of us in LA, **minimum one guest every single episode.** Athletes, medallists, the people you can get in a room that nobody else can.
+**Season 2 — NFL 2027/28.** Weekly again, into an audience that's had a full year to build, with a second Super Bowl run to close it out.
 
-That's the whole story: it starts with football and it ends with LA hosting the world. Two things you know better than anyone.
+Two full seasons, and the biggest week in football comes to you.
 
 ---
 
@@ -57,7 +57,7 @@ Look at what's happened in the last few years: McAfee, the Kelces, the whole wav
 
 **iHeart America and iHeart Australia** — a genuine co-production across both markets. They're meeting this week to lock in how it works. That means production, distribution and commercial are carried by them, not by us.
 
-What you'd actually be committing to: **roughly two hours a week in season, remote from LA.** Plus Super Bowl week and the Olympics, where we're both on the ground anyway.
+What you'd actually be committing to: **roughly two hours a week in season, remote from LA.** Plus Super Bowl week, which is on your doorstep anyway.
 
 ---
 
@@ -77,6 +77,6 @@ Cam
 
 - **Fill the two brackets** before this goes out — an equity % and a per-episode fee. Even a range is better than a blank; "[X]" reads as unfinished.
 - **The Super Bowl line assumes** your "4 Super Bowls from LA" meant *four shows across Super Bowl week*, and I've anchored it to SB LXI at SoFi (LA, 14 Feb 2027) because that's genuinely in his city. If you meant four separate Super Bowls across the deal, tell me and I'll change it — but the LA version is a much stronger hook.
-- **Lead with the Olympics if he's lukewarm on the NFL part.** Daily show, his city, his Games — for an athlete thinking about life after football, that's the bit that sounds like a career move rather than a gig.
+- **The Olympics are deliberately not in here** — that's a separate conversation with iHeart, and keeping it out makes this pitch cleaner and leaves you something to open with later.
 - **Don't send the equity % until iHeart confirms** they're comfortable — you don't want to walk a number back.
 - Keep it as an email, not an attachment. Deck second, once he's said "yes, keep going."

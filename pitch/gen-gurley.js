@@ -55,7 +55,7 @@ s1.addImage({ path: IMG("gurley.png"), x: 7.55, y: 1.25, w: 5.1, h: 4.94 });
 s1.addText("A PROPOSAL FOR TODD GURLEY", { x: M, y: 1.5, w: 6.4, h: 0.3, fontFace: BODY, fontSize: 11.5, bold: true, color: C.gold, charSpacing: 3.5, margin: 0 });
 s1.addText("RUNNING\nIT BACK", { x: M - 0.04, y: 1.92, w: 6.6, h: 2.5, fontFace: DISP, fontSize: 88, bold: true, color: C.ink, lineSpacingMultiple: 0.85, margin: 0, valign: "top" });
 s1.addShape(p.ShapeType.rect, { x: M, y: 4.42, w: 2.0, h: 0.055, fill: { color: C.accent }, line: { width: 0 } });
-s1.addText("Two NFL seasons. One Olympic Games.\nBoth of them in your city.",
+s1.addText("Two NFL seasons.\nAnd a Super Bowl in your city.",
   { x: M, y: 4.66, w: 6.4, h: 0.8, fontFace: DISP, fontSize: 24, bold: true, color: C.gold, lineSpacingMultiple: 0.98, margin: 0, valign: "top" });
 s1.addText([
   { text: "Todd Gurley", options: { color: C.accent, bold: true } },
@@ -74,7 +74,7 @@ s2.addImage({ path: IMG("nfl.png"), x: 11.35, y: 0.72, w: 1.35, h: 1.35, transpa
 statCard(s2, 0, "100k", "At the MCG", "11 Sep — the NFL's first game on Australian soil");
 statCard(s2, 1, "#1", "Growth market", "A priority international market for the league");
 statCard(s2, 2, "0", "Incumbent voice", "No established Australian NFL show owns this space");
-statCard(s2, 3, "3 yrs", "The run", "Two NFL seasons and an Olympic Games", 3.0, 1.5, C.gold);
+statCard(s2, 3, "2", "Seasons", "A two-year run, weekly through both", 3.0, 1.5, C.gold);
 card(s2, M, 4.85, W - 2 * M, 1.85, C.panel, "3A5F8C");
 s2.addText("THE SCHEDULING GIFT", { x: M + 0.28, y: 5.05, w: 6, h: 0.3, fontFace: BODY, fontSize: 10.5, bold: true, color: C.blue, charSpacing: 2, margin: 0 });
 s2.addText([
@@ -104,35 +104,35 @@ s3.addImage({ path: IMG("rams.png"), x: 8.35, y: 5.15, w: 0.85, h: 0.85, transpa
 });
 foot(s3, "Running it Back · an iHeart America × iHeart Australia co-production");
 
-/* ================= 4. THE THREE SEASONS ================= */
+/* ================= 4. THE TWO SEASONS ================= */
 const s4 = slide();
 eyebrow(s4, "THE SHAPE OF IT", C.gold);
-title(s4, "Three seasons. One finish line.");
-sub(s4, "Not a podcast that runs until it stops — a series with a destination, and the destination is your city.", 2.0);
+title(s4, "Two seasons. One marquee.");
+sub(s4, "Weekly through the NFL year, twice — with the biggest week in the sport landing in the middle of it, in your city.", 2.0);
 [
   ["SEASON 1", "NFL 2026/27", C.accent, "nfl.png",
-   "Weekly through the season. Todd in LA, Cam in Melbourne.",
-   "★ Four shows on the ground at Super Bowl LXI — SoFi Stadium, Los Angeles, February 2027. Both hosts there."],
-  ["SEASON 2", "NFL 2027/28", C.gold, "nfl.png",
-   "Weekly again, into an audience with a full year of habit behind it.",
-   "★ A second Super Bowl run to close the season out."],
-  ["SEASON 3", "LA 2028", C.blue, null,
-   "The Olympics come to Los Angeles. The show goes daily for the Games — both hosts on the ground.",
-   "★ A minimum of one guest every episode. Athletes, medallists, the rooms only Todd can open."],
+   "Weekly through the season. Todd in Los Angeles, Cam in Melbourne — recorded remotely, roughly two hours a week.",
+   "Launching into the MCG game, when the whole country is watching football for the first time."],
+  ["THE MARQUEE", "SUPER BOWL LXI", C.gold, "rams.png",
+   "SoFi Stadium, Los Angeles — February 2027. Four shows on the ground across the week, both hosts in attendance.",
+   "★ The biggest week in the sport, in Todd's own city, with the show already a season old."],
+  ["SEASON 2", "NFL 2027/28", C.blue, "nfl.png",
+   "Weekly again, into an audience with a full year of habit behind it and a commercial story that has matured.",
+   "A second Super Bowl run to close it out — and a show with real momentum behind it."],
 ].forEach((r, i) => {
   const x = x3(i);
-  card(s4, x, 2.8, col3, 3.4);
-  s4.addShape(p.ShapeType.rect, { x, y: 2.8, w: col3, h: 0.075, fill: { color: r[2] }, line: { width: 0 } });
-  s4.addText(r[0], { x: x + 0.2, y: 3.02, w: col3 - 0.4, h: 0.28, fontFace: BODY, fontSize: 10, bold: true, color: C.muted, charSpacing: 2.5, margin: 0 });
-  s4.addText(r[1], { x: x + 0.2, y: 3.32, w: col3 - 1.0, h: 0.5, fontFace: DISP, fontSize: 30, bold: true, color: r[2], margin: 0 });
-  if (r[3]) s4.addImage({ path: IMG(r[3]), x: x + col3 - 0.95, y: 3.3, w: 0.7, h: 0.7, transparency: 35 });
-  else s4.addText("LA28", { x: x + col3 - 1.25, y: 3.36, w: 1.0, h: 0.5, align: "right", fontFace: DISP, fontSize: 22, bold: true, color: C.blue, transparency: 45, margin: 0 });
+  const hero = i === 1;
+  card(s4, x, 2.8, col3, 3.4, hero ? C.panel : C.card, hero ? "8C2F45" : C.line);
+  s4.addShape(p.ShapeType.rect, { x, y: 2.8, w: col3, h: hero ? 0.11 : 0.075, fill: { color: r[2] }, line: { width: 0 } });
+  s4.addText(r[0], { x: x + 0.2, y: 3.04, w: col3 - 0.4, h: 0.28, fontFace: BODY, fontSize: 10, bold: true, color: C.muted, charSpacing: 2.5, margin: 0 });
+  s4.addText(r[1], { x: x + 0.2, y: 3.34, w: col3 - 1.0, h: 0.5, fontFace: DISP, fontSize: hero ? 26 : 30, bold: true, color: r[2], margin: 0 });
+  s4.addImage({ path: IMG(r[3]), x: x + col3 - 0.95, y: 3.3, w: 0.7, h: 0.7, transparency: 35 });
   s4.addText(r[4], { x: x + 0.2, y: 3.95, w: col3 - 0.4, h: 1.0, fontFace: BODY, fontSize: 12, color: C.ink2, margin: 0, valign: "top", lineSpacingMultiple: 1.06 });
-  s4.addText(r[5], { x: x + 0.2, y: 5.05, w: col3 - 0.4, h: 1.0, fontFace: BODY, fontSize: 11.5, bold: true, color: C.ink, margin: 0, valign: "top", lineSpacingMultiple: 1.06 });
+  s4.addText(r[5], { x: x + 0.2, y: 5.05, w: col3 - 0.4, h: 1.0, fontFace: BODY, fontSize: 11.5, bold: true, color: hero ? C.gold : C.ink, margin: 0, valign: "top", lineSpacingMultiple: 1.06 });
 });
-s4.addText("Football takes it to Los Angeles. The Olympics keep it there.",
+s4.addText("Two full seasons, and the Super Bowl comes to you.",
   { x: M, y: 6.42, w: W - 2 * M, h: 0.4, fontFace: DISP, fontSize: 22, bold: true, color: C.gold, margin: 0 });
-foot(s4, "Super Bowl LXI: SoFi Stadium, Los Angeles, 14 February 2027 · LA28 Olympic Games: July–August 2028");
+foot(s4, "Super Bowl LXI: SoFi Stadium, Los Angeles, 14 February 2027");
 
 /* ================= 5. THE PARTNERSHIP — both faces ================= */
 const s5 = slide();
@@ -169,7 +169,7 @@ sub(s6, "The structure is deliberate: a guaranteed fee so your time is paid for 
   ["THE FEE", "[$X]", "Per episode, guaranteed. You're paid for every show you turn up to, regardless of how the business is travelling.  [CONFIRM WITH IHEART]"],
   ["THE EQUITY", "[X]%", "Founding stake in the show itself — advertising, sponsorship, the back catalogue, whatever it grows into.  [CONFIRM WITH IHEART]"],
   ["THE BACKING", "iHeart", "iHeart America × iHeart Australia carry production, distribution and commercial across both markets."],
-  ["YOUR TIME", "~2 hrs", "A week, in season, remote from LA — plus Super Bowl week and the Games, where you're there anyway."],
+  ["YOUR TIME", "~2 hrs", "A week, in season, remote from LA — plus Super Bowl week, which is on your doorstep anyway."],
 ].forEach((r, i) => {
   const x = x4(i);
   const hot = i < 2;
@@ -206,9 +206,9 @@ title(s8, "Tell us the shape\nis right.", 46, 8.0);
 s8.addText("If it is, iHeart puts real numbers against the fee and the equity this week, and we paper it properly. Nothing else needs deciding today.",
   { x: M, y: 2.2, w: 7.8, h: 0.9, fontFace: BODY, fontSize: 14.5, color: C.ink2, margin: 0, valign: "top", lineSpacingMultiple: 1.1 });
 [
-  ["1", "Agree the shape", "Three seasons, weekly NFL, daily for the Games. Fee plus equity."],
+  ["1", "Agree the shape", "Two NFL seasons, weekly, plus Super Bowl week. Fee and equity."],
   ["2", "iHeart put numbers to it", "America and Australia meet this week to confirm the structure."],
-  ["3", "Announce into the season", "Launch with the NFL year in front of us and the LA run ahead."],
+  ["3", "Announce into the season", "Launch with the NFL year in front of us and the Super Bowl ahead."],
 ].forEach((r, i) => {
   const y = 3.25 + i * 1.05;
   card(s8, M, y, 7.8, 0.92);
@@ -219,7 +219,7 @@ s8.addText("If it is, iHeart puts real numbers against the fee and the equity th
 });
 card(s8, M, 6.42, 7.8, 0.72, C.panel, "8C2F45");
 s8.addText([
-  { text: "A market with no incumbent, a Super Bowl in your city, and a home Olympics to finish on. ", options: { color: C.accent, bold: true } },
+  { text: "A market with no incumbent, a Super Bowl in your city, and a two-year run to build it. ", options: { color: C.accent, bold: true } },
   { text: "We'd rather build it with you than around you.", options: { color: C.ink } },
 ], { x: M + 0.28, y: 6.5, w: 7.24, h: 0.58, fontFace: BODY, fontSize: 12.5, margin: 0, valign: "middle", lineSpacingMultiple: 1.06 });
 foot(s8, "Cam Luke · Armchair Experts · [email] · [phone] — armchair-nfl.vercel.app");
