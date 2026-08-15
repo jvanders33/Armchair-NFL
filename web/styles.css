@@ -857,3 +857,46 @@ a.show-card:hover .sc-img{transform:scale(1.04)}
 .vid-card:hover .vc-play{transform:translate(-50%,-50%) scale(1.12)}
 .vc-t{font-size:13px; font-weight:600; color:var(--ink); line-height:1.35}
 .vc-m{font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700}
+
+/* ---- versus strip (UFC pattern): faces over the countdown ---- */
+.versus{display:flex; align-items:flex-end; justify-content:center; gap:14px; padding:6px 12px 0}
+.vs-side{display:flex; flex-direction:column; align-items:center; gap:5px; position:relative}
+.vs-face{width:120px; height:88px; object-fit:contain; object-position:bottom;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.55))}
+.vs-nm{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:13px;
+  letter-spacing:.06em; color:var(--ink)}
+.vs-logo{position:absolute; top:-2px; width:30px; height:30px; object-fit:contain; opacity:.95}
+.vs-side:first-child .vs-logo{left:-6px}
+.vs-side:last-child .vs-logo{right:-6px}
+.vs-x{font-family:var(--f-display); font-size:26px; color:var(--accent); padding-bottom:34px;
+  text-shadow:0 0 16px color-mix(in srgb, var(--accent) 60%, transparent)}
+
+/* ---- numbered Top Stories (UFC pattern) ---- */
+.news-cols{display:grid; grid-template-columns:1fr 300px; gap:16px; align-items:start}
+@media (max-width:900px){.news-cols{grid-template-columns:1fr}}
+.news-cols .news-grid{grid-template-columns:repeat(3,1fr)}
+@media (max-width:900px){.news-cols .news-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:520px){.news-cols .news-grid{grid-template-columns:1fr}}
+.top5{border:1px solid var(--line); border-radius:16px; background:var(--card);
+  padding:6px 14px 10px; box-shadow:0 8px 22px rgba(0,0,0,.26)}
+.t5-h{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:14px;
+  letter-spacing:.14em; color:var(--muted); padding:10px 2px 6px}
+.t5-item{display:flex; gap:12px; align-items:flex-start; text-decoration:none; padding:10px 2px;
+  border-top:1px solid color-mix(in srgb, var(--line) 55%, transparent)}
+.t5-n{flex:none; width:26px; height:26px; border-radius:7px; display:grid; place-items:center;
+  background:var(--accent); color:#fff; font-family:var(--f-display); font-size:15px;
+  box-shadow:0 0 12px color-mix(in srgb, var(--accent) 40%, transparent)}
+.t5-t{display:block; font-size:12.5px; font-weight:600; color:var(--ink); line-height:1.35; transition:color .12s}
+.t5-item:hover .t5-t{color:var(--accent)}
+.t5-m{display:block; font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-top:3px}
+
+/* ---- motion: reveal + Ken Burns ---- */
+@media (prefers-reduced-motion: no-preference){
+  .rev{opacity:0; transform:translateY(14px); transition:opacity .5s ease, transform .5s ease}
+  .rev-in{opacity:1; transform:none}
+  .land-hosts{animation:kenburns 26s ease-in-out infinite alternate}
+  @keyframes kenburns{
+    from{transform:scale(1) translateX(0)}
+    to{transform:scale(1.07) translateX(-1.6%)}
+  }
+}

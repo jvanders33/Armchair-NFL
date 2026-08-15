@@ -318,6 +318,7 @@ def schedule(year: int | None = None, seasontype: int | None = None, week: int |
 
         games.append({
             "id": ev.get("id"),
+            "faces": _game_faces(comp),
             "name": ev.get("name"),
             "shortName": ev.get("shortName"),
             "date": dt.isoformat().replace("+00:00", "Z"),
@@ -370,6 +371,29 @@ def schedule(year: int | None = None, seasontype: int | None = None, week: int |
     }
 
 
+MCG_FACES = {
+    "SF": {"name": "Brock Purdy", "headshot": "https://a.espncdn.com/i/headshots/nfl/players/full/4361741.png"},
+    "LAR": {"name": "Matthew Stafford", "headshot": "https://a.espncdn.com/i/headshots/nfl/players/full/12483.png"},
+}
+
+
+def _game_faces(comp: dict) -> dict:
+    """The face of each side: the game's statistical leader once games are live."""
+    out = {}
+    for c in comp.get("competitors", []):
+        abbr = (c.get("team") or {}).get("abbreviation", "")
+        for cat in (c.get("leaders") or []):
+            for l in (cat.get("leaders") or []):
+                a = l.get("athlete") or {}
+                hs = (a.get("headshot") or {}) if isinstance(a.get("headshot"), dict) else {"href": a.get("headshot")}
+                if a.get("shortName") and hs.get("href"):
+                    out[abbr] = {"name": a["shortName"], "headshot": hs["href"]}
+                    break
+            if abbr in out:
+                break
+    return out
+
+
 @app.get("/api/road-to-the-g")
 def road_to_the_g():
     """The MCG game (SF vs LAR, 11 Sep 2026) straight from the live feed + the series rail."""
@@ -385,8 +409,14 @@ def road_to_the_g():
                 home = next((c for c in competitors if c.get("homeAway") == "home"), None)
                 away = next((c for c in competitors if c.get("homeAway") == "away"), None)
                 status = ev.get("status", {}).get("type", {})
+                faces = _game_faces(comp) or {
+                    (away.get("team") or {}).get("abbreviation", ""): MCG_FACES.get((away.get("team") or {}).get("abbreviation", "")),
+                    (home.get("team") or {}).get("abbreviation", ""): MCG_FACES.get((home.get("team") or {}).get("abbreviation", "")),
+                } if away and home else {}
+                faces = {k: v for k, v in faces.items() if v}
                 game = {
                     "id": ev.get("id"),
+                    "faces": faces,
                     "name": ev.get("name"),
                     "shortName": ev.get("shortName"),
                     "date": ev.get("date"),

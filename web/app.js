@@ -42,6 +42,50 @@
     return { wd, day, tm };
   };
 
+
+  // ---------- motion: scroll-reveal + count-up (skipped for reduced-motion) ----------
+  const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let revealObs = null;
+
+  function countUp(el) {
+    const raw = el.textContent.trim();
+    const m = raw.match(/^([^0-9]*)([0-9][0-9,.]*)(.*)$/);
+    if (!m) return;
+    const target = parseFloat(m[2].replace(/,/g, ""));
+    if (!isFinite(target) || target === 0) return;
+    const hasComma = m[2].includes(","), dec = (m[2].split(".")[1] || "").length;
+    const t0 = performance.now(), dur = 900;
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / dur), eased = 1 - Math.pow(1 - p, 3);
+      let v = (target * eased).toFixed(dec);
+      if (hasComma) v = Number(v).toLocaleString(undefined, { minimumFractionDigits: dec });
+      el.textContent = m[1] + v + m[3];
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  function armMotion() {
+    if (REDUCED) return;
+    if (revealObs) revealObs.disconnect();
+    revealObs = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (!en.isIntersecting) return;
+        en.target.classList.add("rev-in");
+        if (en.target.matches(".stat")) {
+          const v = en.target.querySelector(".stat-v");
+          if (v && !v.dataset.counted) { v.dataset.counted = "1"; countUp(v); }
+        }
+        revealObs.unobserve(en.target);
+      });
+    }, { threshold: 0.15 });
+    const els = document.querySelectorAll(".game, .story, .stat, .show-card, .team-card, .vid-card, .pod-card, .lg-card, .xmas-card, .t5-item");
+    els.forEach((el) => { el.classList.add("rev"); revealObs.observe(el); });
+    // Safety net: if observer deliveries stall (throttled tabs, odd embeds),
+    // nothing may ever un-hide — reveal whatever's left after 2s.
+    setTimeout(() => els.forEach((el) => el.classList.add("rev-in")), 2000);
+  }
+
   // ---------- toast ----------
   let toastTimer = null;
   function toast(html) {
@@ -77,7 +121,10 @@
         <section id="vid-wrap"></section>
         <section id="news-wrap" hidden>
           <div class="section-h" style="margin-top:28px">The Big Stories <span class="n" id="news-note">· live from the wires</span></div>
-          <div class="news-grid" id="news"></div>
+          <div class="news-cols">
+            <div class="news-grid" id="news"></div>
+            <aside class="top5" id="top5"></aside>
+          </div>
         </section>
         <div class="section-h" style="margin-top:30px">Game of the Week</div>
         <section class="gotw" id="gotw"></section>
@@ -177,12 +224,30 @@
         <div class="rtg-top">
           <span class="rtg-ey">🏟 ${esc(s.title || "Cali to the 'G")}</span>
         </div>
+        ${(() => {
+          const fa = g.faces && g.faces[g.away.abbr], fh = g.faces && g.faces[g.home.abbr];
+          if (fa && fh) return `
+        <div class="versus">
+          <div class="vs-side">
+            <img class="vs-face" src="${esc(fa.headshot)}" alt="${esc(fa.name)}">
+            <span class="vs-nm">${esc(fa.name)}</span>
+            <img class="vs-logo" src="${esc(g.away.logo)}" alt="">
+          </div>
+          <span class="vs-x">VS</span>
+          <div class="vs-side">
+            <img class="vs-face" src="${esc(fh.headshot)}" alt="${esc(fh.name)}">
+            <span class="vs-nm">${esc(fh.name)}</span>
+            <img class="vs-logo" src="${esc(g.home.logo)}" alt="">
+          </div>
+        </div>`;
+          return "";
+        })()}
         <div class="rtg-stack">
-          <div class="rtg-mu">
+          ${!(g.faces && g.faces[g.away.abbr] && g.faces[g.home.abbr]) ? `<div class="rtg-mu">
             <img src="${esc(g.away.logo)}" alt="${esc(g.away.displayName)}">
             <span class="vs">vs</span>
             <img src="${esc(g.home.logo)}" alt="${esc(g.home.displayName)}">
-          </div>
+          </div>` : ""}
           <div class="rtg-names">
             <div class="rtg-nm">${esc(g.away.name)} vs ${esc(g.home.name)}</div>
             <div class="rtg-venue">${esc(g.venue)} · the NFL's first game in Australia</div>
@@ -429,6 +494,17 @@
     const wrap = $("news-wrap");
     const stories = (featured && featured.more) || [];
     if (!stories.length) { wrap.hidden = true; return; }
+    const pool = [...((featured && featured.stories) || []), ...stories];
+    const top5 = pool.slice(0, 5);
+    const t5 = $("top5");
+    if (t5) t5.innerHTML = `<div class="t5-h">Top stories</div>` + top5.map((s, i) => `
+      <a class="t5-item rev" href="${esc(s.link)}" target="_blank" rel="noopener">
+        <span class="t5-n">${i + 1}</span>
+        <span class="t5-body">
+          <span class="t5-t">${esc(s.headline)}</span>
+          <span class="t5-m">${esc(s.source || "")}</span>
+        </span>
+      </a>`).join("");
     $("news").innerHTML = stories.map((s) => `
       <a class="story${s.image ? "" : " no-art"}" href="${esc(s.link)}" target="_blank" rel="noopener">
         ${s.image ? `<span class="st-img"><img src="${esc(s.image)}" alt="" loading="lazy"></span>` : ""}
@@ -571,6 +647,7 @@
       }
       renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(featured); renderGotw(); renderSlate(); renderAussies(); setTzNote();
       const vw2 = $("vid-wrap"); if (vw2) vw2.innerHTML = videoRailHTML(vids && vids.videos);
+      armMotion();
       $("loading").hidden = true;
       $("content").hidden = false;
     } catch (err) {
@@ -1354,6 +1431,8 @@
     else { league = "nfl"; setNav("leagues"); showHub(); }
   }
 
+  const _route = route;
+  route = function () { _route(); setTimeout(armMotion, 400); };
   window.addEventListener("hashchange", route);
   route();
 })();
