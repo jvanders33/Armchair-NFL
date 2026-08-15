@@ -440,25 +440,39 @@ body.landing{
   radial-gradient(700px 280px at 88% -20%, color-mix(in srgb, #1E9E67 30%, transparent), transparent 60%),
   linear-gradient(120deg, #8C0F27F0, #3A081599), var(--card)}
 .xmas-card{
-  display:grid; grid-template-columns:230px 1fr; gap:22px; margin-top:16px;
-  border:1px solid var(--line); border-radius:16px; background:var(--card); padding:22px 24px;
+  position:relative; overflow:hidden; margin-top:18px; border-radius:18px;
+  border:1px solid color-mix(in srgb, var(--xc1) 50%, var(--line));
+  background:
+    radial-gradient(760px 440px at 86% -4%, color-mix(in srgb, var(--xc1) 50%, transparent), transparent 62%),
+    linear-gradient(118deg, color-mix(in srgb, var(--xc1) 62%, #000) 0%, var(--xc2) 48%, #120409 100%);
+  padding:34px 36px 30px; min-height:280px;
+  box-shadow:0 18px 44px #00000059;
 }
-@media (max-width:720px){.xmas-card{grid-template-columns:1fr; gap:12px}}
-.xc-stat{border-right:1px solid var(--line); padding-right:20px; display:flex; flex-direction:column; justify-content:center}
-@media (max-width:720px){.xc-stat{border-right:none; border-bottom:1px solid var(--line); padding:0 0 12px}}
-.xc-n{font-family:var(--f-display); font-weight:400; font-size:53px; line-height:.94; letter-spacing:.01em; color:var(--accent)}
-.xc-l{font-size:11px; color:var(--muted); line-height:1.45; margin-top:8px}
+@media (max-width:720px){.xmas-card{padding:24px 20px 22px}}
+.xc-wm{
+  position:absolute; right:-10px; bottom:-.16em; z-index:0; pointer-events:none;
+  font-family:var(--f-display); font-weight:400; font-size:clamp(150px, 24vw, 280px); line-height:1;
+  color:#fff; opacity:.07; white-space:nowrap;
+}
+.xc-inner{position:relative; z-index:1; max-width:660px}
 .xc-top{display:flex; justify-content:space-between; align-items:baseline; gap:10px}
-.xc-date{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
-.xc-team{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:28px; line-height:1; margin:6px 0 0}
-.xc-story{font-size:13.5px; color:var(--ink-2); line-height:1.55; margin:10px 0 0}
-.xc-night{font-size:12.5px; color:var(--go); font-weight:600; margin:8px 0 0}
-.xc-eps{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
-.xc-ep{
-  font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; color:var(--ink-2);
-  border:1px solid var(--line); border-radius:7px; padding:5px 9px; background:var(--card-2);
+.xc-date{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:#FFFFFF99}
+.xc-team{
+  font-family:var(--f-display); font-weight:400; text-transform:uppercase;
+  font-size:clamp(34px, 4.6vw, 52px); line-height:.98; margin:10px 0 0; color:#fff;
+  text-shadow:0 2px 18px #00000066;
 }
-.xc-ep b{color:var(--accent); margin-left:7px; font-weight:800}
+.xc-statline{display:flex; align-items:baseline; gap:14px; margin-top:14px}
+.xc-n{font-family:var(--f-display); font-weight:400; font-size:42px; line-height:1; color:#FFB020}
+.xc-l{font-size:11.5px; color:#FFFFFFB8; line-height:1.45; max-width:380px}
+.xc-story{font-size:14px; color:#FFFFFFE0; line-height:1.6; margin:12px 0 0}
+.xc-night{font-size:12.5px; color:#FFB020; font-weight:600; margin:9px 0 0}
+.xc-eps{display:flex; gap:8px; flex-wrap:wrap; margin-top:14px}
+.xc-ep{
+  font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; color:#FFFFFFC9;
+  border:1px solid #FFFFFF2E; border-radius:7px; padding:5px 9px; background:#00000038;
+}
+.xc-ep b{color:#FFB020; margin-left:7px; font-weight:800}
 
 /* podcasts — fanned deck + episode list */
 .pod-stage{
@@ -900,3 +914,27 @@ a.show-card:hover .sc-img{transform:scale(1.04)}
     to{transform:scale(1.07) translateX(-1.6%)}
   }
 }
+
+
+/* headline ticker -- F1-style wire strip under the week ribbon */
+.ticker{display:flex; align-items:stretch; border-bottom:1px solid var(--line); background:#160910; overflow:hidden}
+.tk-label{
+  flex:0 0 auto; display:flex; align-items:center; padding:8px 16px; background:var(--accent); color:#fff;
+  font-family:var(--f-cond); font-weight:700; text-transform:uppercase; letter-spacing:.14em; font-size:12px;
+}
+.tk-win{flex:1 1 auto; overflow:hidden; mask-image:linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent)}
+.tk-track{display:flex; width:max-content; align-items:center}
+.tk-run{display:flex; align-items:center}
+.tk-item{
+  display:inline-flex; align-items:center; gap:9px; padding:8px 0; margin:0 18px;
+  font-size:12.5px; color:var(--ink-2); text-decoration:none; white-space:nowrap;
+}
+.tk-item b{color:var(--accent); font-size:10px; letter-spacing:.1em; font-weight:800}
+.tk-item:hover{color:#fff}
+.tk-dot{color:#3A1622; font-size:7px}
+@media (prefers-reduced-motion: no-preference){
+  .tk-track{animation:tkscroll var(--tk-dur, 80s) linear infinite}
+  .ticker:hover .tk-track{animation-play-state:paused}
+}
+@media (prefers-reduced-motion: reduce){.tk-win{overflow-x:auto}}
+@keyframes tkscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}

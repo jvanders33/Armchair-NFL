@@ -110,6 +110,10 @@
         <span class="sub" id="ribbon-sub">Every game, your kick-off time, one tap to stream.</span>
       </div>
     </div>
+    <div class="ticker" id="ticker" hidden>
+      <span class="tk-label">Headlines</span>
+      <div class="tk-win"><div class="tk-track" id="tk-track"></div></div>
+    </div>
     <div class="shell">
       <div id="loading" class="loading">Fetching the live slate…</div>
       <div id="content" hidden>
@@ -518,6 +522,16 @@
       note.textContent = `· ${featured.count} stories from ${featured.outlets.length}+ outlets`;
       note.title = featured.outlets.join(" · ");
     }
+    const tk = $("ticker"), track = $("tk-track");
+    if (tk && track) {
+      const tkPool = pool.slice(0, 12);
+      const run = tkPool.map((s) =>
+        `<a class="tk-item" href="${esc(s.link)}" target="_blank" rel="noopener"><b>${esc((s.source || "wire").toUpperCase())}</b>${esc(s.headline)}</a><span class="tk-dot">\u25cf</span>`).join("");
+      // the run is doubled so translateX(-50%) loops without a visible seam
+      track.innerHTML = `<div class="tk-run">${run}</div><div class="tk-run" aria-hidden="true">${run}</div>`;
+      track.style.setProperty("--tk-dur", Math.max(45, tkPool.length * 7) + "s");
+      tk.hidden = false;
+    }
     wrap.hidden = false;
   }
 
@@ -918,6 +932,14 @@
   // A SPORTING CHRISTMAS — the 2016 miracle year, told on the data spine
   // =====================================================================
 
+  const XMAS_LOOK = {
+    LEI: { c1: "#0053A0", c2: "#021833" },   // Leicester blue
+    CLE: { c1: "#860038", c2: "#2A0212" },   // Cavs wine
+    WB:  { c1: "#0039A6", c2: "#0B1030" },   // Bulldogs blue
+    CRO: { c1: "#0A94BC", c2: "#052733" },   // Sharks sky
+    CHC: { c1: "#0E3386", c2: "#0A1026" },   // Cubs blue
+  };
+
   async function showChristmas() {
     view.innerHTML = `<div class="shell"><div class="loading">Unwrapping 2016…</div></div>`;
     try {
@@ -942,25 +964,29 @@
               <div class="rw"><span class="rw-when">${esc(t.when)}</span><span class="rw-dot"></span><span class="rw-what">${esc(t.what)}</span></div>`).join("")}
           </div>
 
-          ${d.teams.map((t, i) => `
-            <article class="xmas-card">
-              <div class="xc-stat">
-                <div class="xc-n tnum">${esc(t.stat)}</div>
-                <div class="xc-l">${esc(t.statLabel)}</div>
-              </div>
-              <div class="xc-body">
+          ${d.teams.map((t) => {
+            const look = XMAS_LOOK[t.key] || { c1: "#8C0F27", c2: "#2A0212" };
+            return `
+            <article class="xmas-card" style="--xc1:${look.c1}; --xc2:${look.c2}">
+              <div class="xc-wm tnum" aria-hidden="true">${esc(t.stat)}</div>
+              <div class="xc-inner">
                 <div class="xc-top">
                   <span class="sc-sport">${esc(t.comp)}</span>
                   <span class="xc-date">${esc(t.won)}</span>
                 </div>
                 <h2 class="xc-team">${esc(t.team)}</h2>
+                <div class="xc-statline">
+                  <span class="xc-n tnum">${esc(t.stat)}</span>
+                  <span class="xc-l">${esc(t.statLabel)}</span>
+                </div>
                 <p class="xc-story">${esc(t.story)}</p>
                 <p class="xc-night">${esc(t.night)}</p>
                 <div class="xc-eps">
                   ${d.episodes.map((e, n) => `<span class="xc-ep">EP ${n + 1} · ${esc(e)}<b>DEC</b></span>`).join("")}
                 </div>
               </div>
-            </article>`).join("")}
+            </article>`;
+          }).join("")}
 
           <p class="panel-note" style="margin-top:14px">Three episodes per team, released through December — the festive lead-up. Every story gets the platform treatment: the drought, the odds, the numbers under the miracle.</p>
         </div>`;
