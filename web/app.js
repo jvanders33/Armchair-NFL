@@ -536,20 +536,26 @@
     wrap.hidden = false;
   }
 
-  // ---------- the ladder (AFL / NBL) — split table, finals line drawn in ----------
-  function renderLadder(lad) {
+  // ---------- the ladder (AFL / NBL) — full table, finals + wildcard lines ----------
+  // 2026 finals: the top six go straight through with the week off; 7th-10th
+  // play the wildcard round (7v10, 8v9) for the last two spots in the eight.
+  let leadersData = null;
+
+  function renderLadder(lad, leaders) {
     const wrap = $("ladder-wrap");
     if (!wrap) return;
     const rows = (lad && lad.ladder) || [];
     if (!rows.length) { wrap.hidden = true; return; }
-    const cut = lad.cutoff;
+    leadersData = leaders && (leaders.categories || []).length ? leaders.categories : null;
+    const lines = {};
+    (lad.lines || []).forEach((l) => { lines[l.after] = l; });
+    const wildTo = Math.max(...(lad.lines || []).map((l) => l.after), 0);
     const pctLbl = league === "afl" ? "%" : "Win%";
-    const half = Math.ceil(rows.length / 2);
-    const cols = [rows.slice(0, half), rows.slice(half)];
     const formDots = (f) => f ? `<span class="lf">${[...f].map((c) =>
       `<i class="${c === "W" ? "w" : c === "L" ? "l" : "d"}" title="${c}"></i>`).join("")}</span>` : "<span></span>";
+    const posCls = (r) => r.rank <= 6 ? " in-six" : (r.rank <= wildTo && league === "afl" ? " in-wild" : "");
     const rowHTML = (r) => `
-      <a class="lad-row${r.rank <= cut ? " in-finals" : ""}" href="#/${league}/team/${esc(r.abbr)}">
+      <a class="lad-row${posCls(r)}" href="#/${league}/team/${esc(r.abbr)}">
         <span class="lad-pos tnum">${r.rank}</span>
         <img class="lad-logo" src="${esc(r.logo || "")}" alt="" loading="lazy">
         <span class="lad-team">${esc(r.name)}</span>
@@ -557,16 +563,39 @@
         <span class="lad-pct tnum">${esc(r.pct)}</span>
         <span class="lad-pts tnum">${esc(r.points || "")}</span>
         ${formDots(r.form)}
-      </a>${r.rank === cut ? `<div class="lad-cut"><span>Finals line</span></div>` : ""}`;
+      </a>${lines[r.rank] ? `<div class="lad-cut ${esc(lines[r.rank].kind)}"><span>${esc(lines[r.rank].label)}</span></div>` : ""}`;
+    const sub = league === "afl" ? "· live · top 6 straight through · 7–10 play the wildcard round" : "· live";
     wrap.innerHTML = `
-      <div class="section-h" style="margin-top:30px">The Ladder <span class="n">· live · top ${cut} play finals</span></div>
-      <div class="ladder">
-        ${cols.map((c) => `<div class="lad-col">
+      <div class="section-h" style="margin-top:30px">The Ladder <span class="n">${sub}</span></div>
+      <div class="lad-wrap${leadersData ? "" : " solo"}">
+        <div class="lad-col">
           <div class="lad-head"><span></span><span></span><span>Club</span><span>W–L</span><span>${pctLbl}</span><span>Pts</span><span>Form</span></div>
-          ${c.map(rowHTML).join("")}
-        </div>`).join("")}
+          ${rows.map(rowHTML).join("")}
+        </div>
+        ${leadersData ? `<aside class="ldr" id="ldr"></aside>` : ""}
       </div>`;
+    if (leadersData) paintLeaders(leadersData[0].key);
     wrap.hidden = false;
+  }
+
+  function paintLeaders(key) {
+    const box = $("ldr");
+    if (!box || !leadersData) return;
+    const cat = leadersData.find((c) => c.key === key) || leadersData[0];
+    box.innerHTML = `
+      <div class="ldr-h">Season leaders</div>
+      <div class="ldr-tabs" role="tablist">
+        ${leadersData.map((c) => `<button class="ldr-tab" data-lk="${esc(c.key)}" aria-pressed="${c.key === cat.key}">${esc(c.label)}</button>`).join("")}
+      </div>
+      ${cat.leaders.map((p, i) => `
+        <div class="ldr-row">
+          <span class="ldr-pos tnum">${i + 1}</span>
+          <span class="ldr-who"><b>${esc(p.name)}</b><i>${esc(p.club)} · ${p.games} gms</i></span>
+          <span class="ldr-val tnum">${p.value}<i>${p.avg ? p.avg + "/g" : ""}</i></span>
+        </div>`).join("")}
+      <div class="ldr-src">Official AFL season totals</div>`;
+    box.querySelectorAll("[data-lk]").forEach((b) =>
+      b.addEventListener("click", () => paintLeaders(b.getAttribute("data-lk"))));
   }
 
   function renderRibbon() {
@@ -675,13 +704,14 @@
     $("content").hidden = true;
     const qs = (weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "?") + `&league=${league}`;
     try {
-      const [sched, aus, rtg, featured, vids, lad] = await Promise.all([
+      const [sched, aus, rtg, featured, vids, lad, ldrs] = await Promise.all([
         fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
         league === "nfl" && !aussies.length ? fetchJSON("/api/aussies") : Promise.resolve(null),
         league === "nfl" ? fetchJSON("/api/road-to-the-g").catch(() => null) : Promise.resolve(null),
         fetchJSON(`/api/featured?league=${league}`).catch(() => null),
         fetchJSON(`/api/videos?league=${league}`).catch(() => null),
         league !== "nfl" ? fetchJSON(`/api/ladder?league=${league}`).catch(() => null) : Promise.resolve(null),
+        league === "afl" ? fetchJSON("/api/leaders?league=afl").catch(() => null) : Promise.resolve(null),
       ]);
       hubData = sched;
       if (aus) aussies = aus.players || [];
@@ -694,7 +724,7 @@
       } else {
         episodeHTML = "";
       }
-      renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(featured); renderLadder(lad); renderGotw(); renderSlate(); renderAussies(); setTzNote();
+      renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(featured); renderLadder(lad, ldrs); renderGotw(); renderSlate(); renderAussies(); setTzNote();
       const vw2 = $("vid-wrap"); if (vw2) vw2.innerHTML = videoRailHTML(vids && vids.videos);
       armMotion();
       armLivePoll();

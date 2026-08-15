@@ -523,7 +523,65 @@ def api_ladder(league: str = "afl"):
             "form": disp("form")[-5:],          # season-long string, latest game last
         })
     rows.sort(key=lambda r: r["rank"] or 99)
-    return {"ladder": rows, "cutoff": 8 if league == "afl" else 6}
+    # 2026 finals: top six straight through, 7th-10th play a wildcard round
+    lines = ([{"after": 6, "kind": "top6", "label": "Top six — week off, straight to finals"},
+              {"after": 10, "kind": "wild", "label": "Wildcard — 7v10 & 8v9 for the last two spots"}]
+             if league == "afl" else
+             [{"after": 6, "kind": "top6", "label": "Finals line"}])
+    return {"ladder": rows, "lines": lines}
+
+
+# ---------------------------------------------------------------------------
+# AFL season leaders — the official Champion Data feed (api.afl.com.au).
+# A short-lived MIS token unlocks it: POST /cfs/afl/WMCTok, then send the
+# token as x-media-mis-token. Same mechanism the AFL's own site uses.
+# ---------------------------------------------------------------------------
+AFL_API = "https://api.afl.com.au"
+_AFL_HDRS = {"Origin": "https://www.afl.com.au", "Referer": "https://www.afl.com.au/",
+             "User-Agent": "Mozilla/5.0"}
+_afl_tok = {"token": None, "ts": 0.0}
+_leaders_cache = {"data": None, "ts": 0.0}
+# the stats feed still calls Gold Coast GCFC; the rest of the site says SUNS
+_AFL_ABBR_FIX = {"GCFC": "SUNS"}
+
+
+def _afl_token() -> str:
+    if _afl_tok["token"] and time.time() - _afl_tok["ts"] < 1800:
+        return _afl_tok["token"]
+    r = requests.post(f"{AFL_API}/cfs/afl/WMCTok", headers=_AFL_HDRS, timeout=15)
+    r.raise_for_status()
+    _afl_tok.update(token=r.json()["token"], ts=time.time())
+    return _afl_tok["token"]
+
+
+@app.get("/api/leaders")
+def api_leaders(league: str = "afl"):
+    if league != "afl":
+        return {"categories": []}
+    if _leaders_cache["data"] and time.time() - _leaders_cache["ts"] < 3600:
+        return _leaders_cache["data"]
+    season = f"CD_S{datetime.now().year}014"          # AFL comp digits = 014
+    r = requests.get(f"{AFL_API}/statspro/playersStats/seasons/{season}",
+                     headers={**_AFL_HDRS, "x-media-mis-token": _afl_token()}, timeout=25)
+    r.raise_for_status()
+    players = r.json().get("players", [])
+    cats = [("goals", "Goals"), ("disposals", "Disposals"), ("marks", "Marks"),
+            ("tackles", "Tackles"), ("hitouts", "Hitouts")]
+    out = []
+    for key, label in cats:
+        stat = lambda p: (p.get("totals") or {}).get(key) or 0
+        top = sorted(players, key=stat, reverse=True)[:10]
+        out.append({"key": key, "label": label, "leaders": [{
+            "name": f'{p["playerDetails"]["givenName"]} {p["playerDetails"]["surname"]}',
+            "club": _AFL_ABBR_FIX.get((p.get("team") or {}).get("teamAbbr", ""),
+                                      (p.get("team") or {}).get("teamAbbr", "")),
+            "value": int(stat(p)),
+            "games": int(p.get("gamesPlayed") or 0),
+            "avg": (p.get("averages") or {}).get(key),
+        } for p in top if stat(p)]})
+    data = {"categories": out}
+    _leaders_cache.update(data=data, ts=time.time())
+    return data
 
 
 ROSTER_GROUP_LABELS = {
