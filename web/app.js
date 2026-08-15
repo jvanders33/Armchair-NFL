@@ -703,7 +703,7 @@
   // =====================================================================
 
   async function showTeams() {
-    view.innerHTML = `<div class="shell"><div class="loading">Loading the 32 clubs…</div></div>`;
+    view.innerHTML = `<div class="shell"><div class="loading">Loading the clubs…</div></div>`;
     try {
       const d = await fetchJSON(`/api/teams?league=${league}`);
       view.innerHTML = `${nflSubnav("teams")}<div class="shell">
@@ -717,7 +717,11 @@
         ${d.divisions.map((div) => `
           <div class="div-h">${esc(div.name)}</div>
           <div class="teams-grid">
-            ${div.teams.map((t) => `
+            ${div.teams.map((t) => t.coming ? `
+              <div class="team-card is-coming">
+                <img src="${esc(t.logo)}" alt="" loading="lazy">
+                <div><div class="loc coming-chip">${esc(t.coming)}</div><div class="tnm">${esc(t.name)}</div></div>
+              </div>` : `
               <a class="team-card" href="#/${league}/team/${esc(t.abbr)}">
                 <img src="${esc(t.logo)}" alt="" loading="lazy">
                 <div><div class="loc">${esc(t.location)}</div><div class="tnm">${esc(t.name)}</div></div>

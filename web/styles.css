@@ -943,3 +943,8 @@ a.show-card:hover .sc-bg{transform:scale(1.05)}
 }
 @media (prefers-reduced-motion: reduce){.tk-win{overflow-x:auto}}
 @keyframes tkscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* clubs joining the competition -- listed, not clickable yet */
+.team-card.is-coming{cursor:default; opacity:.92}
+.team-card.is-coming:hover{transform:none; border-color:var(--line)}
+.coming-chip{color:#FFB020 !important; font-weight:800; letter-spacing:.1em; text-transform:uppercase; font-size:9.5px}

@@ -483,6 +483,15 @@ def api_teams(league: str = "nfl"):
             {"name": name, "teams": [by_abbr[a] for a in abbrs if a in by_abbr]}
             for name, abbrs in DIVISIONS
         ]}
+    if league == "afl":
+        # ESPN's AFL feed ships a phantom GCFC entry (Gold Coast's logo under
+        # Sydney's name) and doesn't list Tasmania yet — drop one, add the other.
+        by_abbr.pop("GCFC", None)
+        by_abbr["TAS"] = {
+            "abbr": "TAS", "location": "", "name": "Tasmania Devils",
+            "displayName": "Tasmania Devils", "color": "0c2f2a", "altColor": "b41f2e",
+            "logo": "/img/tas-devils.png", "coming": "Joining 2028",
+        }
     # AFL and the NBL run single ladders — one group, alphabetical
     return {"divisions": [{"name": _cfg(league)["name"] + " clubs",
                            "teams": sorted(by_abbr.values(), key=lambda t: t["displayName"])}]}
