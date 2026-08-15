@@ -588,11 +588,12 @@
         ${leadersData.map((c) => `<button class="ldr-tab" data-lk="${esc(c.key)}" aria-pressed="${c.key === cat.key}">${esc(c.label)}</button>`).join("")}
       </div>
       ${cat.leaders.map((p, i) => `
-        <div class="ldr-row">
+        <a class="ldr-row" href="#/afl/player/${esc(p.id || "")}">
           <span class="ldr-pos tnum">${i + 1}</span>
+          ${p.photo ? `<img class="ldr-img" src="${esc(p.photo)}" alt="" loading="lazy">` : `<span class="ldr-img"></span>`}
           <span class="ldr-who"><b>${esc(p.name)}</b><i>${esc(p.club)} · ${p.games} gms</i></span>
           <span class="ldr-val tnum">${p.value}<i>${p.avg ? p.avg + "/g" : ""}</i></span>
-        </div>`).join("")}
+        </a>`).join("")}
       <div class="ldr-src">Official AFL season totals</div>`;
     box.querySelectorAll("[data-lk]").forEach((b) =>
       b.addEventListener("click", () => paintLeaders(b.getAttribute("data-lk"))));
@@ -832,12 +833,12 @@
           </div>
         </div>
         <div class="shell">
-          ${!d.groups.length ? `
+          ${!d.groups.length ? (league === "afl" ? `
+            <div id="afl-list"><div class="loading">Loading the list…</div></div>` : `
             <div class="section-h" style="margin-top:26px">The list</div>
             <div class="panel roster-empty">
               <p>Player lists for the ${esc((LEAGUE_UI[league] || {}).name || "")} aren't in the live feed yet — fixtures, results and ladder are.</p>
-              ${league === "afl" ? `<a class="watch" href="https://list-trac.vercel.app" target="_blank" rel="noopener">Full list, contracts &amp; trades on ListTrac →</a>` : ""}
-            </div>` : ""}
+            </div>`) : ""}
           ${d.groups.map((g) => `
             <div class="section-h" style="margin-top:26px">${esc(g.label)} <span class="n">· ${g.players.length}</span></div>
             <div class="tbl-wrap"><table class="roster">
@@ -865,8 +866,100 @@
         tr.addEventListener("click", go);
         tr.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
       });
+      if (league === "afl" && !d.groups.length) loadAflList(abbr);
     } catch (err) {
       view.innerHTML = `<div class="shell"><div class="loading">Couldn't load ${esc(abbr)} (${esc(err.message)}).</div></div>`;
+    }
+  }
+
+  // AFL lists come from the official Champion Data feed, not ESPN
+  async function loadAflList(abbr) {
+    const box = $("afl-list");
+    if (!box) return;
+    try {
+      const d = await fetchJSON(`/api/afl/list/${encodeURIComponent(abbr)}`);
+      const n1 = (v) => v == null ? "" : (+v).toFixed(1);
+      box.innerHTML = `
+        <div class="section-h" style="margin-top:26px">The list <span class="n">· ${d.players.length} played in 2026 · season numbers</span></div>
+        <div class="tbl-wrap"><table class="roster">
+          <thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Age</th><th class="tnum">Gms</th><th class="tnum">Goals</th><th class="tnum">Disp/g</th><th class="tnum">Marks/g</th><th class="tnum">Tkl/g</th><th class="tnum">Rating</th></tr></thead>
+          <tbody>
+            ${d.players.map((p) => `
+              <tr data-player="${esc(p.id)}" tabindex="0">
+                <td class="tnum">${esc(p.jumper ?? "")}</td>
+                <td class="pl">
+                  ${p.photo ? `<img class="hs" src="${esc(p.photo)}" alt="" loading="lazy">` : `<span class="hs hs-empty"></span>`}
+                  <span class="pl-nm">${esc(p.name)}</span>
+                </td>
+                <td>${esc(p.pos)}</td>
+                <td class="tnum">${esc(p.age ?? "")}</td>
+                <td class="tnum">${p.games}</td>
+                <td class="tnum">${p.goals || ""}</td>
+                <td class="tnum">${n1(p.disp)}</td>
+                <td class="tnum">${n1(p.marks)}</td>
+                <td class="tnum">${n1(p.tackles)}</td>
+                <td class="tnum">${p.rating ? Math.round(p.rating) : ""}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table></div>
+        <p class="panel-note" style="margin-top:12px">Official AFL season stats. Contracts, trades and list management live on <a href="https://list-trac.vercel.app" target="_blank" rel="noopener">ListTrac →</a></p>`;
+      box.querySelectorAll("[data-player]").forEach((tr) => {
+        const go = () => { location.hash = "#/afl/player/" + tr.getAttribute("data-player"); };
+        tr.addEventListener("click", go);
+        tr.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+      });
+    } catch {
+      box.innerHTML = `<div class="panel roster-empty" style="margin-top:26px">
+        <p>Couldn't reach the AFL stats feed for this list.</p>
+        <a class="watch" href="https://list-trac.vercel.app" target="_blank" rel="noopener">Full list, contracts &amp; trades on ListTrac →</a></div>`;
+    }
+  }
+
+  // AFL player page — season card from the official stats feed
+  async function showAflPlayer(pid) {
+    view.innerHTML = `<div class="shell"><div class="loading">Loading player…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/afl/player/" + encodeURIComponent(pid));
+      const p = d.player;
+      const chips = [
+        p.pos, p.age ? p.age + " yrs" : "", p.height,
+        p.draft, p.debut ? "Debut " + p.debut : "", p.state ? "From " + p.state : "",
+      ].filter(Boolean);
+      const n1 = (v) => v == null ? "—" : (+v).toFixed(1);
+      view.innerHTML = `
+        ${nflSubnav("teams")}
+        <div class="team-hero">
+          <div class="shell">
+            <a class="crumb" href="#/afl/team/${esc(p.club)}">← ${esc(p.clubName)}</a>
+            <div class="th-row">
+              ${p.photo ? `<img class="ph" src="${esc(p.photo)}" alt="">` : ""}
+              <div>
+                <div class="th-loc">${esc(p.clubName)}${p.jumper ? " · #" + esc(p.jumper) : ""}</div>
+                <h1 class="th-name">${esc(p.name)}</h1>
+                <div class="th-meta">${chips.map(esc).join(" · ")}</div>
+                <div class="sum-chips">
+                  <span class="sum"><b class="tnum">${p.games}</b> games</span>
+                  <span class="sum"><b class="tnum">${p.goals}</b> goals</span>
+                  <span class="sum"><b class="tnum">${n1(p.dispAvg)}</b> disposals/g</span>
+                  <span class="sum"><b class="tnum">${n1(p.marksAvg)}</b> marks/g</span>
+                  <span class="sum"><b class="tnum">${n1(p.tacklesAvg)}</b> tackles/g</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="shell">
+          <div class="section-h" style="margin-top:26px">2026 season <span class="n">· official AFL stats</span></div>
+          <div class="tbl-wrap"><table class="roster stats">
+            <thead><tr><th>Stat</th><th class="tnum">Total</th><th class="tnum">Per game</th></tr></thead>
+            <tbody>
+              ${d.stats.map((s) => `<tr><td>${esc(s.label)}</td><td class="tnum">${esc(s.total)}</td><td class="tnum">${esc(s.avg)}</td></tr>`).join("")}
+            </tbody>
+          </table></div>
+          ${p.from ? `<p class="panel-note" style="margin-top:12px">Recruited from: ${esc(p.from)}</p>` : ""}
+        </div>`;
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load player (${esc(err.message)}).</div></div>`;
     }
   }
 
@@ -875,6 +968,7 @@
   // =====================================================================
 
   async function showPlayer(pid) {
+    if (league === "afl") return showAflPlayer(pid);
     view.innerHTML = `<div class="shell"><div class="loading">Loading player…</div></div>`;
     try {
       const d = await fetchJSON("/api/player/" + encodeURIComponent(pid));
@@ -1546,7 +1640,7 @@
     const LG = "(nfl|afl|nbl)";
     if (isLanding) { setNav(""); showLanding(); }
     else if ((m = h.match(new RegExp(`^#/${LG}/team/([A-Za-z]{2,5})$`)))) { league = m[1]; setNav("leagues"); showTeam(m[2].toUpperCase()); }
-    else if ((m = h.match(new RegExp(`^#/${LG}/player/(\d+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
+    else if ((m = h.match(new RegExp(`^#/${LG}/player/([A-Za-z0-9_]+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
     else if ((m = h.match(new RegExp(`^#/${LG}/teams$`)))) { league = m[1]; setNav("leagues"); showTeams(); }
     else if ((m = h.match(new RegExp(`^#/${LG}$`)))) { league = m[1]; setNav("leagues"); showHub(); }
     else if ((m = h.match(/^#\/watch\/([\w-]+)$/))) { setNav("watch"); showWatch(m[1]); }

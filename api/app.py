@@ -554,17 +554,41 @@ def _afl_token() -> str:
     return _afl_tok["token"]
 
 
+_afl_stats_cache = {"players": None, "ts": 0.0}
+
+
+def _afl_players() -> list:
+    """The full Champion Data season payload — every listed player's totals
+    and averages, one request an hour."""
+    if _afl_stats_cache["players"] and time.time() - _afl_stats_cache["ts"] < 3600:
+        return _afl_stats_cache["players"]
+    season = f"CD_S{datetime.now().year}014"          # AFL comp digits = 014
+    r = requests.get(f"{AFL_API}/statspro/playersStats/seasons/{season}",
+                     headers={**_AFL_HDRS, "x-media-mis-token": _afl_token()}, timeout=25)
+    r.raise_for_status()
+    players = r.json().get("players", [])
+    if players:
+        _afl_stats_cache.update(players=players, ts=time.time())
+    return players
+
+
+def _afl_abbr(p: dict) -> str:
+    ab = (p.get("team") or {}).get("teamAbbr", "")
+    return _AFL_ABBR_FIX.get(ab, ab)
+
+
+def _afl_name(p: dict) -> str:
+    d = p.get("playerDetails") or {}
+    return f'{d.get("givenName", "")} {d.get("surname", "")}'.strip()
+
+
 @app.get("/api/leaders")
 def api_leaders(league: str = "afl"):
     if league != "afl":
         return {"categories": []}
     if _leaders_cache["data"] and time.time() - _leaders_cache["ts"] < 3600:
         return _leaders_cache["data"]
-    season = f"CD_S{datetime.now().year}014"          # AFL comp digits = 014
-    r = requests.get(f"{AFL_API}/statspro/playersStats/seasons/{season}",
-                     headers={**_AFL_HDRS, "x-media-mis-token": _afl_token()}, timeout=25)
-    r.raise_for_status()
-    players = r.json().get("players", [])
+    players = _afl_players()
     cats = [("goals", "Goals"), ("disposals", "Disposals"), ("marks", "Marks"),
             ("tackles", "Tackles"), ("hitouts", "Hitouts")]
     out = []
@@ -572,9 +596,10 @@ def api_leaders(league: str = "afl"):
         stat = lambda p: (p.get("totals") or {}).get(key) or 0
         top = sorted(players, key=stat, reverse=True)[:10]
         out.append({"key": key, "label": label, "leaders": [{
-            "name": f'{p["playerDetails"]["givenName"]} {p["playerDetails"]["surname"]}',
-            "club": _AFL_ABBR_FIX.get((p.get("team") or {}).get("teamAbbr", ""),
-                                      (p.get("team") or {}).get("teamAbbr", "")),
+            "id": p.get("playerId"),
+            "name": _afl_name(p),
+            "club": _afl_abbr(p),
+            "photo": (p.get("playerDetails") or {}).get("photoURL"),
             "value": int(stat(p)),
             "games": int(p.get("gamesPlayed") or 0),
             "avg": (p.get("averages") or {}).get(key),
@@ -582,6 +607,76 @@ def api_leaders(league: str = "afl"):
     data = {"categories": out}
     _leaders_cache.update(data=data, ts=time.time())
     return data
+
+
+@app.get("/api/afl/list/{abbr}")
+def api_afl_list(abbr: str):
+    """A club's list with season numbers, from the official stats feed —
+    ESPN publishes no AFL rosters, Champion Data has every listed player."""
+    cd = {v: k for k, v in _AFL_ABBR_FIX.items()}.get(abbr.upper(), abbr.upper())
+    avg = lambda p, k: (p.get("averages") or {}).get(k)
+    rows = [{
+        "id": p.get("playerId"),
+        "name": _afl_name(p),
+        "photo": (p.get("playerDetails") or {}).get("photoURL"),
+        "pos": (p.get("playerDetails") or {}).get("position", ""),
+        "age": (p.get("playerDetails") or {}).get("age"),
+        "jumper": (p.get("playerDetails") or {}).get("jumperNumber"),
+        "games": int(p.get("gamesPlayed") or 0),
+        "goals": int((p.get("totals") or {}).get("goals") or 0),
+        "disp": avg(p, "disposals"), "marks": avg(p, "marks"), "tackles": avg(p, "tackles"),
+        "rating": (p.get("totals") or {}).get("ratingPoints"),
+    } for p in _afl_players() if _afl_abbr(p) == abbr.upper() or (p.get("team") or {}).get("teamAbbr") == cd]
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"No list for {abbr}")
+    rows.sort(key=lambda r: (-(r["games"]), -(r["disp"] or 0)))
+    return {"players": rows}
+
+
+# the player-page stat lines, in display order: (totals key, label, decimals)
+_AFL_STAT_LINES = [
+    ("disposals", "Disposals", 0), ("kicks", "Kicks", 0), ("handballs", "Handballs", 0),
+    ("disposalEfficiency", "Disposal efficiency %", 1), ("metresGained", "Metres gained", 0),
+    ("marks", "Marks", 0), ("contestedMarks", "Contested marks", 0), ("marksInside50", "Marks inside 50", 0),
+    ("goals", "Goals", 0), ("behinds", "Behinds", 0), ("goalAssists", "Goal assists", 0),
+    ("scoreInvolvements", "Score involvements", 0), ("inside50s", "Inside 50s", 0),
+    ("tackles", "Tackles", 0), ("totalClearances", "Clearances", 0),
+    ("contestedPossessions", "Contested possessions", 0), ("intercepts", "Intercepts", 0),
+    ("rebound50s", "Rebound 50s", 0), ("hitouts", "Hitouts", 0),
+    ("freesFor", "Frees for", 0), ("freesAgainst", "Frees against", 0),
+    ("dreamTeamPoints", "Fantasy points", 0), ("ratingPoints", "AFL rating points", 1),
+]
+
+
+@app.get("/api/afl/player/{pid}")
+def api_afl_player(pid: str):
+    p = next((x for x in _afl_players() if x.get("playerId") == pid), None)
+    if not p:
+        raise HTTPException(status_code=404, detail=f"Unknown player {pid}")
+    d = p.get("playerDetails") or {}
+    tot, av = p.get("totals") or {}, p.get("averages") or {}
+    draft = ""
+    if d.get("draftPosition") and d.get("draftYear"):
+        kind = {"nationalDraft": "national draft", "rookieDraft": "rookie draft",
+                "preseasonDraft": "pre-season draft"}.get(d.get("draftType"), d.get("draftType") or "draft")
+        draft = f'Pick {d["draftPosition"]} · {d["draftYear"]} {kind}'
+    fmt_n = lambda v, dec: (f"{v:,.{dec}f}".rstrip("0").rstrip(".") if isinstance(v, float) else f"{v:,}") if v not in (None, "") else ""
+    stats = [{"label": lbl, "total": fmt_n(tot.get(k), dec), "avg": fmt_n(av.get(k), 1)}
+             for k, lbl, dec in _AFL_STAT_LINES if tot.get(k) not in (None, 0) or av.get(k)]
+    return {"player": {
+        "id": pid, "name": _afl_name(p),
+        "photo": d.get("photoURL"),
+        "club": _afl_abbr(p), "clubName": (p.get("team") or {}).get("teamName", ""),
+        "pos": d.get("position", ""), "age": d.get("age"),
+        "height": f'{d["heightCm"]} cm' if d.get("heightCm") else "",
+        "jumper": d.get("jumperNumber"),
+        "draft": draft, "debut": d.get("debutYear"),
+        "from": d.get("recruitedFrom", ""), "state": d.get("stateOfOrigin", ""),
+        "games": int(p.get("gamesPlayed") or 0),
+        "goals": int(tot.get("goals") or 0),
+        "dispAvg": av.get("disposals"), "marksAvg": av.get("marks"),
+        "tacklesAvg": av.get("tackles"), "rating": tot.get("ratingPoints"),
+    }, "stats": stats}
 
 
 ROSTER_GROUP_LABELS = {
