@@ -811,3 +811,49 @@ a.show-card:hover .sc-img{transform:scale(1.04)}
   .cap-form input, .cap-form textarea{min-width:0; max-width:100%}
   .cap-card{overflow:hidden}
 }
+
+/* ---- watch page: player + playlist ---- */
+.watch-grid{display:grid; grid-template-columns:1.9fr 1fr; gap:20px; align-items:start}
+@media (max-width:900px){.watch-grid{grid-template-columns:1fr}}
+.watch-player{position:relative; aspect-ratio:16/9; border-radius:16px; overflow:hidden;
+  background:#000; border:1px solid var(--line); box-shadow:0 16px 42px rgba(0,0,0,.5)}
+.watch-player iframe{position:absolute; inset:0; width:100%; height:100%}
+.watch-t{font-family:var(--f-display); font-weight:400; text-transform:uppercase;
+  font-size:clamp(20px,2.4vw,28px); line-height:1.02; margin:16px 0 0; letter-spacing:.008em}
+.watch-m{font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; color:var(--accent); margin-top:7px}
+.watch-d{font-size:13.5px; color:var(--ink-2); line-height:1.55; margin:10px 0 0; max-width:70ch}
+.watch-list{border:1px solid var(--line); border-radius:16px; background:var(--card);
+  padding:6px; max-height:640px; overflow-y:auto; box-shadow:0 8px 22px rgba(0,0,0,.26)}
+.wl-h{font-family:var(--f-cond); text-transform:uppercase; font-weight:700; font-size:14px;
+  letter-spacing:.14em; color:var(--muted); padding:10px 12px 6px}
+.wl-item{display:flex; gap:10px; width:100%; text-align:left; background:none; border:none;
+  border-radius:11px; padding:8px; cursor:pointer; transition:background .12s; align-items:flex-start}
+.wl-item:hover{background:var(--card-2)}
+.wl-item.on{background:color-mix(in srgb, var(--accent) 14%, var(--card-2))}
+.wl-thumb{position:relative; flex:0 0 108px; aspect-ratio:16/9; border-radius:8px; overflow:hidden; background:#000}
+.wl-thumb img{width:100%; height:100%; object-fit:cover}
+.wl-play{position:absolute; inset:0; display:grid; place-items:center; color:#fff; font-size:13px;
+  background:rgba(0,0,0,.25); opacity:0; transition:opacity .12s}
+.wl-item:hover .wl-play, .wl-item.on .wl-play{opacity:1}
+.wl-t{display:block; font-size:12px; font-weight:600; color:var(--ink); line-height:1.3}
+.wl-m{display:block; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-top:4px}
+
+/* ---- "From the show" rail on hubs ---- */
+.vid-rail{display:grid; grid-auto-flow:column; grid-auto-columns:minmax(240px, 1fr);
+  gap:14px; overflow-x:auto; padding-bottom:6px; scrollbar-width:thin}
+.vid-card{display:flex; flex-direction:column; gap:7px; text-decoration:none;
+  border:1px solid var(--line); border-radius:14px; background:var(--card); padding:10px;
+  box-shadow:0 8px 20px rgba(0,0,0,.26);
+  transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease}
+.vid-card:hover{transform:translateY(-3px); border-color:var(--accent); box-shadow:0 14px 32px rgba(0,0,0,.42)}
+.vc-thumb{position:relative; aspect-ratio:16/9; border-radius:9px; overflow:hidden; background:#000}
+.vc-thumb img{width:100%; height:100%; object-fit:cover; transition:transform .3s ease}
+.vid-card:hover .vc-thumb img{transform:scale(1.05)}
+.vc-play{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:40px; height:40px; border-radius:50%; display:grid; place-items:center;
+  background:color-mix(in srgb, var(--accent) 88%, black); color:#fff; font-size:14px;
+  box-shadow:0 0 18px color-mix(in srgb, var(--accent) 55%, transparent);
+  opacity:.92; transition:transform .15s}
+.vid-card:hover .vc-play{transform:translate(-50%,-50%) scale(1.12)}
+.vc-t{font-size:13px; font-weight:600; color:var(--ink); line-height:1.35}
+.vc-m{font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700}

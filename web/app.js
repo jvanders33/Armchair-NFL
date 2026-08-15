@@ -74,6 +74,7 @@
           ${league === "nfl" ? '<section id="rtg"></section>' : ""}
         </div>
         ${league === "nfl" ? '<section id="rtg-rail"></section>' : ""}
+        <section id="vid-wrap"></section>
         <section id="news-wrap" hidden>
           <div class="section-h" style="margin-top:28px">The Big Stories <span class="n" id="news-note">· live from the wires</span></div>
           <div class="news-grid" id="news"></div>
@@ -550,11 +551,12 @@
     $("content").hidden = true;
     const qs = (weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "?") + `&league=${league}`;
     try {
-      const [sched, aus, rtg, featured] = await Promise.all([
+      const [sched, aus, rtg, featured, vids] = await Promise.all([
         fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
         league === "nfl" && !aussies.length ? fetchJSON("/api/aussies") : Promise.resolve(null),
         league === "nfl" ? fetchJSON("/api/road-to-the-g").catch(() => null) : Promise.resolve(null),
         fetchJSON(`/api/featured?league=${league}`).catch(() => null),
+        fetchJSON(`/api/videos?league=${league}`).catch(() => null),
       ]);
       hubData = sched;
       if (aus) aussies = aus.players || [];
@@ -568,6 +570,7 @@
         episodeHTML = "";
       }
       renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(featured); renderGotw(); renderSlate(); renderAussies(); setTzNote();
+      const vw2 = $("vid-wrap"); if (vw2) vw2.innerHTML = videoRailHTML(vids && vids.videos);
       $("loading").hidden = true;
       $("content").hidden = false;
     } catch (err) {
@@ -755,6 +758,7 @@
           <div class="land-tag">EVERY SPORT. ONE ARMCHAIR.</div>
           <div class="land-sub">The voice of sports fans in Australia</div>
           <nav class="channels" aria-label="Channels">
+            <a href="#/watch">WATCH</a>
             <a href="#/leagues">LEAGUES</a>
             <a href="#/shows">SHOWS</a>
             <a href="#/podcasts">PODCASTS</a>
@@ -1011,6 +1015,79 @@
     bindCapture();
   }
 
+
+  // =====================================================================
+  // WATCH — the video home: big player + playlist, fed by the channel RSS
+  // =====================================================================
+
+  let watchList = [], watchIdx = 0;
+
+  function paintWatch() {
+    const v = watchList[watchIdx];
+    if (!v) return;
+    $("watch-player").innerHTML = `
+      <iframe src="https://www.youtube-nocookie.com/embed/${esc(v.id)}?autoplay=0&rel=0"
+        title="${esc(v.title)}" frameborder="0" allowfullscreen
+        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>`;
+    $("watch-title").textContent = v.title;
+    $("watch-meta").textContent = `${timeAgo(v.published)}${v.views ? " · " + v.views.toLocaleString() + " views" : ""} · Armchair Experts`;
+    $("watch-desc").textContent = v.description || "";
+    document.querySelectorAll(".wl-item").forEach((el, i) =>
+      el.classList.toggle("on", i === watchIdx));
+  }
+
+  async function showWatch(startId) {
+    view.innerHTML = `<div class="shell"><div class="loading">Loading the channel…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/videos");
+      watchList = d.videos;
+      if (!watchList.length) throw new Error("no videos");
+      watchIdx = Math.max(0, watchList.findIndex((v) => v.id === startId));
+      view.innerHTML = `<div class="shell">
+        ${pageHero("The channel", `<em>Watch</em>.`, "Every show, every episode — straight from the channel, updating itself.")}
+        <div class="watch-grid">
+          <div class="watch-main">
+            <div class="watch-player" id="watch-player"></div>
+            <h2 class="watch-t" id="watch-title"></h2>
+            <div class="watch-m" id="watch-meta"></div>
+            <p class="watch-d" id="watch-desc"></p>
+          </div>
+          <aside class="watch-list">
+            <div class="wl-h">Up next</div>
+            ${watchList.map((v, i) => `
+              <button class="wl-item" data-wi="${i}">
+                <span class="wl-thumb"><img src="${esc(v.thumb)}" alt="" loading="lazy"><span class="wl-play">▶</span></span>
+                <span class="wl-body">
+                  <span class="wl-t">${esc(v.title)}</span>
+                  <span class="wl-m">${timeAgo(v.published)}${v.views ? " · " + v.views.toLocaleString() + " views" : ""}</span>
+                </span>
+              </button>`).join("")}
+          </aside>
+        </div>
+      </div>`;
+      view.querySelectorAll("[data-wi]").forEach((b) =>
+        b.addEventListener("click", () => { watchIdx = +b.getAttribute("data-wi"); paintWatch(); window.scrollTo({ top: 0, behavior: "smooth" }); }));
+      paintWatch();
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load the channel (${esc(err.message)}).</div></div>`;
+    }
+  }
+
+  // "From the show" rail on league hubs — real episodes, league-filtered
+  function videoRailHTML(videos) {
+    if (!videos || !videos.length) return "";
+    return `
+      <div class="section-h" style="margin-top:32px">From the show <span class="n">· latest episodes</span></div>
+      <div class="vid-rail">
+        ${videos.slice(0, 6).map((v) => `
+          <a class="vid-card" href="#/watch/${esc(v.id)}">
+            <span class="vc-thumb"><img src="${esc(v.thumb)}" alt="" loading="lazy"><span class="vc-play">▶</span></span>
+            <span class="vc-t">${esc(v.title)}</span>
+            <span class="vc-m">${timeAgo(v.published)}${v.views ? " · " + v.views.toLocaleString() + " views" : ""}</span>
+          </a>`).join("")}
+      </div>`;
+  }
+
   // =====================================================================
   // SHOWS — the slate + the always-on runway (the anchor)
   // =====================================================================
@@ -1262,6 +1339,8 @@
     else if ((m = h.match(new RegExp(`^#/${LG}/player/(\d+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
     else if ((m = h.match(new RegExp(`^#/${LG}/teams$`)))) { league = m[1]; setNav("leagues"); showTeams(); }
     else if ((m = h.match(new RegExp(`^#/${LG}$`)))) { league = m[1]; setNav("leagues"); showHub(); }
+    else if ((m = h.match(/^#\/watch\/([\w-]+)$/))) { setNav("watch"); showWatch(m[1]); }
+    else if (h === "#/watch") { setNav("watch"); showWatch(); }
     // legacy NFL-only paths
     else if ((m = h.match(/^#\/team\/([A-Za-z]{2,4})$/))) { league = "nfl"; setNav("leagues"); showTeam(m[1].toUpperCase()); }
     else if ((m = h.match(/^#\/player\/(\d+)$/))) { league = "nfl"; setNav("leagues"); showPlayer(m[1]); }

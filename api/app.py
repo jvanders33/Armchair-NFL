@@ -840,6 +840,78 @@ def featured(league: str = "nfl"):
             "count": len(stories), "source": "aggregated"}
 
 
+# ---------- video layer: Cam's YouTube channel, self-updating ----------
+# Channel RSS needs no API key and carries id/title/thumb/description/views.
+# Upload a video → it's on the site within 15 minutes. No CMS.
+
+YT_CHANNEL = "UCvgkN-LsaA6TLIrQYq_REkg"  # Armchair Experts with Cam Luke and Adam Cooney
+YT_NS = {"a": "http://www.w3.org/2005/Atom", "m": "http://search.yahoo.com/mrss/",
+         "yt": "http://www.youtube.com/xml/schemas/2015"}
+
+# Light keyword tagger so each league hub can show its own videos.
+VIDEO_TAGS = [
+    ("nfl", re.compile(r"NFL|MCG|California|Super Bowl|Patriots|Rams|49ers|Siposs|Hollins|Gurley|quarterback", re.I)),
+    ("afl", re.compile(r"AFL|Demons|Cats|Blues|Magpies|Bombers|Hawks|Swans|Crows|Lions|Suns|Dockers|Eagles|Power|Saints|Bulldogs|Tigers|Giants|Kangaroos|Brownlow|Coleman|Norm Smith|Harley Reid|wildcard|ladder|finals|footy", re.I)),
+    ("nbl", re.compile(r"NBL|basketball|hoops", re.I)),
+]
+
+
+def _tag_video(title: str, desc: str) -> str:
+    # The title decides; the description only breaks ties — channel boilerplate
+    # mentions the NFL series on every upload, which mis-tags AFL episodes.
+    for tag, rx in VIDEO_TAGS:
+        if rx.search(title):
+            return tag
+    for tag, rx in VIDEO_TAGS:
+        if rx.search(desc):
+            return tag
+    return "general"
+
+
+def _fetch_videos() -> list[dict]:
+    hit = _cache.get("videos")
+    if hit and time.time() - hit[0] < 900:
+        return hit[1]
+    try:
+        r = requests.get(f"https://www.youtube.com/feeds/videos.xml?channel_id={YT_CHANNEL}",
+                         timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        r.raise_for_status()
+        root = ET.fromstring(r.content)
+    except Exception:
+        return hit[1] if hit else []
+    out = []
+    for e in root.findall("a:entry", YT_NS):
+        vid = e.findtext("yt:videoId", namespaces=YT_NS)
+        title = e.findtext("a:title", namespaces=YT_NS) or ""
+        if not vid or not title:
+            continue
+        g = e.find("m:group", YT_NS)
+        desc = (g.findtext("m:description", namespaces=YT_NS) or "") if g is not None else ""
+        stats = g.find("m:community/m:statistics", YT_NS) if g is not None else None
+        series = "cali" if re.search(r"California to the MCG", title, re.I) else ""
+        out.append({
+            "id": vid,
+            "title": title,
+            "published": e.findtext("a:published", namespaces=YT_NS) or "",
+            "thumb": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+            "description": desc[:220],
+            "views": int(stats.get("views")) if stats is not None and stats.get("views") else 0,
+            "league": _tag_video(title, desc),
+            "series": series,
+            "url": f"https://www.youtube.com/watch?v={vid}",
+        })
+    _cache["videos"] = (time.time(), out)
+    return out
+
+
+@app.get("/api/videos")
+def api_videos(league: str = ""):
+    vids = _fetch_videos()
+    if league:
+        vids = [v for v in vids if v["league"] == league.lower()]
+    return {"videos": vids, "channel": "Armchair Experts with Cam Luke and Adam Cooney"}
+
+
 @app.get("/api/shows")
 def api_shows():
     try:
