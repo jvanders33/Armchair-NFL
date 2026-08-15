@@ -130,6 +130,7 @@
             <aside class="top5" id="top5"></aside>
           </div>
         </section>
+        ${league !== "nfl" ? '<section id="ladder-wrap" hidden></section>' : ""}
         <div class="section-h" style="margin-top:30px">Game of the Week</div>
         <section class="gotw" id="gotw"></section>
         <div class="section-h" style="margin-top:30px">The Slate <span class="n" id="slate-count"></span></div>
@@ -535,6 +536,39 @@
     wrap.hidden = false;
   }
 
+  // ---------- the ladder (AFL / NBL) — split table, finals line drawn in ----------
+  function renderLadder(lad) {
+    const wrap = $("ladder-wrap");
+    if (!wrap) return;
+    const rows = (lad && lad.ladder) || [];
+    if (!rows.length) { wrap.hidden = true; return; }
+    const cut = lad.cutoff;
+    const pctLbl = league === "afl" ? "%" : "Win%";
+    const half = Math.ceil(rows.length / 2);
+    const cols = [rows.slice(0, half), rows.slice(half)];
+    const formDots = (f) => f ? `<span class="lf">${[...f].map((c) =>
+      `<i class="${c === "W" ? "w" : c === "L" ? "l" : "d"}" title="${c}"></i>`).join("")}</span>` : "<span></span>";
+    const rowHTML = (r) => `
+      <a class="lad-row${r.rank <= cut ? " in-finals" : ""}" href="#/${league}/team/${esc(r.abbr)}">
+        <span class="lad-pos tnum">${r.rank}</span>
+        <img class="lad-logo" src="${esc(r.logo || "")}" alt="" loading="lazy">
+        <span class="lad-team">${esc(r.name)}</span>
+        <span class="lad-rec tnum">${esc(r.wins)}–${esc(r.losses)}${r.draws && r.draws !== "0" ? "–" + esc(r.draws) : ""}</span>
+        <span class="lad-pct tnum">${esc(r.pct)}</span>
+        <span class="lad-pts tnum">${esc(r.points || "")}</span>
+        ${formDots(r.form)}
+      </a>${r.rank === cut ? `<div class="lad-cut"><span>Finals line</span></div>` : ""}`;
+    wrap.innerHTML = `
+      <div class="section-h" style="margin-top:30px">The Ladder <span class="n">· live · top ${cut} play finals</span></div>
+      <div class="ladder">
+        ${cols.map((c) => `<div class="lad-col">
+          <div class="lad-head"><span></span><span></span><span>Club</span><span>W–L</span><span>${pctLbl}</span><span>Pts</span><span>Form</span></div>
+          ${c.map(rowHTML).join("")}
+        </div>`).join("")}
+      </div>`;
+    wrap.hidden = false;
+  }
+
   function renderRibbon() {
     const s = hubData.season, w = hubData.week;
     const cal = hubData.calendar || [];
@@ -641,12 +675,13 @@
     $("content").hidden = true;
     const qs = (weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "?") + `&league=${league}`;
     try {
-      const [sched, aus, rtg, featured, vids] = await Promise.all([
+      const [sched, aus, rtg, featured, vids, lad] = await Promise.all([
         fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
         league === "nfl" && !aussies.length ? fetchJSON("/api/aussies") : Promise.resolve(null),
         league === "nfl" ? fetchJSON("/api/road-to-the-g").catch(() => null) : Promise.resolve(null),
         fetchJSON(`/api/featured?league=${league}`).catch(() => null),
         fetchJSON(`/api/videos?league=${league}`).catch(() => null),
+        league !== "nfl" ? fetchJSON(`/api/ladder?league=${league}`).catch(() => null) : Promise.resolve(null),
       ]);
       hubData = sched;
       if (aus) aussies = aus.players || [];
@@ -659,7 +694,7 @@
       } else {
         episodeHTML = "";
       }
-      renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(featured); renderGotw(); renderSlate(); renderAussies(); setTzNote();
+      renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(featured); renderLadder(lad); renderGotw(); renderSlate(); renderAussies(); setTzNote();
       const vw2 = $("vid-wrap"); if (vw2) vw2.innerHTML = videoRailHTML(vids && vids.videos);
       armMotion();
       armLivePoll();

@@ -497,6 +497,35 @@ def api_teams(league: str = "nfl"):
                            "teams": sorted(by_abbr.values(), key=lambda t: t["displayName"])}]}
 
 
+@app.get("/api/ladder")
+def api_ladder(league: str = "afl"):
+    if league == "nfl":
+        raise HTTPException(status_code=400, detail="The NFL runs conference standings, not a ladder")
+    cfg = _cfg(league)
+    # standings live under /apis/v2, not /apis/site/v2 like the rest of the feed
+    data = _get_json(f"https://site.api.espn.com/apis/v2/sports/{cfg['path']}/standings", ttl=900)
+    entries = (data.get("standings") or {}).get("entries") or []
+    rows = []
+    for e in entries:
+        t = e.get("team") or {}
+        st = {s.get("name"): s for s in e.get("stats", [])}
+        val = lambda k: st.get(k, {}).get("value")
+        disp = lambda k: st.get(k, {}).get("displayValue", "")
+        rows.append({
+            # AFL publishes rank; the NBL only a playoff seed
+            "rank": int(val("rank") or val("playoffSeed") or 0),
+            "abbr": t.get("abbreviation"),
+            "name": t.get("shortDisplayName") or t.get("displayName"),
+            "logo": (t.get("logos") or [{}])[0].get("href"),
+            "wins": disp("wins"), "losses": disp("losses"), "draws": disp("ties"),
+            "pct": disp("percentage") or disp("winPercent"),
+            "points": disp("points"),
+            "form": disp("form")[-5:],          # season-long string, latest game last
+        })
+    rows.sort(key=lambda r: r["rank"] or 99)
+    return {"ladder": rows, "cutoff": 8 if league == "afl" else 6}
+
+
 ROSTER_GROUP_LABELS = {
     "offense": "Offense", "defense": "Defense", "specialTeam": "Special teams",
     "injuredReserveOrOut": "Injured reserve / out", "suspended": "Suspended",

@@ -948,3 +948,26 @@ a.show-card:hover .sc-bg{transform:scale(1.05)}
 .team-card.is-coming{cursor:default; opacity:.92}
 .team-card.is-coming:hover{transform:none; border-color:var(--line)}
 .coming-chip{color:#FFB020 !important; font-weight:800; letter-spacing:.1em; text-transform:uppercase; font-size:9.5px}
+
+/* the ladder -- split table with the finals line drawn in */
+.ladder{display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start}
+@media (max-width:860px){.ladder{grid-template-columns:1fr}}
+.lad-col{border:1px solid var(--line); border-radius:16px; background:var(--card); padding:6px 12px 8px}
+.lad-head,.lad-row{display:grid; grid-template-columns:22px 24px 1fr 58px 56px 34px auto; gap:8px; align-items:center}
+.lad-head{padding:8px 6px 5px; font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:800}
+.lad-row{padding:7px 6px; text-decoration:none; color:inherit; border-top:1px solid color-mix(in srgb, var(--line) 55%, transparent)}
+.lad-row:hover{background:var(--card-2)}
+.lad-pos{font-weight:800; color:var(--muted); font-size:12px}
+.lad-row.in-finals .lad-pos{color:var(--accent)}
+.lad-logo{width:22px; height:22px; object-fit:contain}
+.lad-team{font-family:var(--f-cond); font-weight:700; text-transform:uppercase; font-size:14.5px; letter-spacing:.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.lad-rec,.lad-pct{font-size:12px; color:var(--ink-2)}
+.lad-pts{font-size:12.5px; font-weight:800; color:#fff}
+.lf{display:flex; gap:3px; justify-content:flex-end}
+.lf i{width:7px; height:7px; border-radius:50%; display:block}
+.lf i.w{background:var(--go)}
+.lf i.l{background:var(--accent)}
+.lf i.d{background:var(--muted)}
+.lad-cut{display:flex; align-items:center; gap:10px; padding:3px 6px}
+.lad-cut::before,.lad-cut::after{content:""; flex:1; border-top:2px dashed var(--accent)}
+.lad-cut span{font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:800}
