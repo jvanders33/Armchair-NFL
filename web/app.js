@@ -1195,6 +1195,15 @@
   // SHOWS — the slate + the always-on runway (the anchor)
   // =====================================================================
 
+  // cover palettes per code -- shows without stills still get a full-bleed look
+  const SHOW_LOOK = {
+    "AFL": { c1: "#A62830", c2: "#26090D" },
+    "NFL": { c1: "#1F4E9C", c2: "#081228" },
+    "NBL": { c1: "#0E7ACB", c2: "#06202E" },
+    "Multi-sport": { c1: "#1E9E67", c2: "#062519" },
+    "Racing": { c1: "#B07C1E", c2: "#2A1D05" },
+  };
+
   async function showShows() {
     view.innerHTML = `<div class="shell"><div class="loading">Loading the slate…</div></div>`;
     try {
@@ -1202,20 +1211,26 @@
       view.innerHTML = `<div class="shell">
         ${pageHero("The slate", `The <em>shows</em>.`, "One brand, every code — the weekly habits, the series, and the specials. What's live now and what's landing next.")}
         <div class="shows-grid">
-          ${d.shows.map((s) => `
-            <${s.url ? `a href="${esc(s.url)}"${s.url.startsWith("#") ? "" : ` target="_blank" rel="noopener"`}` : "div"} class="show-card">
-              ${s.img ? `<img class="sc-img" src="${esc(s.img)}" alt="" loading="lazy">` : ""}
-              <div class="sc-top">
-                <span class="sc-sport">${esc(s.sport)}</span>
-                <span class="sc-status ${esc(s.status)}">${s.status === "live" ? "● Live now" : "Coming"}</span>
+          ${d.shows.map((s) => {
+            const look = SHOW_LOOK[s.sport] || { c1: "#8C0F27", c2: "#2A0212" };
+            return `
+            <${s.url ? `a href="${esc(s.url)}"${s.url.startsWith("#") ? "" : ` target="_blank" rel="noopener"`}` : "div"} class="show-card" style="--sc1:${look.c1}; --sc2:${look.c2}">
+              ${s.img ? `<img class="sc-bg" src="${esc(s.img)}" alt="" loading="lazy">` : ""}
+              <div class="sc-scrim"></div>
+              <div class="sc-in">
+                <div class="sc-top">
+                  <span class="sc-sport">${esc(s.sport)}</span>
+                  <span class="sc-status ${esc(s.status)}">${s.status === "live" ? "● Live now" : "Coming"}</span>
+                </div>
+                <div class="sc-title">${esc(s.title)}</div>
+                <div class="sc-hosts">${esc(s.hosts)}</div>
+                <div class="sc-cad">${esc(s.cadence)}</div>
+                <p class="sc-desc">${esc(s.desc)}</p>
+                ${s.highlight ? `<div class="sc-hl">★ ${esc(s.highlight)}</div>` : ""}
+                ${s.url ? `<div class="sc-watch">▶ Watch</div>` : ""}
               </div>
-              <div class="sc-title">${esc(s.title)}</div>
-              <div class="sc-hosts">${esc(s.hosts)}</div>
-              <div class="sc-cad">${esc(s.cadence)}</div>
-              <p class="sc-desc">${esc(s.desc)}</p>
-              ${s.highlight ? `<div class="sc-hl">★ ${esc(s.highlight)}</div>` : ""}
-              ${s.url ? `<div class="sc-watch">▶ Watch</div>` : ""}
-            </${s.url ? "a" : "div"}>`).join("")}
+            </${s.url ? "a" : "div"}>`;
+          }).join("")}
         </div>
 
         <div class="section-h" style="margin-top:34px">Always On <span class="n">· the year of Armchair — no dark weeks</span></div>

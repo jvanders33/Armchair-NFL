@@ -613,24 +613,29 @@ a.lg-card:hover .lg-logo{transform:scale(1.06) rotate(-2deg)}
 .shows-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
 @media (max-width:900px){.shows-grid{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:600px){.shows-grid{grid-template-columns:1fr}}
-.show-card{display:flex; flex-direction:column; gap:6px; text-decoration:none; color:inherit; position:relative;
-  border:1px solid var(--line); border-radius:16px; background:var(--card); padding:18px 19px; overflow:hidden;
-  box-shadow:0 8px 24px rgba(0,0,0,.3);
+.show-card{display:flex; flex-direction:column; text-decoration:none; color:inherit; position:relative;
+  min-height:360px; border-radius:16px; overflow:hidden;
+  border:1px solid color-mix(in srgb, var(--sc1, #8C0F27) 45%, var(--line));
+  background:
+    radial-gradient(420px 300px at 82% -6%, color-mix(in srgb, var(--sc1, #8C0F27) 46%, transparent), transparent 62%),
+    linear-gradient(160deg, color-mix(in srgb, var(--sc1, #8C0F27) 52%, #000) 0%, var(--sc2, #2A0212) 52%, #120409 100%);
+  box-shadow:0 10px 28px rgba(0,0,0,.35);
   transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease}
-a.show-card:hover{transform:translateY(-4px); border-color:var(--accent); box-shadow:0 16px 38px rgba(0,0,0,.45)}
-a.show-card:hover .sc-img{transform:scale(1.04)}
-.sc-img{width:calc(100% + 38px); margin:-18px -19px 8px; height:150px; object-fit:cover;
-  border-radius:15px 15px 0 0; transition:transform .3s ease}
-.sc-top{display:flex; justify-content:space-between; align-items:center}
+a.show-card:hover{transform:translateY(-4px); border-color:var(--accent); box-shadow:0 16px 38px rgba(0,0,0,.5)}
+a.show-card:hover .sc-bg{transform:scale(1.05)}
+.sc-bg{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:transform .4s ease}
+.sc-scrim{position:absolute; inset:0; background:linear-gradient(180deg, #0F040740 0%, #0F0407A6 55%, #0F0407F0 100%)}
+.sc-in{position:relative; z-index:1; display:flex; flex-direction:column; gap:6px; flex:1; padding:16px 18px 18px}
+.sc-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:auto}
 .sc-sport{font-size:10px; letter-spacing:.18em; text-transform:uppercase; font-weight:800; color:var(--accent)}
 .sc-status{font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:800; padding:4px 9px; border-radius:7px}
 .sc-status.live{background:var(--accent); color:#fff; box-shadow:0 0 12px color-mix(in srgb,var(--accent) 50%, transparent)}
 .sc-status.coming{background:var(--card-2); color:var(--muted); border:1px solid var(--line)}
-.sc-title{font-family:var(--f-display); text-transform:uppercase; font-weight:400; font-size:27px; letter-spacing:.008em; line-height:.97; margin-top:6px}
-.sc-hosts{font-size:12px; color:var(--ink-2); font-weight:600}
-.sc-cad{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
-.sc-desc{font-size:12.5px; color:var(--ink-2); line-height:1.45; margin:4px 0 0}
-.sc-hl{font-size:12px; color:var(--accent); font-weight:700; line-height:1.4; border-top:1px solid var(--line); padding-top:8px; margin-top:4px}
+.sc-title{font-family:var(--f-display); text-transform:uppercase; font-weight:400; font-size:29px; letter-spacing:.008em; line-height:.97; margin-top:14px; color:#fff; text-shadow:0 2px 14px #000000AA}
+.sc-hosts{font-size:12px; color:#FFFFFFD6; font-weight:600}
+.sc-cad{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:#FFFFFF8C}
+.sc-desc{font-size:12.5px; color:#FFFFFFC4; line-height:1.45; margin:4px 0 0}
+.sc-hl{font-size:12px; color:#FFB020; font-weight:700; line-height:1.4; border-top:1px solid #FFFFFF26; padding-top:8px; margin-top:4px}
 .sc-watch{font-size:11px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); margin-top:auto; padding-top:8px}
 .runway{border:1px solid var(--line); border-radius:14px; background:var(--card); padding:8px 18px}
 .rw{display:grid; grid-template-columns:86px 20px 1fr; align-items:center; gap:10px; padding:10px 0;
