@@ -582,6 +582,11 @@ def _afl_name(p: dict) -> str:
     return f'{d.get("givenName", "")} {d.get("surname", "")}'.strip()
 
 
+def _afl_pos(d: dict) -> str:
+    # the feed says KEY_FORWARD / MEDIUM_DEFENDER — read as Key Forward
+    return (d.get("position") or "").replace("_", " ").title()
+
+
 @app.get("/api/leaders")
 def api_leaders(league: str = "afl"):
     if league != "afl":
@@ -619,7 +624,7 @@ def api_afl_list(abbr: str):
         "id": p.get("playerId"),
         "name": _afl_name(p),
         "photo": (p.get("playerDetails") or {}).get("photoURL"),
-        "pos": (p.get("playerDetails") or {}).get("position", ""),
+        "pos": _afl_pos(p.get("playerDetails") or {}),
         "age": (p.get("playerDetails") or {}).get("age"),
         "jumper": (p.get("playerDetails") or {}).get("jumperNumber"),
         "games": int(p.get("gamesPlayed") or 0),
@@ -660,14 +665,22 @@ def api_afl_player(pid: str):
         kind = {"nationalDraft": "national draft", "rookieDraft": "rookie draft",
                 "preseasonDraft": "pre-season draft"}.get(d.get("draftType"), d.get("draftType") or "draft")
         draft = f'Pick {d["draftPosition"]} · {d["draftYear"]} {kind}'
-    fmt_n = lambda v, dec: (f"{v:,.{dec}f}".rstrip("0").rstrip(".") if isinstance(v, float) else f"{v:,}") if v not in (None, "") else ""
+    def fmt_n(v, dec):
+        if v in (None, ""):
+            return ""
+        if not isinstance(v, (int, float)):
+            return str(v)
+        out = f"{v:,.{dec}f}"
+        if dec:                       # trim only decimal zeros, never whole digits
+            out = out.rstrip("0").rstrip(".")
+        return out
     stats = [{"label": lbl, "total": fmt_n(tot.get(k), dec), "avg": fmt_n(av.get(k), 1)}
              for k, lbl, dec in _AFL_STAT_LINES if tot.get(k) not in (None, 0) or av.get(k)]
     return {"player": {
         "id": pid, "name": _afl_name(p),
         "photo": d.get("photoURL"),
         "club": _afl_abbr(p), "clubName": (p.get("team") or {}).get("teamName", ""),
-        "pos": d.get("position", ""), "age": d.get("age"),
+        "pos": _afl_pos(d), "age": d.get("age"),
         "height": f'{d["heightCm"]} cm' if d.get("heightCm") else "",
         "jumper": d.get("jumperNumber"),
         "draft": draft, "debut": d.get("debutYear"),
