@@ -662,11 +662,34 @@
       renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(featured); renderGotw(); renderSlate(); renderAussies(); setTzNote();
       const vw2 = $("vid-wrap"); if (vw2) vw2.innerHTML = videoRailHTML(vids && vids.videos);
       armMotion();
+      armLivePoll();
       $("loading").hidden = true;
       $("content").hidden = false;
     } catch (err) {
       $("loading").textContent = "Couldn't reach the live feed (" + err.message + "). Refresh to retry.";
     }
+  }
+
+  // ---------- live scores: quiet refresh while games are in progress ----------
+  // Polls the schedule once a minute while any game on the visible week is live
+  // (or inside the 20 minutes before kick-off, to catch the pre -> in flip) and
+  // repaints just the game sections — news, videos and motion state untouched.
+  let liveTimer = null;
+  function armLivePoll() {
+    if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+    const needsPoll = (g) => g.status.state === "in" ||
+      (g.status.state === "pre" && new Date(g.date) - Date.now() < 20 * 60e3 && new Date(g.date) - Date.now() > -60e3);
+    if (!hubData || !(hubData.games || []).some(needsPoll)) return;
+    const qs = (weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "?") + `&league=${league}`;
+    liveTimer = setInterval(async () => {
+      if (document.hidden) return;
+      if (!$("slate")) { clearInterval(liveTimer); liveTimer = null; return; }   // navigated off the hub
+      try {
+        hubData = await fetchJSON("/api/schedule" + qs);
+        renderGotw(); renderSlate();
+        armLivePoll();                       // reassess: stops itself once the last game goes final
+      } catch { /* one bad tick is fine — try again next minute */ }
+    }, 60000);
   }
 
   function showHub() {
