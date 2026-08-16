@@ -21,6 +21,8 @@ import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 
+from . import racing as rc
+
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 DATA = ROOT / "data"
@@ -1363,23 +1365,47 @@ NEWS_FEEDS = {
         ("outlet", "The Guardian", "https://www.theguardian.com/sport/basketball/rss"),
         ("sweep", "", GNEWS.format("NBL%20basketball%20Australia%20when:7d")),
     ],
+    "racing": [
+        # racing.com's newsroom is pulled via its GraphQL (art on every story) — see rc.news()
+        ("outlet", "Just Horse Racing", "https://www.justhorseracing.com.au/feed/"),
+        ("outlet", "The Guardian", "https://www.theguardian.com/sport/horse-racing/rss"),
+        ("sweep", "", GNEWS.format("horse%20racing%20Australia%20when:2d")),
+        ("sweep", "", GNEWS.format("(Melbourne%20Cup%20OR%20Caulfield%20OR%20Randwick%20OR%20Everest%20OR%20jockey%20OR%20trainer)%20racing%20when:3d")),
+    ],
 }
 
 
 NEWS_RELEVANCE = {
     # "NFL" turns up in music and business copy; insist on football context.
     "nfl": re.compile(
-        r"NFL|football|quarterback|touchdown|Super Bowl|preseason|training camp|"
-        r"QB|draft|roster|Chiefs|Eagles|49ers|Rams|Cowboys|Patriots|Packers|Ravens", re.I),
+        r"\bNFL\b|football|quarterback|touchdown|Super Bowl|preseason|training camp|"
+        r"\bQB\b|draft|roster|Chiefs|Eagles|49ers|Rams|Cowboys|Patriots|Packers|Ravens", re.I),
     "afl": re.compile(
-        r"AFL|AFLW|footy|Brownlow|premiership|Magpies|Blues|Demons|Tigers|Cats|"
+        r"\bAFL\b|\bAFLW\b|footy|Brownlow|premiership|Magpies|Blues|Demons|Tigers|Cats|"
         r"Bombers|Hawks|Swans|Giants|Suns|Lions|Dockers|Eagles|Crows|Power|Saints|Bulldogs|"
         r"Kangaroos|marking|goal|final", re.I),
     "nbl": re.compile(
-        r"NBL|Boomers|Opals|36ers|Taipans|Bullets|Breakers|JackJumpers|"
+        r"\bNBL|Boomers|Opals|36ers|Taipans|Bullets|Breakers|JackJumpers|"
         r"Hawks|Kings|Melbourne United|Phoenix|Wildcats|Australian basketball", re.I),
+    # "racing" alone catches F1/V8s/greyhounds — insist on the thoroughbred vocabulary
+    "racing": re.compile(
+        r"horse|jockey|trainer|stakes|Cup\b|Group ?[123]|Listed|Randwick|Flemington|Caulfield|Rosehill|"
+        r"Moonee Valley|The Valley|Everest|Sandown|Doomben|Eagle Farm|Morphettville|Ascot|Belmont|"
+        r"thoroughbred|filly|colt|gelding|mare|stayer|sprinter|barrier|punter|Guineas|Derby|Oaks|"
+        r"Cox Plate|Golden Eagle|Magic Millions|hoop|saddle|stewards|track|form guide|TAB", re.I),
 }
 
+
+# outlets that pass the relevance regex but cover the wrong hemisphere
+NEWS_BLOCK_SOURCES = {
+    "racing": ("Racing Post", "ITVX", "ITV", "The Mirror", "Sporting Life", "At The Races", "Sky Sports Racing",
+               "BBC", "Daily Mail", "The Sun", "Irish", "Telegraph", "Express"),
+}
+
+# daily tips/odds boilerplate isn't news
+NEWS_BLOCK_HEADLINES = {
+    "racing": re.compile(r"Tips and Best Bets|Best Bets\s*[–-]|Tips\s*[–-]\s*\w+$|^\d{1,2}/\d{1,2}/\d{4}", re.I),
+}
 
 _IMG_TAGS = ("content", "thumbnail", "enclosure", "image")
 _IMG_RE = re.compile(r'<img[^>]+src=["\']([^"\']+)', re.I)
@@ -1485,7 +1511,7 @@ def _aggregate_news(league: str) -> list[dict]:
     feeds = NEWS_FEEDS.get(league, [])
     with ThreadPoolExecutor(max_workers=min(10, len(feeds) + 1)) as ex:
         futures = [ex.submit(_parse_feed, kind, name, url) for kind, name, url in feeds]
-        futures.append(ex.submit(_espn_api_stories, league))
+        futures.append(ex.submit(rc.news if league == "racing" else _espn_api_stories, *(() if league == "racing" else (league,))))
         for f in as_completed(futures, timeout=20):
             try:
                 stories.extend(f.result() or [])
@@ -1493,9 +1519,15 @@ def _aggregate_news(league: str) -> list[dict]:
                 continue
 
     rel = NEWS_RELEVANCE.get(league)
+    block = NEWS_BLOCK_SOURCES.get(league, ())
     seen, merged = {}, []
     for s in stories:
         if rel and not rel.search(s["headline"] + " " + s.get("description", "")):
+            continue
+        if any(b.lower() in (s.get("source") or "").lower() for b in block):
+            continue
+        hb = NEWS_BLOCK_HEADLINES.get(league)
+        if hb and hb.search(s["headline"]):
             continue
         k = _dedupe_key(s["headline"])
         if not k:
@@ -1523,7 +1555,8 @@ def featured(league: str = "nfl"):
     Editorial pins ride at the front; after that it's freshness with a nudge
     for stories that brought art, so the page always has pictures.
     """
-    _cfg(league)
+    if league != "racing":
+        _cfg(league)
     stories = []
     for pin in ((_load_experts().get("featured_pins") or []) if league == "nfl" else []):
         if pin.get("headline") and pin.get("image"):
@@ -1555,6 +1588,7 @@ VIDEO_TAGS = [
     ("nfl", re.compile(r"NFL|MCG|California|Super Bowl|Patriots|Rams|49ers|Siposs|Hollins|Gurley|quarterback", re.I)),
     ("afl", re.compile(r"AFL|Demons|Cats|Blues|Magpies|Bombers|Hawks|Swans|Crows|Lions|Suns|Dockers|Eagles|Power|Saints|Bulldogs|Tigers|Giants|Kangaroos|Brownlow|Coleman|Norm Smith|Harley Reid|wildcard|ladder|finals|footy", re.I)),
     ("nbl", re.compile(r"NBL|basketball|hoops", re.I)),
+    ("racing", re.compile(r"racing|Melbourne Cup|Cox Plate|Caulfield|Flemington|Randwick|Everest|jockey|trainer|Group 1|Stakes|Guineas|Derby|Oaks|punt|tips|Spring Carnival", re.I)),
 ]
 
 
@@ -1780,6 +1814,75 @@ def debug():
         if p.is_file() and "__pycache__" not in str(p) and ".git" not in p.parts:
             out.append(str(p.relative_to(ROOT)))
     return {"root": str(ROOT), "files": out[:400]}
+
+
+# ---------------------------------------------------------------------------
+# RACING — see api/racing.py. Same shell as the ESPN codes, different feed.
+# ---------------------------------------------------------------------------
+@app.get("/api/racing/meetings")
+def api_racing_meetings(date: str | None = None):
+    try:
+        return rc.meetings(date)
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail=f"racing feed: {exc}") from exc
+
+
+@app.get("/api/racing/race/{meet}/{number}")
+def api_racing_race(meet: str, number: int):
+    try:
+        return rc.race(meet, number)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Unknown race")
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail=f"racing feed: {exc}") from exc
+
+
+@app.get("/api/racing/next")
+def api_racing_next():
+    try:
+        return {"races": rc.next_to_jump()}
+    except requests.RequestException:
+        return {"races": []}
+
+
+@app.get("/api/racing/premierships")
+def api_racing_premierships(entity: str = "Jockey", state: str | None = None, meetType: str | None = None,
+                            season: str | None = None, size: int = 20):
+    return rc.premierships(entity, state or None, meetType or None, season, size)
+
+
+@app.get("/api/racing/features")
+def api_racing_features():
+    out = rc.features()
+    try:
+        out["week"] = rc.week_black_type()
+    except Exception:
+        out["week"] = []
+    return out
+
+
+@app.get("/api/racing/jockey/{pid}")
+def api_racing_jockey(pid: str):
+    try:
+        return rc.jockey(pid)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Unknown jockey")
+
+
+@app.get("/api/racing/trainer/{pid}")
+def api_racing_trainer(pid: str):
+    try:
+        return rc.trainer(pid)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Unknown trainer")
+
+
+@app.get("/api/racing/horse/{pid}")
+def api_racing_horse(pid: str):
+    try:
+        return rc.horse(pid)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Unknown horse")
 
 
 app.mount("/", StaticFiles(directory=str(WEB), html=True), name="web")

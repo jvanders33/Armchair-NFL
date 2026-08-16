@@ -1,0 +1,19 @@
+{
+  "note": "The spring spine — the majors the racing hub counts down to. Times are UTC. Verified Aug 2026 against Racing Victoria's spring program (racing.com calendar), VRC, ATC and The Everest sites. The 2026 Cox Plate runs at Flemington while The Valley is offline for redevelopment. Update each winter.",
+  "season": "Spring 2026",
+  "majors": [
+    { "key": "winx", "name": "Winx Stakes", "group": "Group 1", "distance": "1400m", "venue": "Royal Randwick", "state": "NSW", "time": "2026-08-22T05:00:00Z", "prize": "$1M", "blurb": "Sydney's spring opens — the first Group 1 of the season." },
+    { "key": "memsie", "name": "Memsie Stakes", "group": "Group 1", "distance": "1400m", "venue": "Caulfield", "state": "VIC", "time": "2026-08-29T05:40:00Z", "prize": "$1M", "blurb": "Melbourne's spring opens at Caulfield." },
+    { "key": "makybe", "name": "Makybe Diva Stakes", "group": "Group 1", "distance": "1600m", "venue": "Flemington", "state": "VIC", "time": "2026-09-12T05:50:00Z", "prize": "$1M", "blurb": "The first Group 1 at Flemington for the spring." },
+    { "key": "underwood", "name": "Underwood Stakes", "group": "Group 1", "distance": "1800m", "venue": "Caulfield", "state": "VIC", "time": "2026-09-19T05:50:00Z", "prize": "$1M", "blurb": "The weight-for-age path to the Cox Plate." },
+    { "key": "guineas", "name": "Caulfield Guineas", "group": "Group 1", "distance": "1600m", "venue": "Caulfield", "state": "VIC", "time": "2026-10-10T05:50:00Z", "prize": "$3M", "blurb": "The three-year-old milers' championship." },
+    { "key": "caulfield-cup", "name": "Caulfield Cup", "group": "Group 1", "distance": "2400m", "venue": "Caulfield", "state": "VIC", "time": "2026-10-17T06:00:00Z", "prize": "$5M", "blurb": "The first leg of the spring's great staying treble." },
+    { "key": "everest", "name": "The Everest", "group": "Group 1", "distance": "1200m", "venue": "Royal Randwick", "state": "NSW", "time": "2026-10-17T05:00:00Z", "prize": "$20M", "blurb": "The world's richest race on turf. Twelve slots, one sprint." },
+    { "key": "cox-plate", "name": "Cox Plate", "group": "Group 1", "distance": "2040m", "venue": "Flemington", "state": "VIC", "time": "2026-10-24T05:50:00Z", "prize": "$5M", "blurb": "The weight-for-age championship of Australasia — at Flemington this year while The Valley is rebuilt." },
+    { "key": "golden-eagle", "name": "Golden Eagle", "group": "Group 1", "distance": "1500m", "venue": "Rosehill Gardens", "state": "NSW", "time": "2026-10-31T05:45:00Z", "prize": "$10M", "blurb": "Sydney's $10 million four-year-old race." },
+    { "key": "derby", "name": "Victoria Derby", "group": "Group 1", "distance": "2500m", "venue": "Flemington", "state": "VIC", "time": "2026-10-31T05:50:00Z", "prize": "$2M", "blurb": "Derby Day — the classic that opens the Melbourne Cup Carnival." },
+    { "key": "melbourne-cup", "name": "Melbourne Cup", "group": "Group 1", "distance": "3200m", "venue": "Flemington", "state": "VIC", "time": "2026-11-03T04:00:00Z", "prize": "$10.2M", "hero": true, "blurb": "The race that stops the nation. First Tuesday in November, 3pm." },
+    { "key": "oaks", "name": "VRC Oaks", "group": "Group 1", "distance": "2500m", "venue": "Flemington", "state": "VIC", "time": "2026-11-05T05:50:00Z", "prize": "$1M", "blurb": "Oaks Day — the fillies' classic." },
+    { "key": "champions-mile", "name": "Champions Mile", "group": "Group 1", "distance": "1600m", "venue": "Flemington", "state": "VIC", "time": "2026-11-07T05:50:00Z", "prize": "$3M", "blurb": "Champions Stakes Day closes the Cup Carnival." }
+  ]
+}
