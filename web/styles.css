@@ -1203,3 +1203,21 @@ a.ldr-row:hover{background:var(--card-2)}
   .lad-head.rc-ph span:last-child,.lad-row.rc-pr span:last-child{display:none}
   .seg{flex-wrap:wrap}
 }
+
+/* racing: the weekend's black-type results */
+.rc-wk{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px}
+@media (max-width:1000px){.rc-wk{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.rc-wk{grid-template-columns:1fr}}
+.rc-wk-card{display:flex; flex-direction:column; gap:10px; border:1px solid var(--line); border-radius:14px; background:var(--card); padding:14px 16px; text-decoration:none; color:inherit; min-width:0}
+.rc-wk-card:hover{border-color:var(--accent)}
+.rc-wk-h{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.rc-wk-h b{font-family:var(--f-cond); font-weight:700; text-transform:uppercase; font-size:15px; letter-spacing:.02em}
+.rc-wk-h i{font-style:normal; color:var(--muted); font-size:11px; width:100%}
+.rc-wk-win{display:grid; grid-template-columns:34px 1fr auto; gap:10px; align-items:center}
+.rc-wk-win img{width:34px; height:34px; object-fit:contain; background:#fff; border-radius:6px; padding:2px}
+.rc-wk-win span{display:flex; flex-direction:column; min-width:0}
+.rc-wk-win span b{font-family:var(--f-display); font-size:20px; line-height:1; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.rc-wk-win span i{font-style:normal; color:var(--muted); font-size:11px; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.rc-wk-win em{font-style:normal; font-family:var(--f-cond); font-weight:700; font-size:16px; color:#FFB020}
+.rc-wk-plc{display:flex; gap:12px; flex-wrap:wrap; font-size:11.5px; color:var(--ink-2); border-top:1px solid color-mix(in srgb,var(--line) 55%,transparent); padding-top:8px}
+.rc-wk-plc b{color:var(--muted); font-family:var(--f-cond)} .rc-wk-plc i{font-style:normal; color:var(--muted)}

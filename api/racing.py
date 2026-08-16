@@ -501,3 +501,53 @@ def week_black_type(days: int = 7) -> list[dict]:
         out = [x for chunk in ex.map(load, ms) for x in chunk]
     out.sort(key=lambda r: (-GROUP_RANK.get(r["group"], 0), r["time"]))
     return out
+
+
+def weekend_results() -> dict:
+    """Black-type results from the most recent Saturday (and Sunday if it had
+    any) — the form-guide analogue for the hub. Winner, placings, jockey,
+    trainer, SP, margin, and a link into the race page. Cached 30 min."""
+    ck = "weekend"
+    hit = _cache.get(ck)
+    if hit and time.time() - hit[0] < 1800:
+        return hit[1]
+    today = datetime.strptime(_mel_today(), "%Y-%m-%d")
+    back = (today.weekday() - 5) % 7 or 7          # days since last Saturday (a Saturday looks back a week)
+    sat = today - timedelta(days=back)
+    days = [sat.strftime("%Y-%m-%d"), (sat + timedelta(days=1)).strftime("%Y-%m-%d")]
+    ms = form(Q_MEETINGS, {"states": STATES, "daysBack": back, "daysForward": 0, "userDate": days[0]}, ttl=1800)
+    ms = [m for m in (ms.get("GetRaceMeetingsByStateNew") or [])
+          if (m.get("date") or "")[:10] in days and not m.get("isTrial") and not m.get("isJumpOut") and _is_metro(m["venue"])]
+
+    def load(m):
+        try:
+            rs = form(Q_RACES, {"meetCode": m["id"]}, ttl=1800).get("getRacesForMeet") or []
+        except Exception:
+            return []
+        out = []
+        for r in rs:
+            if not r.get("group") or r.get("group") == "ungrouped":
+                continue
+            plc = sorted([e for e in (r.get("formRaceEntries") or []) if _fin(e.get("finish")) and _fin(e["finish"]) <= 3],
+                         key=lambda e: int(e["finish"]))
+            if not plc:
+                continue
+            w = plc[0]
+            out.append({
+                "meetId": m["id"], "venue": m["venue"], "state": m["state"], "date": (m.get("date") or "")[:10],
+                "number": r.get("raceNumber"), "name": r.get("name"), "distance": r.get("distance"),
+                "group": r.get("group"), "time": _iso(r.get("time")),
+                "winner": {"horse": w.get("horseName"), "horseId": w.get("horseCode"), "jockey": w.get("jockeyName"),
+                           "jockeyId": w.get("jockeyCode"), "trainer": w.get("trainerName"), "trainerId": w.get("trainerCode"),
+                           "sp": w.get("startingPrice"), "silk": w.get("silkUrl"), "margin": plc[1].get("margin") if len(plc) > 1 else None},
+                "placings": [{"finish": int(e["finish"]), "horse": e.get("horseName"), "horseId": e.get("horseCode"),
+                              "jockey": e.get("jockeyName"), "sp": e.get("startingPrice"), "margin": e.get("margin"), "silk": e.get("silkUrl")} for e in plc],
+            })
+        return out
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        races = [x for chunk in ex.map(load, ms) for x in chunk]
+    races.sort(key=lambda r: (-GROUP_RANK.get(r["group"], 0), r["time"]))
+    payload = {"saturday": days[0], "races": races, "meetings": sorted({(r["venue"], r["state"]) for r in races})}
+    _cache[ck] = (time.time(), payload)
+    return payload

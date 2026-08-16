@@ -2016,6 +2016,7 @@
           <div class="news-cols"><div class="news-grid" id="news"></div><aside class="top5" id="top5"></aside></div>
         </section>
         <section id="rc-prem"></section>
+        <section id="rc-weekend"></section>
         <div class="section-h" style="margin-top:30px">Race of the Day</div>
         <section class="gotw" id="rc-rod"></section>
         <div class="section-h" style="margin-top:30px">The Meetings <span class="n" id="rc-count"></span></div>
@@ -2049,17 +2050,18 @@
       b.addEventListener("click", () => { rcSort = b.getAttribute("data-rsort"); view.querySelectorAll("[data-rsort]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); rcPaintSlate(); });
     });
     try {
-      const [slate, features, featured, vids, prem, nxt] = await Promise.all([
+      const [slate, features, featured, vids, prem, nxt, weekend] = await Promise.all([
         fetchJSON(`/api/racing/meetings?date=${date}`),
         fetchJSON("/api/racing/features").catch(() => null),
         fetchJSON("/api/featured?league=racing").catch(() => null),
         fetchJSON("/api/videos?league=racing").catch(() => null),
         fetchJSON("/api/racing/premierships?entity=Jockey&size=10").catch(() => null),
         fetchJSON("/api/racing/next").catch(() => null),
+        fetchJSON("/api/racing/weekend").catch(() => null),
       ]);
-      rcHub = { date, slate, features, prem, nxt };
+      rcHub = { date, slate, features, prem, nxt, weekend };
       renderLead(featured); renderNews(featured);
-      rcPaintRtg(); rcPaintRail(); rcPaintNext(); rcPaintPrem(prem); rcPaintRod(); rcPaintSlate();
+      rcPaintRtg(); rcPaintRail(); rcPaintNext(); rcPaintPrem(prem); rcPaintWeekend(); rcPaintRod(); rcPaintSlate();
       const vw = $("vid-wrap"); if (vw) vw.innerHTML = videoRailHTML(vids && vids.videos);
       $("tz-note").textContent = "Jump times converted live to " + TZ_LABEL[tz] + " time";
       armMotion();
@@ -2142,6 +2144,22 @@
           </a>`; }).join("")}
           <div class="ldr-src">Group & Listed races · next 7 days</div></aside>` : ""}
       </div>`;
+  }
+
+  // The Weekend — the form-guide analogue: last Saturday's black-type results
+  function rcPaintWeekend() {
+    const el = $("rc-weekend"); if (!el || !rcHub) return;
+    const w = rcHub.weekend; const races = (w && w.races) || [];
+    if (!races.length) { el.innerHTML = ""; return; }
+    const d = rcDay(w.saturday);
+    el.innerHTML = `
+      <div class="section-h" style="margin-top:30px">The Weekend <span class="n">· black-type results · ${esc(d.wd)} ${esc(d.dm)} · ${esc([...new Set(races.map((r) => r.venue))].join(", "))}</span></div>
+      <div class="rc-wk">${races.map((r) => `
+        <a class="rc-wk-card" href="#/racing/race/${esc(r.meetId)}/${r.number}">
+          <div class="rc-wk-h">${rcGroupChip(r.group)}<b>${esc(rcTitle(r.name))}</b><i>${esc(r.venue)} · ${esc(r.distance)}</i></div>
+          <div class="rc-wk-win">${r.winner.silk ? `<img src="${esc(r.winner.silk)}" alt="">` : ""}<span><b>${esc(r.winner.horse)}</b><i>${esc(r.winner.jockey || "")}${r.winner.trainer ? " · " + esc(r.winner.trainer) : ""}</i></span><em class="tnum">${esc(r.winner.sp || "")}</em></div>
+          <div class="rc-wk-plc">${r.placings.slice(1).map((p) => `<span><b>${p.finish}</b> ${esc(p.horse)}${p.margin ? ` <i>${esc(p.margin)}</i>` : ""}</span>`).join("")}</div>
+        </a>`).join("")}</div>`;
   }
 
   // Race of the Day — the Game of the Week analogue

@@ -1876,6 +1876,14 @@ def api_racing_features():
     return out
 
 
+@app.get("/api/racing/weekend")
+def api_racing_weekend():
+    try:
+        return rc.weekend_results()
+    except requests.RequestException:
+        return {"races": []}
+
+
 @app.get("/api/racing/jockey/{pid}")
 def api_racing_jockey(pid: str):
     try:
