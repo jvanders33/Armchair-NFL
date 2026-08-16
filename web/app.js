@@ -593,22 +593,37 @@
     const host = live ? top : below;
     const other = live ? below : top;
     other.hidden = true; other.innerHTML = "";
-    const short = (m) => m.label.replace(/ Vs /, " v ").replace(/Lowest-ranked WF Winner/, "Lowest WF winner").replace(/Highest-ranked WF Winner/, "Highest WF winner");
+    // match codes in the AFL's own order: WF1-2, QF1-2 + EF1-2, SF1-2, PF1-2, GF
+    const code = (rn, i) => rn === 25 ? `WF${i + 1}` : rn === 26 ? (i < 2 ? `QF${i + 1}` : `EF${i - 1}`)
+                        : rn === 27 ? `SF${i + 1}` : rn === 28 ? `PF${i + 1}` : "GF";
+    const seedLbl = (m) => m.label.replace(/ Vs /, " v ")
+      .replace(/Lowest-ranked WF Winner/, "lowest WF winner").replace(/Highest-ranked WF Winner/, "highest WF winner");
+    // placeholder dates are the AFL's week markers (Monday noon), not fixtures —
+    // show the weekend window instead of a fake Monday time
+    const weekend = (iso) => {
+      const mon = new Date(iso);
+      const fri = new Date(mon.getTime() + 4 * 864e5), sun = new Date(mon.getTime() + 6 * 864e5);
+      const d = (x) => x.toLocaleDateString("en-AU", { day: "numeric", timeZone: "Australia/Melbourne" });
+      const mo = (x) => x.toLocaleDateString("en-AU", { month: "short", timeZone: "Australia/Melbourne" });
+      return `Fri–Sun ${d(fri)}–${d(sun)} ${mo(sun)} · fixture TBC`;
+    };
     const teamRow = (t, score, gb, won) => `
       <div class="fb-team${t.projected ? " proj" : ""}${t.abbr ? "" : " tbd"}${won ? " won" : ""}">
-        ${t.logo ? `<img src="${esc(t.logo)}" alt="" loading="lazy">` : `<span class="fb-blank"></span>`}
+        ${t.logo ? `<img src="${esc(t.logo)}" alt="">` : `<span class="fb-blank"></span>`}
         <span class="fb-nm">${esc(t.abbr ? t.name : t.seed || t.name)}${t.projected ? `<i>${esc(t.seed)}</i>` : ""}</span>
         ${score != null ? `<span class="fb-sc tnum">${score}<i>${esc(gb || "")}</i></span>` : ""}
       </div>`;
-    const matchCard = (m, rn) => {
+    const matchCard = (m, rn, i) => {
       const done = m.status === "CONCLUDED";
       const hw = done && m.homeScore != null && m.homeScore > m.awayScore;
       const aw = done && m.awayScore != null && m.awayScore > m.homeScore;
-      const k = m.date && m.status !== "PLACEHOLDER" ? fmt(m.date) : null;
-      const when = k ? `${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}` : (m.date ? `${fmt(m.date).wd} ${fmt(m.date).day} · time TBC` : "");
+      const placeholder = m.status === "PLACEHOLDER";
+      const k = m.date && !placeholder ? fmt(m.date) : null;
+      const when = k ? `${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}` : (m.date ? weekend(m.date) : "");
+      const bothTbd = !m.home.abbr && !m.away.abbr;
       return `
         <div class="fb-match${done ? " done" : ""}${m.status === "LIVE" ? " live" : ""}${rn === 29 ? " gf" : ""}">
-          <div class="fb-lbl">${rn === 29 ? "GRAND FINAL" : esc(short(m))}${m.status === "LIVE" ? ' <span class="badge-live">● Live</span>' : ""}</div>
+          <div class="fb-lbl">${rn === 29 ? "GRAND FINAL" : `<b>${code(rn, i)}</b>${bothTbd ? "" : ` · ${esc(seedLbl(m))}`}`}${m.status === "LIVE" ? ' <span class="badge-live">● Live</span>' : ""}</div>
           ${teamRow(m.home, m.homeScore, m.homeGB, hw)}
           ${teamRow(m.away, m.awayScore, m.awayGB, aw)}
           <div class="fb-when">${esc(when)}${m.venue ? ` · ${esc(m.venue)}` : ""}</div>
@@ -622,7 +637,7 @@
         ${rounds.map((r) => `
           <div class="fb-col${r.round === 29 ? " gf-col" : ""}">
             <div class="fb-rh">${esc(r.name)}</div>
-            ${r.matches.map((m) => matchCard(m, r.round)).join("")}
+            <div class="fb-cards">${r.matches.map((m, i) => matchCard(m, r.round, i)).join("")}</div>
           </div>`).join("")}
       </div></div>`;
     host.hidden = false;
