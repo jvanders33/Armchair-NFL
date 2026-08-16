@@ -23,6 +23,10 @@
       { key: "kayo", label: "Kayo", sub: "ESPN", url: "https://kayosports.com.au/sports/basketball" },
     ],
     // Racing.com carries Victorian racing free; Seven has Sydney's carnival days; Sky Racing is the national channel
+    nrl: [
+      { key: "9now", label: "9Now", sub: "free", url: "https://www.9now.com.au" },
+      { key: "kayo", label: "Kayo", sub: "Fox League · every game", url: "https://kayosports.com.au/sports/nrl" },
+    ],
     racing: [
       { key: "racingcom", label: "Racing.com", sub: "free · Victoria", url: "https://www.racing.com/videos/watch-live" },
       { key: "7plus", label: "7plus", sub: "free · Sydney carnival days", url: "https://7plus.com.au/horse-racing" },
@@ -591,10 +595,10 @@
     const lines = {};
     (lad.lines || []).forEach((l) => { lines[l.after] = l; });
     const wildTo = Math.max(...(lad.lines || []).map((l) => l.after), 0);
-    const pctLbl = league === "afl" ? "%" : "Win%";
+    const pctLbl = league === "afl" ? "%" : league === "nrl" ? "+/−" : "Win%";
     const formDots = (f) => f ? `<span class="lf">${[...f].map((c) =>
       `<i class="${c === "W" ? "w" : c === "L" ? "l" : "d"}" title="${c}"></i>`).join("")}</span>` : "<span></span>";
-    const posCls = (r) => r.rank <= 6 ? " in-six" : (r.rank <= wildTo && league === "afl" ? " in-wild" : "");
+    const posCls = (r) => r.rank <= (league === "nrl" ? 8 : 6) ? " in-six" : (r.rank <= wildTo && league === "afl" ? " in-wild" : "");
     const rowHTML = (r) => `
       <a class="lad-row${posCls(r)}" href="#/${league}/team/${esc(r.abbr)}">
         <span class="lad-pos tnum">${r.rank}</span>
@@ -605,7 +609,7 @@
         <span class="lad-pts tnum">${esc(r.points || "")}</span>
         ${formDots(r.form)}
       </a>${lines[r.rank] ? `<div class="lad-cut ${esc(lines[r.rank].kind)}"><span>${esc(lines[r.rank].label)}</span></div>` : ""}`;
-    const sub = league === "afl" ? "· live · top 6 straight through · 7–10 play the wildcard round" : "· live";
+    const sub = league === "afl" ? "· live · top 6 straight through · 7–10 play the wildcard round" : league === "nrl" ? "· live · top eight play finals" : "· live";
     wrap.innerHTML = `
       <div class="section-h" style="margin-top:30px">The Ladder <span class="n">${sub}</span></div>
       <div class="lad-wrap${leadersData ? "" : " solo"}">
@@ -781,7 +785,7 @@
     const cal = hubData.calendar || [];
     const idx = cal.findIndex((c) => c.seasontype === s.type && c.week === w.number);
     const label = idx >= 0 ? cal[idx].label : "Week " + w.number;
-    const stName = { 1: "Preseason", 2: "", 3: "Postseason" }[s.type] || "";
+    const stName = league === "nrl" ? { 2: "Finals" }[s.type] || "" : { 1: "Preseason", 2: "", 3: "Postseason" }[s.type] || "";
     const lgName = (LEAGUE_UI[league] || {}).name || "";
     $("wk-label").textContent = w.number
       ? [stName, label].filter(Boolean).join(" · ") + " · What to Watch"
@@ -1017,6 +1021,7 @@
             <div class="section-h" style="margin-top:26px">The list</div>
             <div class="panel roster-empty">
               <p>Player lists for the ${esc((LEAGUE_UI[league] || {}).name || "")} aren't in the live feed yet — fixtures, results and ladder are.</p>
+              ${league === "nrl" ? `<a class="watch sm ghost" href="https://www.nrl.com/clubs/" target="_blank" rel="noopener">Squads on NRL.com ↗</a>` : ""}
             </div>`) : ""}
           ${d.groups.map((g) => `
             <div class="section-h" style="margin-top:26px">${esc(g.label)} <span class="n">· ${g.players.length}</span></div>
@@ -1531,6 +1536,7 @@
            tools: [{ label: "ListTrac ↗", href: "https://list-trac.vercel.app", ext: true,
                      title: "List management, trades, contracts, drafts" }] },
     nbl: { name: "NBL", label: "NBL", teamsLabel: "Clubs & Players", tools: [] },
+    nrl: { name: "NRL", label: "NRL", teamsLabel: "Clubs", tools: [] },
     racing: { name: "Racing", label: "Racing", teamsLabel: "Jockeys & Trainers", tools: [] },
   };
   let league = "nfl";
@@ -1574,6 +1580,10 @@
       tag: "Basketball", line: "Every game, every club",
       desc: "The same what-to-watch engine pointed at Australian hoops — fixtures, clubs and rosters.",
       cta: "Enter the NBL hub", href: "#/nbl" },
+    { key: "NRL", name: "NRL", logo: LG_LOGO("nrl"), c1: "#0B7A3B", c2: "#1B3E8C", status: "live",
+      tag: "Rugby league", line: "Every round, every club",
+      desc: "The live ladder and draw, all 17 clubs, and the big stories — finals from September, Grand Final 4 October.",
+      cta: "Enter the NRL hub", href: "#/nrl" },
     { key: "RACING", name: "Racing", logo: "", c1: "#1E5E3A", c2: "#C9A227", status: "live",
       tag: "Thoroughbreds", line: "Every meeting, every state",
       desc: "Today's cards ranked by black type, fields and odds, the premierships, and the road to the Melbourne Cup.",
@@ -2396,9 +2406,9 @@
     window.scrollTo(0, 0);
     const isLanding = h === "#/" || h === "" || h === "#";
     document.body.classList.toggle("landing", isLanding);
-    const LG = "(nfl|afl|nbl)";
+    const LG = "(nfl|afl|nbl|nrl)";
     if (isLanding) { setNav(""); showLanding(); }
-    else if ((m = h.match(new RegExp(`^#/${LG}/team/([A-Za-z]{2,5})$`)))) { league = m[1]; setNav("leagues"); showTeam(m[2].toUpperCase()); }
+    else if ((m = h.match(new RegExp(`^#/${LG}/team/([A-Za-z0-9]{2,8})$`)))) { league = m[1]; setNav("leagues"); showTeam(m[2].toUpperCase()); }
     else if ((m = h.match(new RegExp(`^#/${LG}/player/([\\w-]+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
     else if ((m = h.match(new RegExp(`^#/${LG}/teams$`)))) { league = m[1]; setNav("leagues"); showTeams(); }
     else if ((m = h.match(new RegExp(`^#/${LG}$`)))) { league = m[1]; setNav("leagues"); showHub(); }

@@ -38,6 +38,8 @@ LEAGUES_CFG = {
     "nfl": {"path": "football/nfl", "name": "NFL", "tz": "America/New_York", "slots": "us"},
     "afl": {"path": "australian-football/afl", "name": "AFL", "tz": "Australia/Melbourne", "slots": "au"},
     "nbl": {"path": "basketball/nbl", "name": "NBL", "tz": "Australia/Melbourne", "slots": "au"},
+    # ESPN files the NRL under league id 3; its home-and-away season is seasontype 1
+    "nrl": {"path": "rugby-league/3", "name": "NRL", "tz": "Australia/Sydney", "slots": "au"},
 }
 
 
@@ -236,13 +238,15 @@ def _load_experts() -> dict:
         return {}
 
 
-def _competitor(c: dict) -> dict:
+def _competitor(c: dict, league: str = "nfl") -> dict:
     t = c.get("team", {})
     abbr = t.get("abbreviation", "")
     recs = c.get("records") or []
     record = recs[0].get("summary", "") if recs else ""
     return {
-        "abbr": abbr,
+        # NRL abbreviations collide (three NEW, two CAN) — link NRL clubs by ESPN id, show the abbr
+        "abbr": t.get("id", abbr) if league == "nrl" else abbr,
+        "code": abbr,
         "name": t.get("name", ""),
         "displayName": t.get("displayName", ""),
         "color": t.get("color"),
@@ -258,6 +262,12 @@ def _calendar(payload: dict) -> list[dict]:
     """Flatten ESPN's league calendar into [(seasontype, week, label)] for week nav."""
     out = []
     try:
+        if (payload.get("leagues") or [{}])[0].get("abbreviation") == "NRL":
+            # ESPN's NRL calendar is two bare season entries with no rounds inside;
+            # the scoreboard still answers seasontype+week, so build the stepper by hand
+            return ([{"seasontype": 1, "week": w, "label": f"Round {w}", "start": None, "end": None} for w in range(1, 28)] +
+                    [{"seasontype": 2, "week": w, "label": lbl, "start": None, "end": None}
+                     for w, lbl in ((1, "Finals Week 1"), (2, "Semi Finals"), (3, "Preliminary Finals"), (4, "Grand Final"))])
         for cal in payload["leagues"][0]["calendar"]:
             # Week-based leagues (NFL, AFL) nest entries under a season type;
             # date-based ones (NBL) hand back a flat list of ISO strings — skip those,
@@ -304,7 +314,7 @@ def schedule(year: int | None = None, seasontype: int | None = None, week: int |
         away = next((c for c in competitors if c.get("homeAway") == "away"), None)
         if not home or not away:
             continue
-        h, a = _competitor(home), _competitor(away)
+        h, a = _competitor(home, league), _competitor(away, league)
 
         odds = (comp.get("odds") or [None])[0]
         hp = _home_win_prob(odds)
@@ -480,8 +490,10 @@ def api_teams(league: str = "nfl"):
     for entry in payload["sports"][0]["leagues"][0]["teams"]:
         t = entry["team"]
         logos = t.get("logos") or []
-        by_abbr[t["abbreviation"]] = {
-            "abbr": t["abbreviation"],
+        by_abbr[t["id"] if league == "nrl" else t["abbreviation"]] = {
+            "id": t.get("id"),
+            # NRL abbreviations collide (three NEW, two CAN) — the shell keys NRL clubs by ESPN id
+            "abbr": t["id"] if league == "nrl" else t["abbreviation"],
             "location": t.get("location", ""),
             "name": t.get("name", ""),
             "displayName": t.get("displayName", ""),
@@ -503,7 +515,9 @@ def api_teams(league: str = "nfl"):
             "displayName": "Tasmania Devils", "color": "0c2f2a", "altColor": "b41f2e",
             "logo": "/img/tas-devils.png", "coming": "Joining 2028",
         }
-    # AFL and the NBL run single ladders — one group, alphabetical
+    if league == "nrl":
+        by_abbr = {k: v for k, v in by_abbr.items() if v.get("id") not in ("289317", "289318")}
+    # AFL, NBL and NRL run single ladders — one group, alphabetical
     return {"divisions": [{"name": _cfg(league)["name"] + " clubs",
                            "teams": sorted(by_abbr.values(), key=lambda t: t["displayName"])}]}
 
@@ -516,6 +530,8 @@ def api_ladder(league: str = "afl"):
     # standings live under /apis/v2, not /apis/site/v2 like the rest of the feed
     data = _get_json(f"https://site.api.espn.com/apis/v2/sports/{cfg['path']}/standings", ttl=900)
     entries = (data.get("standings") or {}).get("entries") or []
+    if not entries and data.get("children"):
+        entries = ((data["children"][0].get("standings") or {}).get("entries")) or []
     rows = []
     for e in entries:
         t = e.get("team") or {}
@@ -525,11 +541,12 @@ def api_ladder(league: str = "afl"):
         rows.append({
             # AFL publishes rank; the NBL only a playoff seed
             "rank": int(val("rank") or val("playoffSeed") or 0),
-            "abbr": t.get("abbreviation"),
+            "abbr": t.get("id") if league == "nrl" else t.get("abbreviation"),
             "name": t.get("shortDisplayName") or t.get("displayName"),
             "logo": (t.get("logos") or [{}])[0].get("href"),
-            "wins": disp("wins"), "losses": disp("losses"), "draws": disp("ties"),
-            "pct": disp("percentage") or disp("winPercent"),
+            "wins": disp("wins") or disp("gamesWon"), "losses": disp("losses") or disp("gamesLost"),
+            "draws": disp("ties") or disp("gamesDrawn"),
+            "pct": disp("percentage") or (disp("pointsDifference") if league == "nrl" else disp("winPercent")),
             "points": disp("points"),
             "form": disp("form")[-5:],          # season-long string, latest game last
         })
@@ -538,6 +555,7 @@ def api_ladder(league: str = "afl"):
     lines = ([{"after": 6, "kind": "top6", "label": "Top six — week off, straight to finals"},
               {"after": 10, "kind": "wild", "label": "Wildcard — 7v10 & 8v9 for the last two spots"}]
              if league == "afl" else
+             [{"after": 8, "kind": "top6", "label": "Finals — top eight"}] if league == "nrl" else
              [{"after": 6, "kind": "top6", "label": "Finals line"}])
     return {"ladder": rows, "lines": lines}
 
@@ -1170,12 +1188,34 @@ def _nbl_team_page(abbr: str) -> dict:
     }
 
 
+def _nrl_team_page(team_id: str) -> dict:
+    lad = api_ladder("nrl")["ladder"]
+    teams = {e["team"]["id"]: e["team"] for e in _get_json(f"{_site('nrl')}/teams", ttl=86400)["sports"][0]["leagues"][0]["teams"]}
+    t = teams.get(team_id)
+    if not t:
+        raise HTTPException(status_code=404, detail=f"Unknown team {team_id}")
+    row = next((r for r in lad if (r.get("logo") or "").endswith(f"/{team_id}.png")), None)
+    logos = t.get("logos") or []
+    ordinal = lambda n: f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+    return {
+        "team": {"abbr": team_id, "displayName": t.get("displayName", ""), "location": t.get("location", ""), "name": t.get("name", ""),
+                 "color": t.get("color"), "altColor": t.get("alternateColor"), "logo": logos[0]["href"] if logos else None,
+                 "record": f'{row["wins"]}–{row["losses"]}' + (f'–{row["draws"]}' if row and row.get("draws") not in ("", "0", None) else "") if row else "",
+                 "standing": f'{ordinal(row["rank"])} on the ladder · {row["points"]} pts' if row else "",
+                 "division": "", "nextEvent": None},
+        "groups": [],
+        "source": "ESPN public API · cached 6 h",
+    }
+
+
 @app.get("/api/team/{abbr}")
 def api_team(abbr: str, league: str = "nfl"):
     slug = abbr.lower()
     site = _site(league)
     if league == "nbl":
         return _nbl_team_page(abbr)
+    if league == "nrl":
+        return _nrl_team_page(abbr)
     try:
         detail = _get_json(f"{site}/teams/{slug}", ttl=21600)["team"]
     except requests.HTTPError as exc:
@@ -1380,6 +1420,12 @@ NEWS_FEEDS = {
         ("outlet", "The Guardian", "https://www.theguardian.com/sport/basketball/rss"),
         ("sweep", "", GNEWS.format("NBL%20basketball%20Australia%20when:7d")),
     ],
+    "nrl": [
+        ("outlet", "The Guardian", "https://www.theguardian.com/sport/rugbyleague/rss"),
+        ("outlet", "Sydney Morning Herald", "https://www.smh.com.au/rss/sport/nrl.xml"),
+        ("outlet", "Zero Tackle", "https://www.zerotackle.com/feed/"),
+        ("sweep", "", GNEWS.format("NRL%20when:2d")),
+    ],
     "racing": [
         # racing.com's newsroom is pulled via its GraphQL (art on every story) — see rc.news()
         ("outlet", "Just Horse Racing", "https://www.justhorseracing.com.au/feed/"),
@@ -1402,6 +1448,9 @@ NEWS_RELEVANCE = {
     "nbl": re.compile(
         r"\bNBL|Boomers|Opals|36ers|Taipans|Bullets|Breakers|JackJumpers|"
         r"Hawks|Kings|Melbourne United|Phoenix|Wildcats|Australian basketball", re.I),
+    "nrl": re.compile(
+        r"\bNRL|rugby league|Origin|Broncos|Bulldogs|Cowboys|Dolphins|Dragons|Eels|Knights|Panthers|Rabbitohs|"
+        r"Raiders|Roosters|Sea Eagles|Sharks|Storm|Titans|Warriors|Wests Tigers|Dally M|Kangaroos|Kiwis|footy", re.I),
     # "racing" alone catches F1/V8s/greyhounds — insist on the thoroughbred vocabulary
     "racing": re.compile(
         r"horse|jockey|trainer|stakes|Cup\b|Group ?[123]|Listed|Randwick|Flemington|Caulfield|Rosehill|"
@@ -1603,6 +1652,7 @@ VIDEO_TAGS = [
     ("nfl", re.compile(r"NFL|MCG|California|Super Bowl|Patriots|Rams|49ers|Siposs|Hollins|Gurley|quarterback", re.I)),
     ("afl", re.compile(r"AFL|Demons|Cats|Blues|Magpies|Bombers|Hawks|Swans|Crows|Lions|Suns|Dockers|Eagles|Power|Saints|Bulldogs|Tigers|Giants|Kangaroos|Brownlow|Coleman|Norm Smith|Harley Reid|wildcard|ladder|finals|footy", re.I)),
     ("nbl", re.compile(r"NBL|basketball|hoops", re.I)),
+    ("nrl", re.compile(r"NRL|rugby league|Origin|Panthers|Storm|Broncos|Roosters|Rabbitohs|Sea Eagles|Bulldogs|Sharks|Raiders|Warriors|Dolphins|Cowboys|Titans|Knights|Eels|Dragons|Wests Tigers", re.I)),
     ("racing", re.compile(r"racing|Melbourne Cup|Cox Plate|Caulfield|Flemington|Randwick|Everest|jockey|trainer|Group 1|Stakes|Guineas|Derby|Oaks|punt|tips|Spring Carnival", re.I)),
 ]
 
