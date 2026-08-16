@@ -663,6 +663,26 @@
       </div>`;
     paintForm(0);
     wrap.hidden = false;
+    decorateLadderForm();
+  }
+
+  // hover card on ladder rows: the club's last five, straight from formData
+  function decorateLadderForm() {
+    if (!formData) return;
+    document.querySelectorAll(".lad-row").forEach((row) => {
+      const m = (row.getAttribute("href") || "").match(/team\/([A-Z]+)$/);
+      if (!m || row.querySelector(".lad-pop")) return;
+      const ab = m[1];
+      const lines = formData.map((r) => {
+        const c = r.clubs.find((x) => x.club === ab);
+        return c ? `<span class="lp-line ${resCls(c.result)}"><b>${esc(r.name.replace("Round ", "Rd "))}</b><em>${esc(c.result)}</em><i>v ${esc(c.opp)}</i></span>`
+                 : `<span class="lp-line bye"><b>${esc(r.name.replace("Round ", "Rd "))}</b><em>Bye</em><i></i></span>`;
+      }).join("");
+      const pop = document.createElement("span");
+      pop.className = "lad-pop";
+      pop.innerHTML = `<span class="lp-h">Last five</span>${lines}`;
+      row.appendChild(pop);
+    });
   }
 
   function paintForm(idx) {
