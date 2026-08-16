@@ -4,6 +4,27 @@
 (function () {
   "use strict";
 
+  // Where the games actually are in Australia (2026). No exclusive partner --
+  // every real option, free-to-air first. Verified Aug 2026: Seven holds NFL
+  // FTA incl. the MCG game; ESPN via Kayo; NFL Game Pass on DAZN for every
+  // game. AFL: Seven + Fox Footy/Kayo. NBL: Nine FTA + ESPN via Kayo.
+  const WATCH = {
+    nfl: [
+      { key: "7plus", label: "7plus", sub: "free", url: "https://7plus.com.au/nfl" },
+      { key: "kayo", label: "Kayo", sub: "ESPN", url: "https://kayosports.com.au/sports/nfl" },
+      { key: "gamepass", label: "Game Pass", sub: "every game", url: "https://www.dazn.com/en-AU/l/nfl-game-pass" },
+    ],
+    afl: [
+      { key: "7plus", label: "7plus", sub: "free", url: "https://7plus.com.au/afl" },
+      { key: "kayo", label: "Kayo", sub: "Fox Footy", url: "https://kayosports.com.au/sports/afl" },
+    ],
+    nbl: [
+      { key: "9now", label: "9Now", sub: "free", url: "https://www.9now.com.au" },
+      { key: "kayo", label: "Kayo", sub: "ESPN", url: "https://kayosports.com.au/sports/basketball" },
+    ],
+  };
+  const watchOpts = () => WATCH[league] || WATCH.nfl;
+
   const TZ_LABEL = {
     "Australia/Sydney": "Sydney",
     "Australia/Brisbane": "Brisbane",
@@ -261,9 +282,12 @@
             <div class="rtg-venue">${esc(g.venue)} · the NFL's first game in Australia</div>
           </div>
           ${centre}
-          <a class="watch" target="_blank" rel="noopener" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}"
-             href="https://www.disneyplus.com/?utm_source=armchair&utm_medium=rtg&utm_campaign=mcg&utm_content=${esc(g.away.abbr)}@${esc(g.home.abbr)}">
-             <span class="tv">▶</span> ${done ? "Relive it on Disney+" : "Watch it live on Disney+"}</a>
+          <div class="watch-row">
+            <a class="watch" target="_blank" rel="noopener" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}" data-plat="7plus"
+               href="https://7plus.com.au/nfl?utm_source=armchair&utm_medium=rtg&utm_campaign=mcg">
+               <span class="tv">▶</span> ${done ? "Replay free on 7plus" : "Watch it free on Seven · 7plus"}</a>
+            <span class="watch-also">also on ${WATCH.nfl.slice(1).map((w) => `<a href="${esc(w.url)}" target="_blank" rel="noopener" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}" data-plat="${esc(w.key)}">${esc(w.label)}</a>`).join(" · ")}</span>
+          </div>
           <div class="rtg-your-tz">${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}</div>
           <div class="rtg-arc">${stages.map((x, i) => `<b class="${i === stage ? "on" : ""}">${x}</b>`).join("<i>→</i>")}</div>
         </div>
@@ -375,11 +399,17 @@
 
   function watchBtn(g, cls) {
     const wk = hubData && hubData.week ? hubData.week.number : "";
-    const label = g.status.state === "post" ? "Replay on Disney+" : "Watch on Disney+";
+    const opts = watchOpts();
     const utm = `utm_source=armchair&utm_medium=wtw&utm_campaign=week${wk}&utm_content=${g.away.abbr}@${g.home.abbr}`;
-    return `<a class="watch ${cls || ""}" target="_blank" rel="noopener"
-      href="https://www.disneyplus.com/?${utm}" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}">
-      <span class="tv">▶</span> ${label}</a>`;
+    const verb = g.status.state === "post" ? "Replay" : "Watch";
+    const [p, ...rest] = opts;
+    return `<span class="watch-row">
+      <a class="watch ${cls || ""}" target="_blank" rel="noopener" data-plat="${esc(p.key)}"
+        href="${esc(p.url)}${p.url.includes("?") ? "&" : "?"}${utm}" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}">
+        <span class="tv">▶</span> ${verb} on ${esc(p.label)}</a>
+      ${rest.map((w) => `<a class="watch-chip" target="_blank" rel="noopener" data-plat="${esc(w.key)}" title="${esc(w.label)} · ${esc(w.sub)}"
+        href="${esc(w.url)}${w.url.includes("?") ? "&" : "?"}${utm}" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}">${esc(w.label)}</a>`).join("")}
+    </span>`;
   }
 
   function statusBadge(g) {
@@ -773,7 +803,7 @@
           });
           navigator.sendBeacon("/api/track", new Blob([payload], { type: "application/json" }));
         } catch (e) { /* tracking must never block the tap */ }
-        toast(`Deep-link to Disney+ · <span class="u">utm_source=armchair&amp;game=${esc(b.getAttribute("data-watch"))}</span> — click tracked to sign-up`);
+        toast(`Off to ${esc(b.getAttribute("data-plat") || "the broadcaster")} · <span class="u">${esc(b.getAttribute("data-watch"))}</span> — tap tracked`);
       });
     });
   }
@@ -1237,7 +1267,7 @@
           <a class="land-strip" href="#/nfl">🏈 The 10-day countdown to the MCG starts Sep 1 — one episode a day&nbsp;<b>→</b></a>
         </div>
         <div class="land-foot">
-          <span class="lf-partner">Streaming partner <b>Disney+ · ESPN</b></span>
+          <span class="lf-partner">Every game · <b>7plus · Kayo · 9Now</b> — we tell you where</span>
           <span class="lf-soc">Armchair Experts — voice up front, a live sports-data spine underneath</span>
         </div>
       </section>`;
@@ -1740,8 +1770,8 @@
       // funnel starts at taps — reach lives in the KPI row (412k would flatten these bars to slivers)
       const pctOfTaps = (n) => Math.round(n / k.taps * 100) + "% of taps";
       const funnel = [
-        { label: "Watch on Disney+ taps", taps: k.taps },
-        { label: "Disney+ landings · " + pctOfTaps(k.landings), taps: k.landings },
+        { label: "Watch taps", taps: k.taps },
+        { label: "Broadcaster landings · " + pctOfTaps(k.landings), taps: k.landings },
         { label: "Attributed sign-ups · " + pctOfTaps(k.signups), taps: k.signups },
       ];
       view.innerHTML = `
@@ -1749,7 +1779,7 @@
           <div class="shell">
             <div class="th-row">
               <div>
-                <div class="th-loc">Armchair Experts × Disney+ · ESPN</div>
+                <div class="th-loc">Armchair Experts × broadcast partner</div>
                 <h1 class="th-name">Partner dashboard</h1>
                 <div class="th-meta">${esc(s.period)} · <span class="sample-badge">Illustrative sample data</span> · live prototype taps overlaid below</div>
               </div>
@@ -1759,7 +1789,7 @@
         <div class="shell">
           <div class="kpis">
             <div class="stat"><div class="stat-v tnum">${fmtN(k.reach)}</div><div class="stat-l">Audience reached</div><div class="stat-s">episodes + social + platform</div></div>
-            <div class="stat"><div class="stat-v tnum">${fmtN(k.taps)}</div><div class="stat-l">Watch taps</div><div class="stat-s">tracked Disney+ CTAs</div></div>
+            <div class="stat"><div class="stat-v tnum">${fmtN(k.taps)}</div><div class="stat-l">Watch taps</div><div class="stat-s">tracked watch CTAs</div></div>
             <div class="stat"><div class="stat-v tnum">${fmtN(k.signups)}</div><div class="stat-l">Attributed sign-ups</div><div class="stat-s">via utm_source=armchair</div></div>
             <div class="stat"><div class="stat-v tnum">${conv}%</div><div class="stat-l">Tap → sign-up</div><div class="stat-s">conversion, 7-day window</div></div>
           </div>
@@ -1786,7 +1816,7 @@
             <i>→</i>
             <div class="mech-step"><b>2</b><div><b>Tracked tap</b><br>every Watch CTA carries <code>utm_source=armchair</code> + surface + storyline</div></div>
             <i>→</i>
-            <div class="mech-step"><b>3</b><div><b>Disney+ landing</b><br>UTMs flow into the partner's analytics unchanged</div></div>
+            <div class="mech-step"><b>3</b><div><b>Broadcaster landing</b><br>UTMs flow into the partner's analytics unchanged</div></div>
             <i>→</i>
             <div class="mech-step"><b>4</b><div><b>Attributed sign-up</b><br>subscriptions credited to the storyline that drove them — reported weekly</div></div>
           </div>
@@ -1797,7 +1827,7 @@
               <thead><tr><th>Surface</th><th>Campaign</th><th>Storyline</th><th class="tnum">Taps</th></tr></thead>
               <tbody>${d.live.map((l) => `<tr><td>${esc(l.medium)}</td><td>${esc(l.campaign)}</td><td>${esc(l.content)}</td><td class="tnum">${l.count}</td></tr>`).join("")}</tbody>
             </table></div>`
-            : `<div class="loading" style="padding:14px 0">No taps recorded yet this session — hit any <b>Watch on Disney+</b> button on the hub and refresh this page.</div>`}
+            : `<div class="loading" style="padding:14px 0">No taps recorded yet this session — hit any <b>Watch</b> button on the hub and refresh this page.</div>`}
             <div class="panel-note">Live counters are per-instance for the prototype; production wires this to a persistent store (same pattern as the AFL build).</div>
           </div>
         </div>`;

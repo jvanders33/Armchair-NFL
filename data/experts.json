@@ -11,7 +11,7 @@
 
   "road_to_the_g": {
     "title": "Cali to the 'G",
-    "sub": "The story behind the NFL's arrival in Australia. Every episode re-releases one per day, Sep 1–10 — the ten-day countdown to the MCG. With Disney+ as Official Streaming Partner.",
+    "sub": "The story behind the NFL's arrival in Australia. Every episode re-releases one per day, Sep 1–10 — the ten-day countdown to the MCG. The game is live and free on Seven and 7plus.",
     "advent_note": "Episode titles/guests are placeholders from the deck's guest list — swap in Cam's real running order. Drop = AEST date the ep unlocks; add url when live.",
     "episodes": [
       { "n": 1,  "title": "The Announcement", "guest": "How the MCG got the game", "drop": "2026-09-01", "url": "" },
