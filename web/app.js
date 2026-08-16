@@ -1367,13 +1367,33 @@
             <a title="X — handle to come">𝕏</a>
             <a title="iHeart">♥</a>
           </div>
-          <a class="land-strip" href="#/nfl">🏈 The 10-day countdown to the MCG starts Sep 1 — one episode a day&nbsp;<b>→</b></a>
+          <div class="land-cal" id="land-cal" aria-label="Coming up"></div>
         </div>
         <div class="land-foot">
           <span class="lf-partner">Every game · <b>7plus · Kayo · 9Now</b> — we tell you where</span>
           <span class="lf-soc">Armchair Experts — voice up front, a live sports-data spine underneath</span>
         </div>
       </section>`;
+    paintLandingCalendar();
+  }
+
+  // The major-events calendar: one rail, every code, upcoming only. Data-driven
+  // (data/events.json) so NRL/NBA/EPL dates are a line each, not a build.
+  const EV_CODE = { NFL: "#D50A0A", AFL: "#003C9D", NBL: "#E4002B", RACING: "#C9A227", NRL: "#0B7A3B", NBA: "#1D428A", EPL: "#3D195B" };
+  async function paintLandingCalendar() {
+    const el = $("land-cal"); if (!el) return;
+    try {
+      const d = await fetchJSON("/api/events");
+      const up = (d.events || []).filter((e) => !e.past).slice(0, 9);
+      if (!up.length) { el.hidden = true; return; }
+      const days = (t) => Math.ceil((new Date(t) - Date.now()) / 864e5);
+      el.innerHTML = `<span class="lc-k">Coming up</span><div class="lc-rail">${up.map((e) => { const k = fmt(e.time); const n = days(e.time); return `
+        <a class="lc-tile${e.hero ? " hero" : ""}" href="${esc(e.href || "#/leagues")}"${/^https?:/.test(e.href || "") ? ' target="_blank" rel="noopener"' : ""} style="--lc:${EV_CODE[e.code] || "#888"}">
+          <span class="lc-code">${esc(e.code === "RACING" ? "Racing" : e.code)}</span>
+          <span class="lc-name">${esc(e.name)}</span>
+          <span class="lc-when">${k.wd} ${k.day}<i>${n <= 0 ? "today" : n === 1 ? "tomorrow" : n + " days"}</i></span>
+        </a>`; }).join("")}</div>`;
+    } catch { el.hidden = true; }
   }
 
   // =====================================================================

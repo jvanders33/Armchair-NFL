@@ -1328,6 +1328,18 @@ def api_player(pid: str):
     }
 
 
+@app.get("/api/events")
+def api_events():
+    """The cross-code major-events calendar (data/events.json), upcoming first."""
+    try:
+        d = json.loads((DATA / "events.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {"events": []}
+    now = datetime.now(timezone.utc).isoformat()
+    ev = sorted((e for e in d.get("events", []) if e.get("time")), key=lambda e: e["time"])
+    return {"events": [e | {"past": e["time"] < now} for e in ev]}
+
+
 @app.get("/api/christmas")
 def api_christmas():
     try:

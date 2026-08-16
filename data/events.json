@@ -1,0 +1,15 @@
+{
+  "note": "The major-events calendar on the landing page. One line per event; times are UTC; `code` picks the mark and colour; `href` is where the tile lands (internal hash or external). Add codes freely — NRL, NBA, EPL and anything else sit here as data, no code change. Verified Aug 2026.",
+  "events": [
+    { "code": "NFL", "name": "NFL at the MCG", "sub": "49ers v Rams · Melbourne Cricket Ground", "time": "2026-09-11T00:35:00Z", "href": "#/nfl", "hero": true },
+    { "code": "NBL", "name": "NBL27 tip-off", "sub": "Melbourne United v Adelaide · John Cain Arena", "time": "2026-09-19T09:30:00Z", "href": "#/nbl" },
+    { "code": "AFL", "name": "AFL Grand Final", "sub": "MCG", "time": "2026-09-26T04:30:00Z", "href": "#/afl", "hero": true },
+    { "code": "NRL", "name": "NRL Grand Final", "sub": "Accor Stadium, Sydney", "time": "2026-10-04T08:30:00Z", "href": "https://www.nrl.com" },
+    { "code": "RACING", "name": "Caulfield Cup", "sub": "Group 1 · 2400m · Caulfield", "time": "2026-10-17T06:00:00Z", "href": "#/racing" },
+    { "code": "RACING", "name": "The Everest", "sub": "$20M · Royal Randwick", "time": "2026-10-17T05:00:00Z", "href": "#/racing" },
+    { "code": "NBA", "name": "NBA opening night", "sub": "Celtics @ Pistons · 76ers @ Knicks · Thunder @ Spurs", "time": "2026-10-20T23:30:00Z", "href": "https://www.nba.com" },
+    { "code": "RACING", "name": "Cox Plate", "sub": "Group 1 · 2040m · Flemington", "time": "2026-10-24T05:50:00Z", "href": "#/racing" },
+    { "code": "RACING", "name": "Melbourne Cup", "sub": "The race that stops the nation · Flemington", "time": "2026-11-03T04:00:00Z", "href": "#/racing", "hero": true },
+    { "code": "NFL", "name": "Super Bowl LXI", "sub": "SoFi Stadium, Los Angeles", "time": "2027-02-14T23:30:00Z", "href": "#/nfl", "hero": true }
+  ]
+}
