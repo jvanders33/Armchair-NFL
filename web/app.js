@@ -605,12 +605,12 @@
       const fri = new Date(mon.getTime() + 4 * 864e5), sun = new Date(mon.getTime() + 6 * 864e5);
       const d = (x) => x.toLocaleDateString("en-AU", { day: "numeric", timeZone: "Australia/Melbourne" });
       const mo = (x) => x.toLocaleDateString("en-AU", { month: "short", timeZone: "Australia/Melbourne" });
-      return `Fri–Sun ${d(fri)}–${d(sun)} ${mo(sun)} · fixture TBC`;
+      return `Fri–Sun ${d(fri)}–${d(sun)} ${mo(sun)} · TBC`;
     };
     const teamRow = (t, score, gb, won) => `
       <div class="fb-team${t.projected ? " proj" : ""}${t.abbr ? "" : " tbd"}${won ? " won" : ""}">
         ${t.logo ? `<img src="${esc(t.logo)}" alt="">` : `<span class="fb-blank"></span>`}
-        <span class="fb-nm">${esc(t.abbr ? t.name : t.seed || t.name)}${t.projected ? `<i>${esc(t.seed)}</i>` : ""}</span>
+        <span class="fb-nm">${esc(t.abbr ? t.name : (t.seed || t.name).replace(/Lowest-ranked WF Winner/, "Lowest WF winner").replace(/Highest-ranked WF Winner/, "Highest WF winner"))}${t.projected ? `<i>${esc(t.seed)}</i>` : ""}</span>
         ${score != null ? `<span class="fb-sc tnum">${score}<i>${esc(gb || "")}</i></span>` : ""}
       </div>`;
     const matchCard = (m, rn, i) => {
