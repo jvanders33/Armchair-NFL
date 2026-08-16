@@ -21,7 +21,10 @@ import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 
-from . import racing as rc
+try:
+    from . import racing as rc          # package import (uvicorn api.app:app)
+except ImportError:
+    import racing as rc                 # Vercel runs api/index.py with api/ on sys.path
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
