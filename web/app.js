@@ -598,6 +598,7 @@
         <div id="fg-body"></div>
       </div>`;
     paintForm(0);
+    wrap.hidden = false;
   }
 
   function paintForm(idx) {
