@@ -1197,3 +1197,9 @@ a.ldr-row:hover{background:var(--card-2)}
 .lc-name{font-family:var(--f-cond); font-weight:700; text-transform:uppercase; font-size:14px; letter-spacing:.02em; line-height:1.05; white-space:nowrap}
 .lc-when{font-size:10.5px; color:var(--ink-2); display:flex; justify-content:space-between; gap:8px; margin-top:2px}
 .lc-when i{font-style:normal; color:var(--muted)}
+
+@media (max-width:560px){
+  .lad-head.rc-ph,.lad-row.rc-pr{grid-template-columns:22px 1fr 40px 44px 46px}
+  .lad-head.rc-ph span:last-child,.lad-row.rc-pr span:last-child{display:none}
+  .seg{flex-wrap:wrap}
+}
