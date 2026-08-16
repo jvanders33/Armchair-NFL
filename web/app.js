@@ -2326,16 +2326,16 @@
           ${kind === "horse" && p.summary ? `<p class="panel-note" style="margin-top:14px">${esc(p.summary)}</p>` : ""}
           <div class="section-h" style="margin-top:26px">${kind === "jockey" ? "Recent rides" : kind === "trainer" ? "Recent runners" : "Recent starts"} <span class="n">· latest first</span></div>
           <div class="tbl-wrap"><table class="roster stats rc-runs">
-            <thead><tr><th>Date</th><th>Track</th><th>Race</th>${kind !== "horse" ? "<th>Horse</th>" : ""}${kind !== "jockey" ? "<th>Jockey</th>" : ""}${kind === "jockey" ? "<th>Trainer</th>" : ""}<th class="tnum">Fin</th><th>Margin</th><th class="tnum">SP</th><th class="tnum">Bar</th><th class="tnum">Wt</th></tr></thead>
+            <thead><tr><th>Date</th><th>Track</th><th>Race</th><th class="tnum">Fin</th>${kind !== "horse" ? "<th>Horse</th>" : ""}${kind !== "jockey" ? "<th>Jockey</th>" : ""}${kind === "jockey" ? "<th>Trainer</th>" : ""}<th>Margin</th><th class="tnum">SP</th><th class="tnum">Bar</th><th class="tnum">Wt</th></tr></thead>
             <tbody>${runs.filter((x) => !x.trial).map((x) => `
               <tr class="${x.finish === 1 ? "won" : ""}">
                 <td>${esc(x.date ? fmt(x.time || x.date + "T00:00:00Z").day : "")}</td>
                 <td><a href="#/racing/meeting/${esc(x.meetId)}">${esc(x.venue || "")}</a></td>
                 <td><a href="#/racing/race/${esc(x.meetId)}/${x.number}">${esc(x.race || "R" + x.number)}</a> ${rcGroupChip(x.group)} <i class="rc-dist">${esc(x.distance || "")}</i></td>
+                <td class="tnum"><b>${x.finish ? esc(x.finishAbv || x.finish) : (x.status && !/paying|final|closed/i.test(x.status) ? esc(x.status) : "")}</b>${x.runners ? `<i class="rc-of">/${x.runners}</i>` : ""}</td>
                 ${kind !== "horse" ? `<td>${x.silk ? `<img class="hs rc-silk sm" src="${esc(x.silk)}" alt="">` : ""}${x.horseId ? `<a href="#/racing/horse/${esc(x.horseId)}">${esc(x.horse)}</a>` : esc(x.horse || "")}</td>` : ""}
                 ${kind !== "jockey" ? `<td>${x.jockeyId ? `<a href="#/racing/jockey/${esc(x.jockeyId)}">${esc(x.jockey)}</a>` : esc(x.jockey || "")}</td>` : ""}
                 ${kind === "jockey" ? `<td>${x.trainerId ? `<a href="#/racing/trainer/${esc(x.trainerId)}">${esc(x.trainer)}</a>` : esc(x.trainer || "")}</td>` : ""}
-                <td class="tnum"><b>${x.finish ? esc(x.finishAbv || x.finish) : (x.status && !/paying|final|closed/i.test(x.status) ? esc(x.status) : "")}</b>${x.runners ? `<i class="rc-of">/${x.runners}</i>` : ""}</td>
                 <td>${esc(x.margin || "")}</td><td class="tnum">${esc(x.sp || "")}</td><td class="tnum">${esc(x.barrier ?? "")}</td><td class="tnum">${esc(x.weight || "")}</td>
               </tr>`).join("") || `<tr><td colspan="9">No recent starts recorded.</td></tr>`}</tbody>
           </table></div>
