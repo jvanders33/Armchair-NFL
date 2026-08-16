@@ -573,7 +573,7 @@
   // ---------- the ladder (AFL / NBL) — full table, finals + wildcard lines ----------
   // 2026 finals: the top six go straight through with the week off; 7th-10th
   // play the wildcard round (7v10, 8v9) for the last two spots in the eight.
-  let leadersData = null;
+  let leadersData = null, leadersSeason = null;
 
   function renderLadder(lad, leaders) {
     const wrap = $("ladder-wrap");
@@ -581,6 +581,7 @@
     const rows = (lad && lad.ladder) || [];
     if (!rows.length) { wrap.hidden = true; return; }
     leadersData = leaders && (leaders.categories || []).length ? leaders.categories : null;
+    leadersSeason = leaders && leaders.season ? leaders.season : null;
     const lines = {};
     (lad.lines || []).forEach((l) => { lines[l.after] = l; });
     const wildTo = Math.max(...(lad.lines || []).map((l) => l.after), 0);
@@ -753,16 +754,16 @@
     if (!box || !leadersData) return;
     const cat = leadersData.find((c) => c.key === key) || leadersData[0];
     box.innerHTML = `
-      <div class="ldr-h">Season leaders</div>
+      <div class="ldr-h">${leadersSeason ? `${esc(leadersSeason.name)} leaders${leadersSeason.live ? "" : ' <i class="ldr-last">last season</i>'}` : "Season leaders"}</div>
       <div class="ldr-tabs" role="tablist">
         ${leadersData.map((c) => `<button class="ldr-tab" data-lk="${esc(c.key)}" aria-pressed="${c.key === cat.key}">${esc(c.label)}</button>`).join("")}
       </div>
       ${cat.leaders.map((p, i) => `
-        <a class="ldr-row" href="#/afl/player/${esc(p.id || "")}">
+        <a class="ldr-row" href="#/${league}/player/${esc(p.id || "")}">
           <span class="ldr-pos tnum">${i + 1}</span>
           ${p.photo ? `<img class="ldr-img" src="${esc(p.photo)}" alt="" loading="lazy">` : `<span class="ldr-img"></span>`}
           <span class="ldr-who"><b>${esc(p.name)}</b><i>${esc(p.club)} · ${p.games} gms</i></span>
-          <span class="ldr-val tnum">${p.value}<i>${p.avg ? p.avg + "/g" : ""}</i></span>
+          <span class="ldr-val tnum">${p.value}<i>${p.avg ? p.avg + "/g" : (league === "nbl" ? "per game" : "")}</i></span>
         </a>`).join("")}
       <div class="ldr-src">Official AFL season totals</div>`;
     box.querySelectorAll("[data-lk]").forEach((b) =>
@@ -882,7 +883,7 @@
         fetchJSON(`/api/featured?league=${league}`).catch(() => null),
         fetchJSON(`/api/videos?league=${league}`).catch(() => null),
         league !== "nfl" ? fetchJSON(`/api/ladder?league=${league}`).catch(() => null) : Promise.resolve(null),
-        league === "afl" ? fetchJSON("/api/leaders?league=afl").catch(() => null) : Promise.resolve(null),
+        league !== "nfl" ? fetchJSON(`/api/leaders?league=${league}`).catch(() => null) : Promise.resolve(null),
         league === "afl" ? fetchJSON("/api/afl/form").catch(() => null) : Promise.resolve(null),
         league === "afl" ? fetchJSON("/api/afl/finals").catch(() => null) : Promise.resolve(null),
       ]);
@@ -1005,7 +1006,7 @@
           </div>
         </div>
         <div class="shell">
-          ${!d.groups.length ? (league === "afl" ? `
+          ${!d.groups.length ? (league === "afl" || league === "nbl" ? `
             <div id="afl-list"><div class="loading">Loading the list…</div></div>` : `
             <div class="section-h" style="margin-top:26px">The list</div>
             <div class="panel roster-empty">
@@ -1039,6 +1040,7 @@
         tr.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
       });
       if (league === "afl" && !d.groups.length) loadAflList(abbr);
+      if (league === "nbl" && !d.groups.length) loadNblList(abbr);
     } catch (err) {
       view.innerHTML = `<div class="shell"><div class="loading">Couldn't load ${esc(abbr)} (${esc(err.message)}).</div></div>`;
     }
@@ -1105,6 +1107,100 @@
       box.innerHTML = `<div class="panel roster-empty" style="margin-top:26px">
         <p>Couldn't reach the AFL stats feed for this list.</p>
         <a class="watch" href="https://list-trac.vercel.app" target="_blank" rel="noopener">Full list, contracts &amp; trades on ListTrac →</a></div>`;
+    }
+  }
+
+  // NBL list — from the league's Rosetta feed (ESPN publishes no NBL rosters)
+  async function loadNblList(abbr) {
+    const box = $("afl-list");
+    if (!box) return;
+    try {
+      const d = await fetchJSON(`/api/nbl/list/${encodeURIComponent(abbr)}`);
+      const n1 = (v) => v == null ? "" : (+v).toFixed(1);
+      const s = d.season || {};
+      box.innerHTML = `
+        <div class="section-h" style="margin-top:26px">The list <span class="n">· ${d.players.length} players · ${esc(s.name || "")}${s.live ? "" : " · last season's numbers"}</span></div>
+        <div class="tbl-wrap"><table class="roster">
+          <thead><tr><th>#</th><th>Player</th><th>Pos</th><th class="tnum">Gms</th><th class="tnum">PPG</th><th class="tnum">RPG</th><th class="tnum">APG</th><th class="tnum">MPG</th><th class="tnum">FG%</th></tr></thead>
+          <tbody>
+            ${d.players.map((p) => `
+              <tr data-player="${esc(p.id)}" tabindex="0">
+                <td class="tnum">${esc(p.jersey ?? "")}</td>
+                <td class="pl">
+                  ${p.photo ? `<img class="hs" src="${esc(p.photo)}" alt="" loading="lazy">` : `<span class="hs hs-empty"></span>`}
+                  <span class="pl-nm">${esc(p.name)}</span>
+                </td>
+                <td>${esc(p.pos)}</td>
+                <td class="tnum">${p.games || ""}</td>
+                <td class="tnum">${n1(p.ppg)}</td><td class="tnum">${n1(p.rpg)}</td><td class="tnum">${n1(p.apg)}</td>
+                <td class="tnum">${n1(p.mpg)}</td><td class="tnum">${p.fg != null ? p.fg : ""}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table></div>
+        <p class="panel-note" style="margin-top:12px">Official NBL stats.${s.live ? "" : " Rosters and numbers roll over to NBL27 as the season tips off."}</p>`;
+      box.querySelectorAll("[data-player]").forEach((tr) => {
+        const go = () => { location.hash = "#/nbl/player/" + tr.getAttribute("data-player"); };
+        tr.addEventListener("click", go);
+        tr.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+      });
+    } catch {
+      box.innerHTML = `<div class="panel roster-empty" style="margin-top:26px"><p>Couldn't reach the NBL stats feed for this list.</p></div>`;
+    }
+  }
+
+  // NBL player page — career from the league feed
+  async function showNblPlayer(pid) {
+    view.innerHTML = `<div class="shell"><div class="loading">Loading player…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/nbl/player/" + encodeURIComponent(pid));
+      const p = d.player;
+      const n1 = (v) => v == null ? "—" : (+v).toFixed(1);
+      const yr = (s) => `${s.year}–${String((+s.year + 1) % 100).padStart(2, "0")}`;
+      view.innerHTML = `
+        ${nflSubnav("teams")}
+        <div class="team-hero" style="background:linear-gradient(120deg,${esc(p.color || "#222")}E6,${esc(p.color || "#222")}66),var(--card)">
+          <div class="shell">
+            <a class="crumb" href="#/nbl/team/${esc(p.club)}">← ${esc(p.clubName)}</a>
+            <div class="th-row">
+              ${p.photo ? `<img class="ph" src="${esc(p.photo)}" alt="">` : ""}
+              <div>
+                <div class="th-loc">${esc(p.clubName)}${p.jersey ? " · #" + esc(p.jersey) : ""}${p.pos ? " · " + esc(p.pos) : ""}</div>
+                <h1 class="th-name">${esc(p.name)}</h1>
+                <div class="sum-chips">
+                  <span class="sum"><b class="tnum">${p.games}</b> games</span>
+                  <span class="sum"><b class="tnum">${n1(p.ppg)}</b> ppg</span>
+                  <span class="sum"><b class="tnum">${n1(p.rpg)}</b> rpg</span>
+                  <span class="sum"><b class="tnum">${n1(p.apg)}</b> apg</span>
+                  <span class="sum"><b class="tnum">${p.fg != null ? p.fg + "%" : "—"}</b> FG</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="shell">
+          <div class="section-h" style="margin-top:26px">Career <span class="n">· season by season · official NBL stats</span></div>
+          <div class="tbl-wrap"><table class="roster stats">
+            <thead><tr><th>Season</th><th>Team</th><th class="tnum">G</th><th class="tnum">MPG</th><th class="tnum">PPG</th><th class="tnum">RPG</th><th class="tnum">APG</th><th class="tnum">SPG</th><th class="tnum">BPG</th><th class="tnum">FG%</th><th class="tnum">3P%</th><th class="tnum">FT%</th></tr></thead>
+            <tbody>
+              ${d.seasons.map((s) => `
+                <tr>
+                  <td>${esc(yr(s))}</td>
+                  <td>${s.team ? `<a href="#/nbl/team/${esc(s.team)}">${esc(s.team)}</a>` : ""}</td>
+                  <td class="tnum">${s.games}</td><td class="tnum">${n1(s.mpg)}</td>
+                  <td class="tnum"><b>${n1(s.ppg)}</b></td><td class="tnum">${n1(s.rpg)}</td><td class="tnum">${n1(s.apg)}</td>
+                  <td class="tnum">${n1(s.spg)}</td><td class="tnum">${n1(s.bpg)}</td>
+                  <td class="tnum">${s.fg ?? "—"}</td><td class="tnum">${s.tp ?? "—"}</td><td class="tnum">${s.ft ?? "—"}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table></div>
+          <div class="section-h" style="margin-top:26px">${esc(yr({ year: d.seasons[0].year }))} totals</div>
+          <div class="tbl-wrap"><table class="roster stats">
+            <thead><tr><th>Stat</th><th class="tnum">Total</th><th class="tnum">Per game</th></tr></thead>
+            <tbody>${d.stats.map((s) => `<tr><td>${esc(s.label)}</td><td class="tnum">${s.total}</td><td class="tnum">${s.avg ?? ""}</td></tr>`).join("")}</tbody>
+          </table></div>
+        </div>`;
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load player (${esc(err.message)}).</div></div>`;
     }
   }
 
@@ -1185,6 +1281,7 @@
 
   async function showPlayer(pid) {
     if (league === "afl") return showAflPlayer(pid);
+    if (league === "nbl") return showNblPlayer(pid);
     view.innerHTML = `<div class="shell"><div class="loading">Loading player…</div></div>`;
     try {
       const d = await fetchJSON("/api/player/" + encodeURIComponent(pid));
@@ -1856,7 +1953,7 @@
     const LG = "(nfl|afl|nbl)";
     if (isLanding) { setNav(""); showLanding(); }
     else if ((m = h.match(new RegExp(`^#/${LG}/team/([A-Za-z]{2,5})$`)))) { league = m[1]; setNav("leagues"); showTeam(m[2].toUpperCase()); }
-    else if ((m = h.match(new RegExp(`^#/${LG}/player/([A-Za-z0-9_]+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
+    else if ((m = h.match(new RegExp(`^#/${LG}/player/([\\w-]+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
     else if ((m = h.match(new RegExp(`^#/${LG}/teams$`)))) { league = m[1]; setNav("leagues"); showTeams(); }
     else if ((m = h.match(new RegExp(`^#/${LG}$`)))) { league = m[1]; setNav("leagues"); showHub(); }
     else if ((m = h.match(/^#\/watch\/([\w-]+)$/))) { setNav("watch"); showWatch(m[1]); }

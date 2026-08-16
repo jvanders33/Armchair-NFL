@@ -595,6 +595,8 @@ def _afl_pos(d: dict) -> str:
 
 @app.get("/api/leaders")
 def api_leaders(league: str = "afl"):
+    if league == "nbl":
+        return _nbl_leaders_payload()
     if league != "afl":
         return {"categories": []}
     if _leaders_cache["data"] and time.time() - _leaders_cache["ts"] < 3600:
@@ -898,6 +900,170 @@ def api_afl_finals():
             })
         rounds.append({"round": int(rn), "name": FINALS_LABELS[rn], "matches": matches})
     return {"rounds": rounds, "live": any_fixed, "projected": not any_fixed}
+
+
+# ---------------------------------------------------------------------------
+# NBL — the league's own "Rosetta" stats API (prod.rosetta.nbl.com.au), the
+# same feed nbl.com.au renders from. Plain GETs; the only gate is a
+# nbl.com.au Origin header (no key). Season ids come from /nbl/seasons;
+# leaders need filter[period]=0&sort=... or the API returns three rows.
+# ---------------------------------------------------------------------------
+NBL_API = "https://prod.rosetta.nbl.com.au/get"
+_NBL_HDRS = {"User-Agent": "Mozilla/5.0", "Origin": "https://www.nbl.com.au",
+             "Referer": "https://www.nbl.com.au/"}
+_nbl_cache: dict[str, tuple[float, dict]] = {}
+
+
+def _nbl_get(route: str, ttl: int = 900) -> dict:
+    hit = _nbl_cache.get(route)
+    if hit and time.time() - hit[0] < ttl:
+        return hit[1]
+    r = requests.get(f"{NBL_API}/{route}", headers=_NBL_HDRS, timeout=25)
+    r.raise_for_status()
+    data = r.json()
+    _nbl_cache[route] = (time.time(), data)
+    return data
+
+
+def _nbl_season() -> dict:
+    """The season to show: the newest regular season with leader data (NBL27
+    once tip-off happens, NBL26 until then). Returns {id, name, year, live}."""
+    seasons = [s for s in _nbl_get("nbl/seasons", ttl=6 * 3600).get("data", [])
+               if s.get("season_type") == "regular" and (s.get("name") or "").startswith("NBL")]
+    seasons.sort(key=lambda s: int(s.get("year") or 0), reverse=True)
+    for i, s in enumerate(seasons[:2]):
+        rows = _nbl_get(f"nbl/stats/leaders/for/season/id/{s['id']}?limit=1&filter[period]=0&sort=-points").get("data", [])
+        if rows:
+            return {"id": s["id"], "name": s["name"], "year": s["year"], "live": i == 0}
+    s = seasons[0]
+    return {"id": s["id"], "name": s["name"], "year": s["year"], "live": False}
+
+
+def _nbl_leader_rows(season_id: str) -> list:
+    return _nbl_get(f"nbl/stats/leaders/for/season/id/{season_id}?limit=200&filter[period]=0&sort=-points",
+                    ttl=3600).get("data", [])
+
+
+def _nbl_pname(p: dict) -> str:
+    return f'{p.get("first_name", "")} {p.get("last_name", "")}'.strip()
+
+
+def _nbl_photo(p: dict):
+    return p.get("image") or p.get("external_player_image")
+
+
+NBL_LEADER_CATS = [("points_average", "Points"), ("rebounds_average", "Rebounds"),
+                   ("assists_average", "Assists"), ("steals_average", "Steals"),
+                   ("blocks_average", "Blocks"), ("three_points_made_average", "3PM")]
+
+
+def _nbl_leaders_payload() -> dict:
+    season = _nbl_season()
+    rows = _nbl_leader_rows(season["id"])
+    out = []
+    for key, label in NBL_LEADER_CATS:
+        # per-game leaders need a minimum sample — half the games of the busiest player
+        maxg = max((r.get("games") or 0) for r in rows) if rows else 0
+        eligible = [r for r in rows if (r.get("games") or 0) >= max(3, maxg // 2)]
+        top = sorted(eligible, key=lambda r: r.get(key) or 0, reverse=True)[:10]
+        out.append({"key": key, "label": label, "leaders": [{
+            "id": (r.get("player") or {}).get("id"),
+            "name": _nbl_pname(r.get("player") or {}),
+            "club": (r.get("team") or {}).get("team_code", ""),
+            "photo": _nbl_photo(r.get("player") or {}),
+            "value": round(float(r.get(key) or 0), 1),
+            "games": int(r.get("games") or 0),
+            "avg": None,
+        } for r in top if r.get(key)]})
+    return {"season": season, "categories": out}
+
+
+@app.get("/api/nbl/list/{abbr}")
+def api_nbl_list(abbr: str):
+    season = _nbl_season()
+    ab = abbr.upper()
+    # roster route wants the Rosetta team uuid — read it off the standings/leaders
+    teams = {}
+    for r in _nbl_leader_rows(season["id"]):
+        t = r.get("team") or {}
+        if t.get("team_code"):
+            teams[t["team_code"]] = t
+    if ab not in teams:
+        try:
+            for row in _nbl_get(f"nbl/standings/{season['year']}/regular").get("data", []):
+                t = row.get("team") or {}
+                if t.get("team_code"):
+                    teams.setdefault(t["team_code"], t)
+        except requests.HTTPError:
+            pass
+    team = teams.get(ab)
+    if not team:
+        raise HTTPException(status_code=404, detail=f"Unknown club {abbr}")
+    roster = _nbl_get(f"nbl/players/for/team/{team['id']}/in/season/{season['year']}", ttl=3600).get("data", [])
+    stats = {(r.get("player") or {}).get("id"): r for r in _nbl_leader_rows(season["id"])}
+    f1 = lambda v: round(float(v), 1) if v not in (None, "") else None
+    players = []
+    for entry in roster:
+        p = entry.get("player") or {}
+        s = stats.get(p.get("id")) or {}
+        players.append({
+            "id": p.get("id"), "name": _nbl_pname(p), "photo": _nbl_photo(p),
+            "jersey": entry.get("jersey_number") or p.get("jersey_number"),
+            "pos": entry.get("playing_position") or p.get("playing_position") or "",
+            "games": int(s.get("games") or 0),
+            "ppg": f1(s.get("points_average")), "rpg": f1(s.get("rebounds_average")),
+            "apg": f1(s.get("assists_average")), "mpg": f1(s.get("minutes_average")),
+            "fg": round(float(s["field_goals_percentage"]) * 100, 1) if s.get("field_goals_percentage") is not None else None,
+        })
+    players.sort(key=lambda r: (-(r["games"]), -(r["ppg"] or 0)))
+    return {"season": season, "team": {"code": ab, "name": team.get("name"), "logo": team.get("team_logo_transparent") or team.get("team_logo"),
+                                       "color": team.get("color_primary")}, "players": players}
+
+
+_NBL_STAT_LINES = [
+    ("points", "Points", "points_average"), ("rebounds", "Rebounds", "rebounds_average"),
+    ("assists", "Assists", "assists_average"), ("steals", "Steals", "steals_average"),
+    ("blocks", "Blocks", "blocks_average"), ("turnovers", "Turnovers", "turnovers_average"),
+    ("minutes", "Minutes", "minutes_average"),
+    ("field_goals_made", "Field goals made", "field_goals_made_average"),
+    ("three_points_made", "3-pointers made", "three_points_made_average"),
+    ("free_throws_made", "Free throws made", "free_throws_made_average"),
+    ("efficiency", "Efficiency", "efficiency_average"), ("plus_minus", "Plus/minus", "plus_minus_average"),
+]
+
+
+@app.get("/api/nbl/player/{pid}")
+def api_nbl_player(pid: str):
+    career = _nbl_get(f"nbl/statistics/for/player/{pid}", ttl=3600).get("data", [])
+    if not career:
+        raise HTTPException(status_code=404, detail=f"Unknown player {pid}")
+    career = [c for c in career if (c.get("season") or {}).get("season_type", "regular") == "regular"]
+    career.sort(key=lambda c: int((c.get("season") or {}).get("year") or 0), reverse=True)
+    latest = career[0]
+    p = latest.get("player") or {}
+    t = latest.get("team") or {}
+    f1 = lambda v: round(float(v), 1) if v not in (None, "") else None
+    pct = lambda v: round(float(v) * 100, 1) if v not in (None, "") else None
+    seasons = [{
+        "year": (c.get("season") or {}).get("year"),
+        "label": (c.get("season") or {}).get("name") or f'{(c.get("season") or {}).get("year")}',
+        "team": (c.get("team") or {}).get("team_code", ""),
+        "games": int(c.get("games") or 0),
+        "ppg": f1(c.get("points_average")), "rpg": f1(c.get("rebounds_average")), "apg": f1(c.get("assists_average")),
+        "spg": f1(c.get("steals_average")), "bpg": f1(c.get("blocks_average")), "mpg": f1(c.get("minutes_average")),
+        "fg": pct(c.get("field_goals_percentage")), "tp": pct(c.get("three_points_percentage")), "ft": pct(c.get("free_throws_percentage")),
+    } for c in career]
+    lines = [{"label": lbl, "total": int(latest.get(k) or 0), "avg": f1(latest.get(ak))}
+             for k, lbl, ak in _NBL_STAT_LINES if latest.get(k) not in (None, 0)]
+    return {"player": {
+        "id": pid, "name": _nbl_pname(p), "photo": _nbl_photo(p),
+        "jersey": p.get("jersey_number"), "pos": p.get("playing_position", ""),
+        "club": t.get("team_code", ""), "clubName": t.get("name", ""), "color": t.get("color_primary"),
+        "seasonLabel": (latest.get("season") or {}).get("name") or (latest.get("season") or {}).get("year"),
+        "games": int(latest.get("games") or 0),
+        "ppg": f1(latest.get("points_average")), "rpg": f1(latest.get("rebounds_average")),
+        "apg": f1(latest.get("assists_average")), "fg": pct(latest.get("field_goals_percentage")),
+    }, "stats": lines, "seasons": seasons}
 
 
 # the player-page stat lines, in display order: (totals key, label, decimals)

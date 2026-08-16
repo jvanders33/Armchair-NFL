@@ -1104,3 +1104,5 @@ a.ldr-row:hover{background:var(--card-2)}
 .watch-also a{color:var(--ink-2); text-decoration:none; font-weight:700}
 .watch-also a:hover{color:var(--accent)}
 .rtg .watch-row{flex-direction:column; gap:6px}
+
+.ldr-last{font-style:normal; font-family:var(--f-body); font-size:10px; letter-spacing:.06em; color:#FFB020; font-weight:700; margin-left:6px}
