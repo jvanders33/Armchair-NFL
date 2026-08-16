@@ -614,7 +614,7 @@
       <div class="section-h" style="margin-top:30px">The Ladder <span class="n">${sub}</span></div>
       <div class="lad-wrap${leadersData ? "" : " solo"}">
         <div class="lad-col">
-          <div class="lad-head"><span></span><span></span><span>Club</span><span>W–L</span><span>${pctLbl}</span><span>Pts</span><span>Form</span></div>
+          <div class="lad-head"><span></span><span></span><span>Club</span><span>W–L</span><span>${pctLbl}</span><span>Pts</span><span>${rows.some((r) => r.form) ? "Form" : ""}</span></div>
           ${rows.map(rowHTML).join("")}
         </div>
         ${leadersData ? `<aside class="ldr" id="ldr"></aside>` : ""}
