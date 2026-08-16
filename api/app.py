@@ -932,7 +932,9 @@ def _nbl_season() -> dict:
                if s.get("season_type") == "regular" and (s.get("name") or "").startswith("NBL")]
     seasons.sort(key=lambda s: int(s.get("year") or 0), reverse=True)
     for i, s in enumerate(seasons[:2]):
-        rows = _nbl_get(f"nbl/stats/leaders/for/season/id/{s['id']}?limit=1&filter[period]=0&sort=-points").get("data", [])
+        # same query the site sends -- the API's Redis layer caches per query
+        # shape and odd variants (limit=1, limit=200) come back poisoned/short
+        rows = _nbl_leader_rows(s["id"])
         if rows:
             return {"id": s["id"], "name": s["name"], "year": s["year"], "live": i == 0}
     s = seasons[0]
@@ -940,7 +942,7 @@ def _nbl_season() -> dict:
 
 
 def _nbl_leader_rows(season_id: str) -> list:
-    return _nbl_get(f"nbl/stats/leaders/for/season/id/{season_id}?limit=200&filter[period]=0&sort=-points",
+    return _nbl_get(f"nbl/stats/leaders/for/season/id/{season_id}?limit=150&filter[period]=0&sort=-points",
                     ttl=3600).get("data", [])
 
 
@@ -969,7 +971,7 @@ def _nbl_leaders_payload() -> dict:
         out.append({"key": key, "label": label, "leaders": [{
             "id": (r.get("player") or {}).get("id"),
             "name": _nbl_pname(r.get("player") or {}),
-            "club": (r.get("team") or {}).get("team_code", ""),
+            "club": NBL_ROSETTA_TO_ESPN.get((r.get("team") or {}).get("team_code", ""), (r.get("team") or {}).get("team_code", "")),
             "photo": _nbl_photo(r.get("player") or {}),
             "value": round(float(r.get(key) or 0), 1),
             "games": int(r.get("games") or 0),
@@ -981,7 +983,7 @@ def _nbl_leaders_payload() -> dict:
 @app.get("/api/nbl/list/{abbr}")
 def api_nbl_list(abbr: str):
     season = _nbl_season()
-    ab = abbr.upper()
+    ab = NBL_ESPN_TO_ROSETTA.get(abbr.upper(), abbr.upper())
     # roster route wants the Rosetta team uuid — read it off the standings/leaders
     teams = {}
     for r in _nbl_leader_rows(season["id"]):
@@ -1047,7 +1049,7 @@ def api_nbl_player(pid: str):
     seasons = [{
         "year": (c.get("season") or {}).get("year"),
         "label": (c.get("season") or {}).get("name") or f'{(c.get("season") or {}).get("year")}',
-        "team": (c.get("team") or {}).get("team_code", ""),
+        "team": NBL_ROSETTA_TO_ESPN.get((c.get("team") or {}).get("team_code", ""), (c.get("team") or {}).get("team_code", "")),
         "games": int(c.get("games") or 0),
         "ppg": f1(c.get("points_average")), "rpg": f1(c.get("rebounds_average")), "apg": f1(c.get("assists_average")),
         "spg": f1(c.get("steals_average")), "bpg": f1(c.get("blocks_average")), "mpg": f1(c.get("minutes_average")),
@@ -1058,7 +1060,7 @@ def api_nbl_player(pid: str):
     return {"player": {
         "id": pid, "name": _nbl_pname(p), "photo": _nbl_photo(p),
         "jersey": p.get("jersey_number"), "pos": p.get("playing_position", ""),
-        "club": t.get("team_code", ""), "clubName": t.get("name", ""), "color": t.get("color_primary"),
+        "club": NBL_ROSETTA_TO_ESPN.get(t.get("team_code", ""), t.get("team_code", "")), "clubName": t.get("name", ""), "color": t.get("color_primary"),
         "seasonLabel": (latest.get("season") or {}).get("name") or (latest.get("season") or {}).get("year"),
         "games": int(latest.get("games") or 0),
         "ppg": f1(latest.get("points_average")), "rpg": f1(latest.get("rebounds_average")),
@@ -1127,10 +1129,48 @@ ROSTER_GROUP_LABELS = {
 }
 
 
+# ESPN's NBL team-detail endpoint 400s for every club (its team LIST works),
+# so NBL club pages are built from the league's own feed. ESPN codes and
+# Rosetta codes differ for four clubs.
+NBL_ESPN_TO_ROSETTA = {"HWK": "ILL", "PNX": "SEM", "NZL": "NZL", "BRI": "BRI"}
+NBL_ROSETTA_TO_ESPN = {v: k for k, v in NBL_ESPN_TO_ROSETTA.items()}
+
+
+def _nbl_team_page(abbr: str) -> dict:
+    ab = abbr.upper()
+    code = NBL_ESPN_TO_ROSETTA.get(ab, ab)
+    season = _nbl_season()
+    rows = _nbl_get(f"nbl/standings/{season['year']}/regular").get("data", [])
+    row = next((r for r in rows if (r.get("team") or {}).get("team_code") == code), None)
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Unknown team {abbr}")
+    t = row["team"]
+    won, lost, pos = row.get("won") or 0, row.get("lost") or 0, row.get("position")
+    ordinal = lambda n: f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+    # ESPN logo where it has one (matches the rest of the site), else the NBL's
+    espn_logo = (_get_json(f"{_site('nbl')}/teams", ttl=86400)["sports"][0]["leagues"][0]["teams"])
+    logo = next(((e["team"].get("logos") or [{}])[0].get("href") for e in espn_logo if e["team"]["abbreviation"] == ab), None) \
+        or t.get("team_logo_transparent") or t.get("team_logo")
+    return {
+        "team": {
+            "abbr": ab, "displayName": t.get("name", ""), "location": "", "name": t.get("name", ""),
+            "color": (t.get("color_primary") or "#222").lstrip("#"), "altColor": (t.get("color_secondary") or "").lstrip("#") or None,
+            "logo": logo,
+            "record": f"{won}–{lost}" + ("" if season["live"] else f" · {season['name']}"),
+            "standing": f"{ordinal(pos)} in the NBL" if pos else "",
+            "division": "", "nextEvent": None,
+        },
+        "groups": [],
+        "source": "NBL official stats · cached 15 min",
+    }
+
+
 @app.get("/api/team/{abbr}")
 def api_team(abbr: str, league: str = "nfl"):
     slug = abbr.lower()
     site = _site(league)
+    if league == "nbl":
+        return _nbl_team_page(abbr)
     try:
         detail = _get_json(f"{site}/teams/{slug}", ttl=21600)["team"]
     except requests.HTTPError as exc:
