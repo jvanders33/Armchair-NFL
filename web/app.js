@@ -345,7 +345,8 @@
     if (sp !== null && sp <= 2.5) bits.push("a genuine coin-flip");
     else if (sp !== null && sp <= 4.5) bits.push("tight line");
     if (ou && ou >= 48) bits.push("shootout script (O/U " + ou + ")");
-    if (/Night Football/.test(g.slot)) bits.push("the prime-time window");
+    if (/NFL Kickoff/.test(g.slot)) bits.push("the season opener — standalone national window");
+    else if (/Night Football/.test(g.slot)) bits.push("the prime-time window");
     if (!bits.length) bits.push(g.odds && g.odds.details ? "Line: " + g.odds.details : "One for the completists");
     let s = bits.join(" · ");
     s = s.charAt(0).toUpperCase() + s.slice(1) + ".";

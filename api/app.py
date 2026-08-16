@@ -156,6 +156,11 @@ def _slot(dt_utc: datetime, seasontype: int) -> str:
     wd, hr = et.weekday(), et.hour
     if seasontype == 1:
         return et.strftime("%A") + " preseason"
+    if wd in (1, 2) and hr >= 19:
+        # a standalone midweek primetime game only happens for the season
+        # opener (2026: Wed 9 Sep, Patriots at Seahawks — the Super Bowl LX
+        # rematch, moved off Thursday for the MCG game)
+        return "NFL Kickoff · " + et.strftime("%A") + " Night"
     if wd == 3:
         return "Thursday Night Football" if hr >= 19 else "Thursday"
     if wd == 4:
@@ -172,6 +177,7 @@ def _slot(dt_utc: datetime, seasontype: int) -> str:
 
 
 _SLOT_BONUS = {
+    "NFL Kickoff · Wednesday Night": 16, "NFL Kickoff · Tuesday Night": 16,
     "Sunday Night Football": 14, "Monday Night Football": 14,
     "Thursday Night Football": 10, "Sunday · Late": 6,
     "Saturday · Late": 4, "Saturday · Early": 4,
