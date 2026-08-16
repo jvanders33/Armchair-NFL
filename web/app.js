@@ -131,6 +131,7 @@
           </div>
         </section>
         ${league !== "nfl" ? '<section id="ladder-wrap" hidden></section>' : ""}
+        ${league === "afl" ? '<section id="form-wrap" hidden></section>' : ""}
         <div class="section-h" style="margin-top:30px">Game of the Week</div>
         <section class="gotw" id="gotw"></section>
         <div class="section-h" style="margin-top:30px">The Slate <span class="n" id="slate-count"></span></div>
@@ -578,6 +579,59 @@
     wrap.hidden = false;
   }
 
+  // ---------- form guide: round-by-round from the per-round stats feed ----------
+  let formData = null;
+  const resCls = (r) => (r || "").startsWith("W") ? "w" : (r || "").startsWith("L") ? "l" : "d";
+
+  function renderForm(form) {
+    const wrap = $("form-wrap");
+    if (!wrap) return;
+    const rounds = (form && form.rounds) || [];
+    if (!rounds.length) { wrap.hidden = true; return; }
+    formData = rounds;
+    wrap.innerHTML = `
+      <div class="section-h" style="margin-top:30px">Form Guide <span class="n">· round by round · official AFL stats</span></div>
+      <div class="fg">
+        <div class="fg-tabs" role="tablist">
+          ${rounds.map((r, i) => `<button class="fg-tab" data-fr="${i}" aria-pressed="${i === 0}">${esc(r.name.replace("Round ", "Rd "))}</button>`).join("")}
+        </div>
+        <div id="fg-body"></div>
+      </div>`;
+    paintForm(0);
+  }
+
+  function paintForm(idx) {
+    const body = $("fg-body");
+    if (!body || !formData) return;
+    const r = formData[idx];
+    document.querySelectorAll(".fg-tab").forEach((b) => b.setAttribute("aria-pressed", String(+b.getAttribute("data-fr") === idx)));
+    const col = (title, list, unit) => `
+      <div class="fg-col">
+        <div class="fg-h">${title}</div>
+        ${list.map((p, i) => `
+          <a class="fg-row" href="#/afl/player/${esc(p.id || "")}">
+            <span class="fg-pos tnum">${i + 1}</span>
+            ${p.photo ? `<img class="fg-img" src="${esc(p.photo)}" alt="" loading="lazy">` : `<span class="fg-img"></span>`}
+            <span class="fg-who"><b>${esc(p.name)}</b><i>${esc(p.club)} · ${esc(p.line)}</i></span>
+            <span class="fg-val tnum">${p.value}<i>${unit}</i></span>
+          </a>`).join("")}
+      </div>`;
+    body.innerHTML = `
+      <div class="fg-grid">
+        ${col("Best on ground", r.best, "rating")}
+        ${col("Goals", r.goals, "goals")}
+        ${col("Disposals", r.disposals, "disp")}
+      </div>
+      <div class="fg-results">
+        ${r.clubs.map((c) => `
+          <a class="fg-res ${resCls(c.result)}" href="#/afl/team/${esc(c.club)}" title="${esc(c.club)} ${esc(c.result)} v ${esc(c.opp)}">
+            <b>${esc(c.club)}</b><span>${esc(c.result)}</span><i>v ${esc(c.opp)}</i>
+          </a>`).join("")}
+      </div>`;
+    document.querySelectorAll(".fg-tab").forEach((b) =>
+      b.onclick = () => paintForm(+b.getAttribute("data-fr")));
+  }
+
   function paintLeaders(key) {
     const box = $("ldr");
     if (!box || !leadersData) return;
@@ -705,7 +759,7 @@
     $("content").hidden = true;
     const qs = (weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "?") + `&league=${league}`;
     try {
-      const [sched, aus, rtg, featured, vids, lad, ldrs] = await Promise.all([
+      const [sched, aus, rtg, featured, vids, lad, ldrs, form] = await Promise.all([
         fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
         league === "nfl" && !aussies.length ? fetchJSON("/api/aussies") : Promise.resolve(null),
         league === "nfl" ? fetchJSON("/api/road-to-the-g").catch(() => null) : Promise.resolve(null),
@@ -713,6 +767,7 @@
         fetchJSON(`/api/videos?league=${league}`).catch(() => null),
         league !== "nfl" ? fetchJSON(`/api/ladder?league=${league}`).catch(() => null) : Promise.resolve(null),
         league === "afl" ? fetchJSON("/api/leaders?league=afl").catch(() => null) : Promise.resolve(null),
+        league === "afl" ? fetchJSON("/api/afl/form").catch(() => null) : Promise.resolve(null),
       ]);
       hubData = sched;
       if (aus) aussies = aus.players || [];
@@ -725,7 +780,7 @@
       } else {
         episodeHTML = "";
       }
-      renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(featured); renderLadder(lad, ldrs); renderGotw(); renderSlate(); renderAussies(); setTzNote();
+      renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(featured); renderLadder(lad, ldrs); renderForm(form); renderGotw(); renderSlate(); renderAussies(); setTzNote();
       const vw2 = $("vid-wrap"); if (vw2) vw2.innerHTML = videoRailHTML(vids && vids.videos);
       armMotion();
       armLivePoll();
@@ -877,9 +932,30 @@
     const box = $("afl-list");
     if (!box) return;
     try {
-      const d = await fetchJSON(`/api/afl/list/${encodeURIComponent(abbr)}`);
+      const [d, cf] = await Promise.all([
+        fetchJSON(`/api/afl/list/${encodeURIComponent(abbr)}`),
+        fetchJSON(`/api/afl/form/${encodeURIComponent(abbr)}`).catch(() => null),
+      ]);
       const n1 = (v) => v == null ? "" : (+v).toFixed(1);
+      const formHTML = cf && cf.rounds && cf.rounds.length ? `
+        <div class="section-h" style="margin-top:26px">Last five <span class="n">· round by round</span></div>
+        <div class="cf-strip">
+          ${cf.rounds.map((r) => r.bye ? `
+            <div class="cf-card bye"><div class="cf-rd">${esc(r.name.replace("Round ", "Rd "))}</div><div class="cf-res">Bye</div></div>` : `
+            <div class="cf-card ${resCls(r.result)}">
+              <div class="cf-rd">${esc(r.name.replace("Round ", "Rd "))} <i>v ${esc(r.opp)}</i></div>
+              <div class="cf-res">${esc(r.result)}</div>
+              ${r.best.map((p, i) => `
+                <a class="cf-p" href="#/afl/player/${esc(p.id || "")}">
+                  ${p.photo ? `<img src="${esc(p.photo)}" alt="" loading="lazy">` : `<span class="cf-ph"></span>`}
+                  <span><b>${esc(p.name)}</b><i>${esc(p.line)}</i></span>
+                  <em class="tnum">${p.rating}</em>
+                </a>`).join("")}
+              ${r.topGoals ? `<div class="cf-goals">⚑ ${esc(r.topGoals.name)} ${r.topGoals.goals} goal${r.topGoals.goals === 1 ? "" : "s"}</div>` : ""}
+            </div>`).join("")}
+        </div>` : "";
       box.innerHTML = `
+        ${formHTML}
         <div class="section-h" style="margin-top:26px">The list <span class="n">· ${d.players.length} played in 2026 · season numbers</span></div>
         <div class="tbl-wrap"><table class="roster">
           <thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Age</th><th class="tnum">Gms</th><th class="tnum">Goals</th><th class="tnum">Disp/g</th><th class="tnum">Marks/g</th><th class="tnum">Tkl/g</th><th class="tnum">Rating</th></tr></thead>
@@ -919,13 +995,35 @@
   async function showAflPlayer(pid) {
     view.innerHTML = `<div class="shell"><div class="loading">Loading player…</div></div>`;
     try {
-      const d = await fetchJSON("/api/afl/player/" + encodeURIComponent(pid));
+      const [d, log] = await Promise.all([
+        fetchJSON("/api/afl/player/" + encodeURIComponent(pid)),
+        fetchJSON("/api/afl/player/" + encodeURIComponent(pid) + "/form").catch(() => null),
+      ]);
       const p = d.player;
       const chips = [
         p.pos, p.age ? p.age + " yrs" : "", p.height,
         p.draft, p.debut ? "Debut " + p.debut : "", p.state ? "From " + p.state : "",
       ].filter(Boolean);
       const n1 = (v) => v == null ? "—" : (+v).toFixed(1);
+      const games = (log && log.games) || [];
+      const logHTML = games.length ? `
+        <div class="section-h" style="margin-top:26px">Last five games <span class="n">· game log</span></div>
+        <div class="tbl-wrap"><table class="roster stats glog">
+          <thead><tr><th>Round</th><th>Result</th><th class="tnum">D</th><th class="tnum">K</th><th class="tnum">HB</th><th class="tnum">M</th><th class="tnum">T</th><th class="tnum">G</th><th class="tnum">B</th><th class="tnum">CL</th><th class="tnum">HO</th><th class="tnum">Fantasy</th><th class="tnum">Rating</th></tr></thead>
+          <tbody>
+            ${games.map((g) => g.dnp ? `
+              <tr class="dnp"><td>${esc(g.name.replace("Round ", "Rd "))}</td><td colspan="12">Did not play</td></tr>` : `
+              <tr>
+                <td>${esc(g.name.replace("Round ", "Rd "))}</td>
+                <td><span class="res-chip ${resCls(g.result)}">${esc(g.result)}</span> <span class="res-opp">v ${esc(g.opp)}</span></td>
+                <td class="tnum">${g.disposals}</td><td class="tnum">${g.kicks}</td><td class="tnum">${g.handballs}</td>
+                <td class="tnum">${g.marks}</td><td class="tnum">${g.tackles}</td>
+                <td class="tnum">${g.goals}</td><td class="tnum">${g.behinds}</td>
+                <td class="tnum">${g.clearances}</td><td class="tnum">${g.hitouts}</td>
+                <td class="tnum">${g.fantasy}</td><td class="tnum"><b>${g.rating ?? ""}</b></td>
+              </tr>`).join("")}
+          </tbody>
+        </table></div>` : "";
       view.innerHTML = `
         ${nflSubnav("teams")}
         <div class="team-hero">
@@ -949,6 +1047,7 @@
           </div>
         </div>
         <div class="shell">
+          ${logHTML}
           <div class="section-h" style="margin-top:26px">2026 season <span class="n">· official AFL stats</span></div>
           <div class="tbl-wrap"><table class="roster stats">
             <thead><tr><th>Stat</th><th class="tnum">Total</th><th class="tnum">Per game</th></tr></thead>

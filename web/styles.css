@@ -996,3 +996,61 @@ a.ldr-row:hover{background:var(--card-2)}
 .ldr-val{font-family:var(--f-cond); font-weight:700; font-size:17px}
 .ldr-val i{font-style:normal; font-family:var(--f-body); font-size:9.5px; color:var(--muted)}
 .ldr-src{font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding:9px 2px 2px}
+
+/* form guide -- round tabs, three leader columns, every club's result */
+.fg{border:1px solid var(--line); border-radius:16px; background:var(--card); padding:12px 14px 14px}
+.fg-tabs{display:flex; gap:6px; flex-wrap:wrap}
+.fg-tab{font-family:var(--f-cond); font-weight:700; text-transform:uppercase; letter-spacing:.06em; font-size:12px;
+  color:var(--ink-2); background:var(--card-2); border:1px solid var(--line); border-radius:8px; padding:6px 12px; cursor:pointer}
+.fg-tab[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:#fff}
+.fg-grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:12px}
+@media (max-width:900px){.fg-grid{grid-template-columns:1fr}}
+.fg-h{font-family:var(--f-cond); font-weight:700; text-transform:uppercase; letter-spacing:.1em; font-size:12px; color:var(--muted); padding:4px 2px 6px}
+.fg-row{display:grid; grid-template-columns:16px 30px 1fr auto; gap:9px; align-items:center; padding:6px 2px;
+  border-top:1px solid color-mix(in srgb, var(--line) 55%, transparent); text-decoration:none; color:inherit}
+.fg-row:hover{background:var(--card-2)}
+.fg-pos{font-size:11px; font-weight:800; color:var(--muted)}
+.fg-row:nth-of-type(1) .fg-pos{color:var(--accent)}
+.fg-img{width:30px; height:30px; border-radius:50%; object-fit:cover; object-position:top; background:var(--card-2); display:block}
+.fg-who{display:flex; flex-direction:column; min-width:0}
+.fg-who b{font-size:12.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.fg-who i{font-style:normal; font-size:10px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.fg-val{display:flex; flex-direction:column; align-items:flex-end; font-family:var(--f-cond); font-weight:700; font-size:17px}
+.fg-val i{font-style:normal; font-family:var(--f-body); font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+.fg-results{display:grid; grid-template-columns:repeat(9,minmax(0,1fr)); gap:6px; margin-top:14px; padding-top:12px; border-top:1px solid var(--line)}
+@media (max-width:900px){.fg-results{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@media (max-width:560px){.fg-results{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.fg-res{display:flex; flex-direction:column; align-items:center; gap:1px; padding:7px 4px; border-radius:9px; text-decoration:none; color:inherit;
+  background:var(--card-2); border:1px solid var(--line); border-top:3px solid var(--muted)}
+.fg-res.w{border-top-color:var(--go)} .fg-res.l{border-top-color:var(--accent)} .fg-res.d{border-top-color:#FFB020}
+.fg-res b{font-family:var(--f-cond); font-weight:700; font-size:13px; letter-spacing:.04em}
+.fg-res span{font-size:10.5px; color:var(--ink-2)}
+.fg-res i{font-style:normal; font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+
+/* club page: last-five strip */
+.cf-strip{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px}
+@media (max-width:1000px){.cf-strip{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:640px){.cf-strip{grid-template-columns:1fr}}
+.cf-card{border:1px solid var(--line); border-radius:14px; background:var(--card); padding:12px 12px 10px; border-top:3px solid var(--muted); min-width:0}
+.cf-card.w{border-top-color:var(--go)} .cf-card.l{border-top-color:var(--accent)} .cf-card.d{border-top-color:#FFB020}
+.cf-card.bye{opacity:.6}
+.cf-rd{font-family:var(--f-cond); font-weight:700; text-transform:uppercase; letter-spacing:.08em; font-size:12px; color:var(--muted)}
+.cf-rd i{font-style:normal; color:var(--ink-2); margin-left:4px}
+.cf-res{font-family:var(--f-display); font-size:24px; line-height:1; margin:6px 0 10px; color:#fff}
+.cf-card.w .cf-res{color:var(--go)} .cf-card.l .cf-res{color:var(--accent)} .cf-card.d .cf-res{color:#FFB020}
+.cf-p{display:grid; grid-template-columns:26px 1fr auto; gap:8px; align-items:center; padding:5px 0; text-decoration:none; color:inherit;
+  border-top:1px solid color-mix(in srgb, var(--line) 55%, transparent)}
+.cf-p:hover b{color:var(--accent)}
+.cf-p img,.cf-ph{width:26px; height:26px; border-radius:50%; object-fit:cover; object-position:top; background:var(--card-2); display:block}
+.cf-p span{display:flex; flex-direction:column; min-width:0}
+.cf-p b{font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.cf-p i{font-style:normal; font-size:9.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.cf-p em{font-style:normal; font-family:var(--f-cond); font-weight:700; font-size:14px}
+.cf-goals{font-size:11px; color:#FFB020; font-weight:600; margin-top:8px}
+
+/* player page: game log */
+.glog td,.glog th{white-space:nowrap}
+.res-chip{display:inline-block; font-family:var(--f-cond); font-weight:700; font-size:12px; letter-spacing:.04em; padding:2px 7px; border-radius:6px; background:var(--card-2)}
+.res-chip.w{color:var(--go)} .res-chip.l{color:var(--accent)} .res-chip.d{color:#FFB020}
+.res-opp{font-size:11px; color:var(--muted); margin-left:4px}
+.glog tr.dnp td{color:var(--muted); font-style:italic}

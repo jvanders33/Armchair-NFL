@@ -638,6 +638,164 @@ def api_afl_list(abbr: str):
     return {"players": rows}
 
 
+# ---------- round-by-round: form guides from the per-round stats feed ----------
+_afl_rounds_cache = {"rounds": None, "ts": 0.0}
+_afl_round_stats: dict[str, tuple[float, list]] = {}
+FORM_ROUNDS = 5
+
+
+def _afl_rounds() -> list:
+    """This season's round list (name/number/id) — finals rounds included."""
+    if _afl_rounds_cache["rounds"] and time.time() - _afl_rounds_cache["ts"] < 6 * 3600:
+        return _afl_rounds_cache["rounds"]
+    r = requests.get(f"{AFL_API}/cfs/afl/seasons",
+                     headers={**_AFL_HDRS, "x-media-mis-token": _afl_token()}, timeout=25)
+    r.raise_for_status()
+    body = r.json()
+    seasons = body.get("seasons", body) if isinstance(body, dict) else body
+    sid = f"CD_S{datetime.now().year}014"
+    cur = next((s for s in seasons if s.get("id") == sid), None)
+    rounds = sorted((cur or {}).get("rounds", []), key=lambda x: x.get("roundNumber", 0))
+    if rounds:
+        _afl_rounds_cache.update(rounds=rounds, ts=time.time())
+    return rounds
+
+
+def _afl_round_players(round_id: str) -> list:
+    """Every player-game for one round. Rounds don't change once played, but the
+    current round fills in over the weekend — 15 min is fine for both."""
+    hit = _afl_round_stats.get(round_id)
+    if hit and time.time() - hit[0] < 900:
+        return hit[1]
+    r = requests.get(f"{AFL_API}/statspro/playersStats/rounds/{round_id}",
+                     headers={**_AFL_HDRS, "x-media-mis-token": _afl_token()}, timeout=25)
+    r.raise_for_status()
+    players = r.json().get("players", []) or []
+    _afl_round_stats[round_id] = (time.time(), players)
+    return players
+
+
+def _played_rounds(n: int = FORM_ROUNDS) -> list:
+    """The last n rounds with any player-games recorded, newest first.
+    Unplayed rounds (finals, the current weekend before it starts) return
+    empty — so fetch a window of candidates in parallel and keep the last n
+    that have data. Cold call ≈ one round-trip, not seven."""
+    rounds = _afl_rounds()
+    # cheap heuristic for where "now" is: the newest round with a cached
+    # payload, else the whole tail — finals + a buffer for byes
+    window = rounds[-(n + 8):]
+    _afl_token()                                    # warm the token once, off the threads
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        futs = {ex.submit(_afl_round_players, rd["roundId"]): rd for rd in window}
+        played = set()
+        for fut in as_completed(futs):
+            try:
+                if fut.result():
+                    played.add(futs[fut]["roundId"])
+            except requests.HTTPError:
+                pass
+    return [rd for rd in reversed(window) if rd["roundId"] in played][:n]
+
+
+def _fmt1(v):
+    return None if v is None else round(float(v), 1)
+
+
+@app.get("/api/afl/form")
+def api_afl_form():
+    """Round-by-round form: for each of the last five played rounds, the best
+    on ground by AFL rating, the goal leaders, and each club's result."""
+    rounds = _played_rounds()
+    if not rounds:
+        return {"rounds": []}
+    out = []
+    for rd in rounds:
+        pg = _afl_round_players(rd["roundId"])
+        tot = lambda p, k: (p.get("totals") or {}).get(k) or 0
+        best = sorted(pg, key=lambda p: tot(p, "ratingPoints"), reverse=True)[:5]
+        goals = sorted(pg, key=lambda p: (tot(p, "goals"), tot(p, "ratingPoints")), reverse=True)[:5]
+        disp = sorted(pg, key=lambda p: (tot(p, "disposals"), tot(p, "ratingPoints")), reverse=True)[:5]
+        card = lambda p, k: {
+            "id": p.get("playerId"), "name": _afl_name(p), "club": _afl_abbr(p),
+            "photo": (p.get("playerDetails") or {}).get("photoURL"),
+            "value": _fmt1(tot(p, k)) if k == "ratingPoints" else int(tot(p, k)),
+            "line": f'{int(tot(p, "disposals"))} disp · {int(tot(p, "goals"))} gls · {int(tot(p, "marks"))} mks · {int(tot(p, "tackles"))} tkl',
+            "result": p.get("result", ""),
+            "opp": _AFL_ABBR_FIX.get((p.get("opponent") or {}).get("teamAbbr", ""), (p.get("opponent") or {}).get("teamAbbr", "")),
+        }
+        # one line per club: result + opponent
+        clubs = {}
+        for p in pg:
+            ab = _afl_abbr(p)
+            if ab and ab not in clubs:
+                clubs[ab] = {"club": ab, "result": p.get("result", ""),
+                             "opp": _AFL_ABBR_FIX.get((p.get("opponent") or {}).get("teamAbbr", ""), (p.get("opponent") or {}).get("teamAbbr", ""))}
+        out.append({
+            "roundId": rd["roundId"], "name": rd.get("name", ""), "number": rd.get("roundNumber"),
+            "games": len(clubs) // 2,
+            "best": [card(p, "ratingPoints") for p in best],
+            "goals": [card(p, "goals") for p in goals if tot(p, "goals")],
+            "disposals": [card(p, "disposals") for p in disp],
+            "clubs": sorted(clubs.values(), key=lambda c: c["club"]),
+        })
+    return {"rounds": out}
+
+
+@app.get("/api/afl/form/{abbr}")
+def api_afl_club_form(abbr: str):
+    """A club's last five rounds: result, opponent, and its best three by rating."""
+    ab = abbr.upper()
+    cd = {v: k for k, v in _AFL_ABBR_FIX.items()}.get(ab, ab)
+    rounds = _played_rounds()
+    out = []
+    for rd in rounds:
+        pg = [p for p in _afl_round_players(rd["roundId"])
+              if _afl_abbr(p) == ab or (p.get("team") or {}).get("teamAbbr") == cd]
+        if not pg:
+            out.append({"name": rd.get("name", ""), "number": rd.get("roundNumber"), "bye": True})
+            continue
+        tot = lambda p, k: (p.get("totals") or {}).get(k) or 0
+        best = sorted(pg, key=lambda p: tot(p, "ratingPoints"), reverse=True)[:3]
+        goals = sorted(pg, key=lambda p: tot(p, "goals"), reverse=True)[:1]
+        opp = (pg[0].get("opponent") or {}).get("teamAbbr", "")
+        out.append({
+            "name": rd.get("name", ""), "number": rd.get("roundNumber"),
+            "result": pg[0].get("result", ""), "opp": _AFL_ABBR_FIX.get(opp, opp),
+            "best": [{"id": p.get("playerId"), "name": _afl_name(p),
+                      "photo": (p.get("playerDetails") or {}).get("photoURL"),
+                      "rating": _fmt1(tot(p, "ratingPoints")),
+                      "line": f'{int(tot(p, "disposals"))} disp · {int(tot(p, "goals"))} gls · {int(tot(p, "marks"))} mks · {int(tot(p, "tackles"))} tkl'}
+                     for p in best],
+            "topGoals": ({"name": _afl_name(goals[0]), "goals": int(tot(goals[0], "goals"))}
+                         if goals and tot(goals[0], "goals") else None),
+        })
+    return {"club": ab, "rounds": out}
+
+
+@app.get("/api/afl/player/{pid}/form")
+def api_afl_player_form(pid: str):
+    """A player's last five games — the game log the player page needs."""
+    out = []
+    for rd in _played_rounds():
+        p = next((x for x in _afl_round_players(rd["roundId"]) if x.get("playerId") == pid), None)
+        if not p:
+            out.append({"name": rd.get("name", ""), "number": rd.get("roundNumber"), "dnp": True})
+            continue
+        t = p.get("totals") or {}
+        opp = (p.get("opponent") or {}).get("teamAbbr", "")
+        out.append({
+            "name": rd.get("name", ""), "number": rd.get("roundNumber"),
+            "result": p.get("result", ""), "opp": _AFL_ABBR_FIX.get(opp, opp),
+            "disposals": int(t.get("disposals") or 0), "kicks": int(t.get("kicks") or 0),
+            "handballs": int(t.get("handballs") or 0), "marks": int(t.get("marks") or 0),
+            "tackles": int(t.get("tackles") or 0), "goals": int(t.get("goals") or 0),
+            "behinds": int(t.get("behinds") or 0), "clearances": int(t.get("totalClearances") or 0),
+            "hitouts": int(t.get("hitouts") or 0),
+            "fantasy": int(t.get("dreamTeamPoints") or 0), "rating": _fmt1(t.get("ratingPoints")),
+        })
+    return {"games": out}
+
+
 # the player-page stat lines, in display order: (totals key, label, decimals)
 _AFL_STAT_LINES = [
     ("disposals", "Disposals", 0), ("kicks", "Kicks", 0), ("handballs", "Handballs", 0),
