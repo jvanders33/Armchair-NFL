@@ -130,7 +130,9 @@
             <aside class="top5" id="top5"></aside>
           </div>
         </section>
+        ${league === "afl" ? '<section id="finals-top" hidden></section>' : ""}
         ${league !== "nfl" ? '<section id="ladder-wrap" hidden></section>' : ""}
+        ${league === "afl" ? '<section id="finals-wrap" hidden></section>' : ""}
         ${league === "afl" ? '<section id="form-wrap" hidden></section>' : ""}
         <div class="section-h" style="margin-top:30px">Game of the Week</div>
         <section class="gotw" id="gotw"></section>
@@ -579,6 +581,53 @@
     wrap.hidden = false;
   }
 
+  // ---------- finals bracket: Wildcard → Qualifying/Elimination → Semis → Prelims → GF ----------
+  // Projected from the live ladder until the AFL fixes the matches; once real
+  // clubs land it takes the slot above the ladder and the ladder becomes history.
+  function renderFinals(f) {
+    const top = $("finals-top"), below = $("finals-wrap");
+    if (!top || !below) return;
+    const rounds = (f && f.rounds) || [];
+    if (!rounds.length) { top.hidden = below.hidden = true; return; }
+    const live = !!f.live;
+    const host = live ? top : below;
+    const other = live ? below : top;
+    other.hidden = true; other.innerHTML = "";
+    const short = (m) => m.label.replace(/ Vs /, " v ").replace(/Lowest-ranked WF Winner/, "Lowest WF winner").replace(/Highest-ranked WF Winner/, "Highest WF winner");
+    const teamRow = (t, score, gb, won) => `
+      <div class="fb-team${t.projected ? " proj" : ""}${t.abbr ? "" : " tbd"}${won ? " won" : ""}">
+        ${t.logo ? `<img src="${esc(t.logo)}" alt="" loading="lazy">` : `<span class="fb-blank"></span>`}
+        <span class="fb-nm">${esc(t.abbr ? t.name : t.seed || t.name)}${t.projected ? `<i>${esc(t.seed)}</i>` : ""}</span>
+        ${score != null ? `<span class="fb-sc tnum">${score}<i>${esc(gb || "")}</i></span>` : ""}
+      </div>`;
+    const matchCard = (m, rn) => {
+      const done = m.status === "CONCLUDED";
+      const hw = done && m.homeScore != null && m.homeScore > m.awayScore;
+      const aw = done && m.awayScore != null && m.awayScore > m.homeScore;
+      const k = m.date && m.status !== "PLACEHOLDER" ? fmt(m.date) : null;
+      const when = k ? `${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}` : (m.date ? `${fmt(m.date).wd} ${fmt(m.date).day} · time TBC` : "");
+      return `
+        <div class="fb-match${done ? " done" : ""}${m.status === "LIVE" ? " live" : ""}${rn === 29 ? " gf" : ""}">
+          <div class="fb-lbl">${rn === 29 ? "GRAND FINAL" : esc(short(m))}${m.status === "LIVE" ? ' <span class="badge-live">● Live</span>' : ""}</div>
+          ${teamRow(m.home, m.homeScore, m.homeGB, hw)}
+          ${teamRow(m.away, m.awayScore, m.awayGB, aw)}
+          <div class="fb-when">${esc(when)}${m.venue ? ` · ${esc(m.venue)}` : ""}</div>
+        </div>`;
+    };
+    host.innerHTML = `
+      <div class="section-h" style="margin-top:30px">${live ? "The Finals" : "Road to the Grand Final"}
+        <span class="n">${live ? "· MCG · Sat 26 Sep" : "· projected from the live ladder · locks after Round 24"}</span></div>
+      ${live ? "" : `<div class="fb-note">If the season ended today. Top six straight through; 7th–10th play the wildcard round for the last two spots. Grand Final: MCG, Saturday 26 September.</div>`}
+      <div class="fb-scroll"><div class="fb">
+        ${rounds.map((r) => `
+          <div class="fb-col${r.round === 29 ? " gf-col" : ""}">
+            <div class="fb-rh">${esc(r.name)}</div>
+            ${r.matches.map((m) => matchCard(m, r.round)).join("")}
+          </div>`).join("")}
+      </div></div>`;
+    host.hidden = false;
+  }
+
   // ---------- form guide: round-by-round from the per-round stats feed ----------
   let formData = null;
   const resCls = (r) => (r || "").startsWith("W") ? "w" : (r || "").startsWith("L") ? "l" : "d";
@@ -760,7 +809,7 @@
     $("content").hidden = true;
     const qs = (weekView ? `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}` : "?") + `&league=${league}`;
     try {
-      const [sched, aus, rtg, featured, vids, lad, ldrs, form] = await Promise.all([
+      const [sched, aus, rtg, featured, vids, lad, ldrs, form, finals] = await Promise.all([
         fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
         league === "nfl" && !aussies.length ? fetchJSON("/api/aussies") : Promise.resolve(null),
         league === "nfl" ? fetchJSON("/api/road-to-the-g").catch(() => null) : Promise.resolve(null),
@@ -769,6 +818,7 @@
         league !== "nfl" ? fetchJSON(`/api/ladder?league=${league}`).catch(() => null) : Promise.resolve(null),
         league === "afl" ? fetchJSON("/api/leaders?league=afl").catch(() => null) : Promise.resolve(null),
         league === "afl" ? fetchJSON("/api/afl/form").catch(() => null) : Promise.resolve(null),
+        league === "afl" ? fetchJSON("/api/afl/finals").catch(() => null) : Promise.resolve(null),
       ]);
       hubData = sched;
       if (aus) aussies = aus.players || [];
@@ -781,7 +831,7 @@
       } else {
         episodeHTML = "";
       }
-      renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(featured); renderLadder(lad, ldrs); renderForm(form); renderGotw(); renderSlate(); renderAussies(); setTzNote();
+      renderRibbon(); renderLead(featured); renderRtg(rtg); renderNews(featured); renderLadder(lad, ldrs); renderFinals(finals); renderForm(form); renderGotw(); renderSlate(); renderAussies(); setTzNote();
       const vw2 = $("vid-wrap"); if (vw2) vw2.innerHTML = videoRailHTML(vids && vids.videos);
       armMotion();
       armLivePoll();

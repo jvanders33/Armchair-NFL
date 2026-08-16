@@ -796,6 +796,104 @@ def api_afl_player_form(pid: str):
     return {"games": out}
 
 
+# ---------- finals: the bracket, straight from the AFL's match items ----------
+# Rounds 25-29 = Wildcard · Qualifying/Elimination · Semis · Prelims · Grand
+# Final. Each match is a PLACEHOLDER ("7th Vs 10th") until the AFL fixes it,
+# then SCHEDULED → LIVE → CONCLUDED with scores. Before the ladder is final we
+# project the placeholder seeds from the live ladder, clearly flagged.
+FINALS_ROUNDS = ["25", "26", "27", "28", "29"]
+FINALS_LABELS = {"25": "Wildcard", "26": "Qualifying & Elimination", "27": "Semi Finals",
+                 "28": "Preliminary Finals", "29": "Grand Final"}
+_SEED_RE = re.compile(r"^(\d+)(?:st|nd|rd|th)$", re.I)
+_afl_matches_cache: dict[str, tuple[float, dict]] = {}
+
+
+def _afl_match_items(round_id: str) -> dict:
+    hit = _afl_matches_cache.get(round_id)
+    if hit and time.time() - hit[0] < 600:
+        return hit[1]
+    r = requests.get(f"{AFL_API}/cfs/afl/matchItems/round/{round_id}",
+                     headers={**_AFL_HDRS, "x-media-mis-token": _afl_token()}, timeout=25)
+    r.raise_for_status()
+    data = r.json()
+    _afl_matches_cache[round_id] = (time.time(), data)
+    return data
+
+
+def _afl_logo_map() -> dict:
+    """abbr → {name, logo} from ESPN's teams feed (24h cache via _get_json)."""
+    try:
+        payload = _get_json(f"{_site('afl')}/teams", ttl=86400)
+        out = {}
+        for entry in payload["sports"][0]["leagues"][0]["teams"]:
+            t = entry["team"]
+            logos = t.get("logos") or []
+            out[t["abbreviation"]] = {"name": t.get("displayName", ""), "logo": logos[0]["href"] if logos else None}
+        out.pop("GCFC", None)          # the phantom entry, see api_teams
+        return out
+    except Exception:
+        return {}
+
+
+@app.get("/api/afl/finals")
+def api_afl_finals():
+    year = datetime.now().year
+    logos = _afl_logo_map()
+    # live ladder for seed projection
+    try:
+        ladder = {r["rank"]: r for r in api_ladder("afl")["ladder"]}
+    except Exception:
+        ladder = {}
+
+    def side(t: dict) -> dict:
+        ab = _AFL_ABBR_FIX.get(t.get("abbr") or "", t.get("abbr") or "")
+        raw = t.get("name") or ""
+        if ab and ab != "TBD":
+            info = logos.get(ab, {})
+            return {"abbr": ab, "name": info.get("name") or raw, "logo": info.get("logo"), "seed": None, "projected": False}
+        m = _SEED_RE.match(raw.strip())
+        if m and ladder:
+            seed = int(m.group(1))
+            row = ladder.get(seed)
+            if row:
+                return {"abbr": row["abbr"], "name": row["name"], "logo": row["logo"], "seed": raw, "projected": True}
+        return {"abbr": None, "name": raw, "logo": None, "seed": raw, "projected": False}
+
+    def items_for(rn: str) -> list:
+        try:
+            return _afl_match_items(f"CD_R{year}014{rn}").get("items", [])
+        except requests.HTTPError:
+            return []
+    _afl_token()                                    # warm once, off the threads
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        fetched = dict(zip(FINALS_ROUNDS, ex.map(items_for, FINALS_ROUNDS)))
+    rounds, any_fixed = [], False
+    for rn in FINALS_ROUNDS:
+        items = fetched.get(rn) or []
+        matches = []
+        for it in items:
+            m = it.get("match") or {}
+            sc = it.get("score") or {}
+            hs = ((sc.get("homeTeamScore") or {}).get("matchScore") or {})
+            as_ = ((sc.get("awayTeamScore") or {}).get("matchScore") or {})
+            status = m.get("status", "PLACEHOLDER")
+            home, away = side(m.get("homeTeam") or {}), side(m.get("awayTeam") or {})
+            if rn != "29" and status != "PLACEHOLDER":
+                any_fixed = True
+            venue = (it.get("venue") or {}).get("name", "")
+            matches.append({
+                "id": m.get("matchId"), "label": m.get("name", ""), "status": status,
+                "date": (m.get("utcStartTime") or "") + ("Z" if m.get("utcStartTime") else ""),
+                "venue": "" if venue == "To Be Confirmed" else venue,
+                "home": home, "away": away,
+                "homeScore": hs.get("totalScore"), "awayScore": as_.get("totalScore"),
+                "homeGB": f'{hs.get("goals")}.{hs.get("behinds")}' if hs.get("goals") is not None else None,
+                "awayGB": f'{as_.get("goals")}.{as_.get("behinds")}' if as_.get("goals") is not None else None,
+            })
+        rounds.append({"round": int(rn), "name": FINALS_LABELS[rn], "matches": matches})
+    return {"rounds": rounds, "live": any_fixed, "projected": not any_fixed}
+
+
 # the player-page stat lines, in display order: (totals key, label, decimals)
 _AFL_STAT_LINES = [
     ("disposals", "Disposals", 0), ("kicks", "Kicks", 0), ("handballs", "Handballs", 0),
