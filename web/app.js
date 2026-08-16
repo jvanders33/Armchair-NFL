@@ -1358,7 +1358,6 @@
             <a href="#/leagues">LEAGUES</a>
             <a href="#/shows">SHOWS</a>
             <a href="#/podcasts">PODCASTS</a>
-            <a href="#/partner" class="ch-partner">PARTNER</a>
           </nav>
           <div class="land-soc" aria-label="Socials">
             <a href="https://www.youtube.com/watch?v=gQ2gNGiNLa4" target="_blank" rel="noopener" title="YouTube">YT</a>
