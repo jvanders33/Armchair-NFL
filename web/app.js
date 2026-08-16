@@ -22,6 +22,12 @@
       { key: "9now", label: "9Now", sub: "free", url: "https://www.9now.com.au" },
       { key: "kayo", label: "Kayo", sub: "ESPN", url: "https://kayosports.com.au/sports/basketball" },
     ],
+    // Racing.com carries Victorian racing free; Seven has Sydney's carnival days; Sky Racing is the national channel
+    racing: [
+      { key: "racingcom", label: "Racing.com", sub: "free · Victoria", url: "https://www.racing.com/videos/watch-live" },
+      { key: "7plus", label: "7plus", sub: "free · Sydney carnival days", url: "https://7plus.com.au/horse-racing" },
+      { key: "sky", label: "Sky Racing", sub: "Foxtel · TAB app", url: "https://www.skyracing.com.au/" },
+    ],
   };
   const watchOpts = () => WATCH[league] || WATCH.nfl;
 
@@ -1506,6 +1512,7 @@
            tools: [{ label: "ListTrac ↗", href: "https://list-trac.vercel.app", ext: true,
                      title: "List management, trades, contracts, drafts" }] },
     nbl: { name: "NBL", label: "NBL", teamsLabel: "Clubs & Players", tools: [] },
+    racing: { name: "Racing", label: "Racing", teamsLabel: "Jockeys & Trainers", tools: [] },
   };
   let league = "nfl";
 
@@ -1534,7 +1541,7 @@
     </div>`;
   }
 
-  function LG_LOGO(k) { return `https://a.espncdn.com/i/teamlogos/leagues/500-dark/${k}.png`; }
+  function LG_LOGO(k) { return k === "racing" ? "/img/racing-mark.svg" : `https://a.espncdn.com/i/teamlogos/leagues/500-dark/${k}.png`; }
   const LEAGUES = [
     { key: "NFL", name: "NFL", logo: LG_LOGO("nfl"), c1: "#013369", c2: "#D50A0A", status: "live",
       tag: "American football", line: "Every game in your time",
@@ -1548,10 +1555,10 @@
       tag: "Basketball", line: "Every game, every club",
       desc: "The same what-to-watch engine pointed at Australian hoops — fixtures, clubs and rosters.",
       cta: "Enter the NBL hub", href: "#/nbl" },
-    { key: "RACING", name: "Racing", logo: "", c1: "#1E5E3A", c2: "#C9A227", status: "next",
-      tag: "The punt", line: "Built around Spring",
-      desc: "The fourth code — form, previews and the big carnivals. Format in the works.",
-      cta: "", href: "" },
+    { key: "RACING", name: "Racing", logo: "", c1: "#1E5E3A", c2: "#C9A227", status: "live",
+      tag: "Thoroughbreds", line: "Every meeting, every state",
+      desc: "Today's cards ranked by black type, fields and odds, the premierships, and the road to the Melbourne Cup.",
+      cta: "Enter the racing hub", href: "#/racing" },
   ];
 
   function showLeagues() {
@@ -1937,6 +1944,407 @@
   // router
   // =====================================================================
 
+  // =====================================================================
+  // RACING — the fourth code on the same shell. Feed: /api/racing/* (racing.com's
+  // national GraphQL). What to Watch = today's meetings ranked by black type;
+  // the "ladder" = premierships; the "MCG countdown" = Road to the Cup;
+  // "Teams & Players" = jockeys, trainers and horses.
+  // =====================================================================
+  const RC_STATE_NAME = { VIC: "Victoria", NSW: "New South Wales", QLD: "Queensland", SA: "South Australia",
+                          WA: "Western Australia", ACT: "ACT", TAS: "Tasmania", NT: "Northern Territory" };
+  const RC_GROUP_CLS = (g) => !g ? "" : g === "Group 1" ? "g1" : g === "Group 2" ? "g2" : g === "Group 3" ? "g3" : "lr";
+  const rcGroupChip = (g) => g ? `<span class="rc-grp ${RC_GROUP_CLS(g)}">${esc(g === "Listed" ? "Listed" : g.replace("Group ", "G"))}</span>` : "";
+  const rcDay = (d) => { const x = new Date(d + "T12:00:00+10:00"); return { wd: x.toLocaleDateString("en-AU", { weekday: "long", timeZone: "Australia/Melbourne" }), dm: x.toLocaleDateString("en-AU", { day: "numeric", month: "short", timeZone: "Australia/Melbourne" }) }; };
+  const rcMelToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Australia/Melbourne" });
+  const rcShift = (d, n) => { const x = new Date(d + "T12:00:00+10:00"); x.setUTCDate(x.getUTCDate() + n); return x.toLocaleDateString("en-CA", { timeZone: "Australia/Melbourne" }); };
+  const rcWatchFor = (state) => state === "VIC" ? WATCH.racing[0] : WATCH.racing[2];
+  const rcWatchBtn = (state, cls) => {
+    const p = rcWatchFor(state), rest = WATCH.racing.filter((w) => w !== p);
+    return `<span class="watch-row"><a class="watch ${cls || ""}" href="${esc(p.url)}" target="_blank" rel="noopener" data-plat="${esc(p.key)}"><span class="tv">▶</span> Watch on ${esc(p.label)}</a>${rest.map((w) => `<a class="watch-chip" href="${esc(w.url)}" target="_blank" rel="noopener" data-plat="${esc(w.key)}" title="${esc(w.sub)}">${esc(w.label)}</a>`).join("")}</span>`;
+  };
+  const rcSubnav = (active) => {
+    const items = [{ k: "watch", label: "What to Watch", href: "#/racing" }, { k: "prem", label: "Jockeys & Trainers", href: "#/racing/premierships" }];
+    return `<nav class="subnav" aria-label="Racing sections"><div class="shell">
+      <a class="sn-league" href="#/leagues" title="All leagues"><img src="/img/racing-mark.svg" alt=""><span>Racing</span></a>
+      ${items.map((i) => `<a href="${i.href}" class="${i.k === active ? "on" : ""}">${esc(i.label)}</a>`).join("")}
+      <a href="https://www.racing.com" target="_blank" rel="noopener" class="sn-tool" title="Full form, replays and vision on Racing.com">Racing.com ↗</a>
+    </div></nav>`;
+  };
+  let rcCountdown = null, rcNextTimer = null, rcSort = "watch";
+  // "WINX STAKES [GROUP 1]" -> "Winx Stakes"; keeps apostrophes sane
+  const rcTitle = (n) => (n || "").replace(/\s*\[.*?\]\s*/g, "").toLowerCase().replace(/(^|[\s\-(])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+
+  function rcHubHTML(date) {
+    const d = rcDay(date), today = date === rcMelToday();
+    return `${rcSubnav("watch")}
+    <div class="ribbon"><div class="shell">
+      <button class="wknav" id="rc-day-prev" aria-label="Previous day">‹</button>
+      <span class="wk" id="wk-label">${esc(today ? "Today" : d.wd)} · ${esc(d.dm)} · What to Watch</span>
+      <button class="wknav" id="rc-day-next" aria-label="Next day">›</button>
+      <span class="sub">Every meeting in every state, jump times in your time.</span>
+    </div></div>
+    <div class="ticker" id="ticker" hidden><span class="tk-label">Headlines</span><div class="tk-win"><div class="tk-track" id="tk-track"></div></div></div>
+    <div class="shell">
+      <div id="loading" class="loading">Fetching the fields…</div>
+      <div id="content" hidden>
+        <div class="hero-split"><section id="lead"></section><section id="rtg"></section></div>
+        <section id="rtg-rail"></section>
+        <section id="rc-next"></section>
+        <section id="vid-wrap"></section>
+        <section id="news-wrap" hidden>
+          <div class="section-h" style="margin-top:28px">The Big Stories <span class="n" id="news-note">· live from the wires</span></div>
+          <div class="news-cols"><div class="news-grid" id="news"></div><aside class="top5" id="top5"></aside></div>
+        </section>
+        <section id="rc-prem"></section>
+        <div class="section-h" style="margin-top:30px">Race of the Day</div>
+        <section class="gotw" id="rc-rod"></section>
+        <div class="section-h" style="margin-top:30px">The Meetings <span class="n" id="rc-count"></span></div>
+        <div class="controls">
+          <div class="seg" role="group" aria-label="Timezone"><span class="k">Times</span>
+            <button data-tz="Australia/Sydney">Sydney</button><button data-tz="Australia/Brisbane">Brisbane</button><button data-tz="Australia/Perth">Perth</button></div>
+          <div class="seg" role="group" aria-label="Sort"><span class="k">Sort</span>
+            <button data-rsort="watch">Watchability</button><button data-rsort="time">First race</button></div>
+          <span class="ctl-note" id="tz-note"></span>
+        </div>
+        <div class="rc-slate" id="rc-slate"></div>
+      </div>
+    </div>`;
+  }
+
+  let rcHub = null;   // {date, slate, features, prem}
+
+  async function showRacingHub(date) {
+    date = date || rcMelToday();
+    clearInterval(rcCountdown); clearInterval(rcNextTimer);
+    view.innerHTML = rcHubHTML(date);
+    $("rc-day-prev").onclick = () => { location.hash = "#/racing/day/" + rcShift(date, -1); };
+    $("rc-day-next").onclick = () => { location.hash = "#/racing/day/" + rcShift(date, 1); };
+    view.querySelectorAll("[data-tz]").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-tz") === tz));
+      b.addEventListener("click", () => { tz = b.getAttribute("data-tz"); localStorage.setItem(TZ_KEY, tz);
+        view.querySelectorAll("[data-tz]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); rcPaintSlate(); rcPaintRod(); rcPaintRtg(); rcPaintRail(); });
+    });
+    view.querySelectorAll("[data-rsort]").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-rsort") === rcSort));
+      b.addEventListener("click", () => { rcSort = b.getAttribute("data-rsort"); view.querySelectorAll("[data-rsort]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); rcPaintSlate(); });
+    });
+    try {
+      const [slate, features, featured, vids, prem, nxt] = await Promise.all([
+        fetchJSON(`/api/racing/meetings?date=${date}`),
+        fetchJSON("/api/racing/features").catch(() => null),
+        fetchJSON("/api/featured?league=racing").catch(() => null),
+        fetchJSON("/api/videos?league=racing").catch(() => null),
+        fetchJSON("/api/racing/premierships?entity=Jockey&size=10").catch(() => null),
+        fetchJSON("/api/racing/next").catch(() => null),
+      ]);
+      rcHub = { date, slate, features, prem, nxt };
+      renderLead(featured); renderNews(featured);
+      rcPaintRtg(); rcPaintRail(); rcPaintNext(); rcPaintPrem(prem); rcPaintRod(); rcPaintSlate();
+      const vw = $("vid-wrap"); if (vw) vw.innerHTML = videoRailHTML(vids && vids.videos);
+      $("tz-note").textContent = "Jump times converted live to " + TZ_LABEL[tz] + " time";
+      armMotion();
+      $("loading").hidden = true; $("content").hidden = false;
+      if (date === rcMelToday()) rcNextTimer = setInterval(async () => {
+        if (document.hidden || !$("rc-next")) return;
+        try { rcHub.nxt = await fetchJSON("/api/racing/next"); rcPaintNext(); } catch { /* next tick */ }
+      }, 60000);
+    } catch (err) {
+      $("loading").textContent = "Couldn't reach the racing feed (" + err.message + "). Refresh to retry.";
+    }
+  }
+
+  // Road to the Cup — the MCG-countdown analogue: the season's hero major, with the next major up top
+  function rcPaintRtg() {
+    const el = $("rtg"); if (!el || !rcHub) return;
+    const f = rcHub.features; if (!f || !f.hero) { el.innerHTML = ""; return; }
+    const hero = f.hero, nxt = f.next && f.next.key !== hero.key ? f.next : null;
+    const k = fmt(hero.time);
+    el.innerHTML = `
+      <div class="rtg rtg-tall rc-rtg">
+        <div class="rtg-kicker">🏇 Road to the Cup</div>
+        <div class="rc-cup-h">${esc(hero.name)} <span class="rc-grp g1">G1</span></div>
+        <div class="rtg-venue">${esc(hero.venue)} · ${esc(hero.distance)} · ${esc(hero.prize)}</div>
+        <div class="rtg-count"><div class="rtg-cd tnum" id="rc-cd">—</div><div class="rtg-cd-lbl">until the ${esc(hero.name)} · ${k.wd} ${k.day} at ${k.tm} ${TZ_LABEL[tz]}</div></div>
+        ${nxt ? `<div class="rc-nextmajor"><span class="rc-nm-k">Next up</span> <b>${esc(nxt.name)}</b> ${rcGroupChip(nxt.group)} <span>${esc(nxt.venue)} · ${fmt(nxt.time).wd} ${fmt(nxt.time).day}</span></div>` : ""}
+        ${rcWatchBtn(hero.state, "")}
+        <div class="rtg-arc">${["Build up", "Carnival", "Cup week"].map((x, i) => `<b class="${i === (Date.now() > new Date(hero.time).getTime() - 7 * 864e5 ? 2 : Date.now() > new Date("2026-10-01T00:00:00Z").getTime() ? 1 : 0) ? "on" : ""}">${x}</b>`).join("<i>→</i>")}</div>
+      </div>`;
+    clearInterval(rcCountdown);
+    const tick = () => { const s = Math.max(0, Math.floor((new Date(hero.time) - Date.now()) / 1000)); const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; const c = $("rc-cd"); if (c) c.textContent = s ? `${d}d ${h}h ${m}m ${x}s` : "It's on"; };
+    tick(); rcCountdown = setInterval(tick, 1000);
+  }
+
+  // The Spring — the advent-rail analogue: every major, past ones ticked, next one live
+  function rcPaintRail() {
+    const el = $("rtg-rail"); if (!el || !rcHub) return;
+    const f = rcHub.features; const majors = (f && f.majors) || [];
+    if (!majors.length) { el.innerHTML = ""; return; }
+    const nextKey = f.next && f.next.key;
+    el.innerHTML = `<div class="rtg-rail rc-rail">
+      <div class="rtg-rail-h"><b class="rtg-rail-t">THE SPRING</b> — ${esc(f.season)} · every Group 1 that matters, in your time. ${esc(f.note ? "" : "")}</div>
+      <div class="rtg-eps">${majors.map((m) => { const k = fmt(m.time); const st = m.past ? "open" : (m.key === nextKey ? "today" : "locked"); return `
+        <div class="rtg-ep rc-major adv-${st}${m.hero ? " hero" : ""}">
+          <span class="adv-d">${k.wd} ${k.day}</span>
+          <span class="n">${esc(m.venue)} · ${esc(m.distance)}</span>
+          <span class="t">${esc(m.name)}</span>
+          <span class="g">${rcGroupChip(m.group)} ${esc(m.prize)}</span>
+          <span class="s">${m.past ? "✓ Run" : (st === "today" ? "● NEXT · " + k.tm + " " + TZ_LABEL[tz] : k.tm + " " + TZ_LABEL[tz])}</span>
+        </div>`; }).join("")}</div></div>`;
+  }
+
+  function rcPaintNext() {
+    const el = $("rc-next"); if (!el || !rcHub) return;
+    const races = (rcHub.nxt && rcHub.nxt.races) || [];
+    if (!races.length || rcHub.date !== rcMelToday()) { el.innerHTML = ""; return; }
+    el.innerHTML = `<div class="rc-ntj"><span class="rc-ntj-k">Next to jump</span>${races.slice(0, 6).map((r) => `
+      <a class="rc-ntj-i" href="#/racing/race/${esc(r.meetId)}/${r.number}"><b>${esc(r.venue)}</b> R${r.number} ${rcGroupChip(r.group)}<i>${fmt(r.time).tm}</i></a>`).join("")}</div>`;
+  }
+
+  // Premierships — the ladder analogue, with this week's black type as the aside
+  function rcPaintPrem(prem) {
+    const el = $("rc-prem"); if (!el) return;
+    const rows = (prem && prem.rows) || [];
+    const week = (rcHub && rcHub.features && rcHub.features.week) || [];
+    el.innerHTML = `
+      <div class="section-h" style="margin-top:30px">The Premiership <span class="n">· ${esc(prem ? prem.label : "")} · national jockeys · <a href="#/racing/premierships">all tables →</a></span></div>
+      <div class="lad-wrap${week.length ? "" : " solo"}">
+        <div class="lad-col">
+          <div class="lad-head rc-ph"><span></span><span>Jockey</span><span>Wins</span><span>Rides</span><span>Strike</span><span>Prize</span></div>
+          ${rows.map((r) => `<a class="lad-row rc-pr" href="#/racing/jockey/${esc(r.id)}">
+            <span class="lad-pos tnum">${r.rank}</span><span class="lad-team">${esc(r.name)}</span>
+            <span class="lad-pts tnum">${r.wins}</span><span class="lad-rec tnum">${r.starts ?? ""}</span>
+            <span class="lad-pct tnum">${r.starts ? Math.round(r.wins / r.starts * 100) + "%" : ""}</span><span class="lad-rec tnum">${esc(r.prize || "")}</span></a>`).join("")}
+        </div>
+        ${week.length ? `<aside class="ldr"><div class="ldr-h">This week's black type</div>
+          ${week.slice(0, 12).map((w) => { const k = fmt(w.time); const tbc = /T00:00:00Z$/.test(w.time); return `<a class="ldr-row rc-bt" href="#/racing/race/${esc(w.meetId)}/${w.number}">
+            <span class="rc-bt-g">${rcGroupChip(w.group)}</span>
+            <span class="ldr-who"><b>${esc(rcTitle(w.name))}</b><i>${esc(w.venue)} · ${esc(w.distance)} · ${k.wd} ${k.day}${tbc ? " · time TBC" : " " + k.tm}</i></span>
+          </a>`; }).join("")}
+          <div class="ldr-src">Group & Listed races · next 7 days</div></aside>` : ""}
+      </div>`;
+  }
+
+  // Race of the Day — the Game of the Week analogue
+  function rcPaintRod() {
+    const el = $("rc-rod"); if (!el || !rcHub) return;
+    const r = rcHub.slate && rcHub.slate.raceOfTheDay;
+    if (!r) { el.innerHTML = `<div class="loading">No meetings on this date.</div>`; return; }
+    const k = fmt(r.time);
+    el.innerHTML = `
+      <div class="head"><span class="tag">★ ${TIER_LABEL[r.watch.tier]} · ${r.group ? esc(r.group) : "the pick of the day"}</span></div>
+      <div class="body">
+        <div>
+          <div class="rc-rod-t"><span class="rc-rn">R${r.number}</span> <b>${esc(r.name)}</b> ${rcGroupChip(r.group)}</div>
+          <div class="rc-rod-m">${esc(r.venue)} · ${esc(r.distance)} · ${r.runners} runners${r.class ? " · " + esc(r.class) : ""}</div>
+          ${r.done && r.placings.length ? `<div class="rc-plc">${r.placings.map((p) => `<span class="rc-plc-i"><b>${p.finish}</b>${p.silk ? `<img src="${esc(p.silk)}" alt="">` : ""}${esc(p.horse)}<i>${esc(p.jockey)} · ${esc(p.sp || "")}${p.margin && p.finish > 1 ? " · " + esc(p.margin) : ""}</i></span>`).join("")}</div>`
+            : (r.favs.length ? `<div class="rc-favs">${r.favs.map((f) => `<a class="rc-fav" href="#/racing/race/${esc(r.meetId)}/${r.number}">${f.silk ? `<img src="${esc(f.silk)}" alt="">` : ""}<span><b>${esc(f.no)}. ${esc(f.horse)}</b><i>${esc(f.jockey)}</i></span><em class="tnum">${esc(f.win || "")}</em></a>`).join("")}</div>` : "")}
+          <a class="rc-field-link" href="#/racing/race/${esc(r.meetId)}/${r.number}">Full field, form & odds →</a>
+        </div>
+        <div class="kick">
+          <div class="when tnum">${k.wd} ${k.day}<br><span class="big">${k.tm}</span></div>
+          <div class="slot">${r.done ? "Result in" : "Jump"} · ${TZ_LABEL[tz]}</div>
+          ${rcWatchBtn(r.state, "")}
+        </div>
+      </div>`;
+  }
+
+  function rcPaintSlate() {
+    const el = $("rc-slate"); if (!el || !rcHub) return;
+    let ms = [...((rcHub.slate && rcHub.slate.meetings) || [])];
+    if (rcSort === "time") ms.sort((a, b) => (a.first || "").localeCompare(b.first || ""));
+    $("rc-count").textContent = `· ${ms.length} meeting${ms.length === 1 ? "" : "s"}`;
+    if (!ms.length) { el.innerHTML = `<div class="loading">No racing on this date.</div>`; return; }
+    el.innerHTML = ms.map((m) => { const k = m.first ? fmt(m.first) : null; const f = m.feature; return `
+      <a class="game rc-meet t${m.watch.tier}${m.done ? " done" : ""}" href="#/racing/meeting/${esc(m.id)}">
+        <div class="top"><span class="tier t${m.watch.tier}">${m.done ? "Results in" : TIER_LABEL[m.watch.tier]}</span>${m.metro ? '<span class="rc-metro">Metro</span>' : ""}<span class="rc-state">${esc(m.state)}</span></div>
+        <div class="rc-venue">${esc(m.venue)}</div>
+        <div class="rc-track">${m.track ? esc(m.track) + (m.rating ? " " + esc(m.rating) : "") : "Track TBC"}${m.rail ? " · Rail " + esc(m.rail) : ""}</div>
+        <div class="whenwrap"><span class="when tnum">${k ? k.wd + " " + k.day + (/T00:00:00Z$/.test(m.first) ? " · times TBC" : " · " + k.tm) : ""}</span><span class="slot">First race · ${m.raceCount} races${m.groupRaces ? " · " + m.groupRaces + " black type" : ""}</span></div>
+        ${f ? `<div class="rc-feat">Feature · R${f.number} ${rcGroupChip(f.group)} <b>${esc(f.name)}</b> <span>${esc(f.distance)}${f.time ? " · " + fmt(f.time).tm : ""}</span></div>` : ""}
+      </a>`; }).join("");
+  }
+
+  // ---------- meeting page: every race at the track ----------
+  async function showRacingMeeting(meetId) {
+    view.innerHTML = `${rcSubnav("watch")}<div class="shell"><div class="loading">Loading the card…</div></div>`;
+    try {
+      // the meeting lives inside the day's slate; find its date via the race page's meta if needed
+      const r1 = await fetchJSON(`/api/racing/race/${encodeURIComponent(meetId)}/1`).catch(() => null);
+      const first = r1 ? r1 : null;
+      const date = first && first.race.time ? new Date(first.race.time).toLocaleDateString("en-CA", { timeZone: "Australia/Melbourne" }) : rcMelToday();
+      const slate = await fetchJSON(`/api/racing/meetings?date=${date}`);
+      const m = (slate.meetings || []).find((x) => x.id === meetId);
+      if (!m) throw new Error("meeting not on this date");
+      const d = rcDay(date);
+      view.innerHTML = `${rcSubnav("watch")}
+        <div class="team-hero rc-hero">
+          <div class="shell">
+            <a class="crumb" href="#/racing/day/${date}">← ${esc(d.wd)}'s racing</a>
+            <div class="th-row"><div>
+              <div class="th-loc">${esc(RC_STATE_NAME[m.state] || m.state)}${m.metro ? " · Metro" : ""} · ${esc(d.wd)} ${esc(d.dm)}</div>
+              <h1 class="th-name">${esc(m.venue)}</h1>
+              <div class="th-meta">${[m.track ? "Track " + m.track + (m.rating ? " " + m.rating : "") : "", m.rail ? "Rail " + m.rail : "", m.weather ? m.weather : "", m.raceCount + " races", m.groupRaces ? m.groupRaces + " black-type" : ""].filter(Boolean).map(esc).join(" · ")}</div>
+              <div class="th-next">${rcWatchBtn(m.state, "sm")}${m.url ? ` <a class="watch sm ghost" href="${esc(m.url)}" target="_blank" rel="noopener">Full form on Racing.com ↗</a>` : ""}</div>
+            </div></div>
+          </div>
+        </div>
+        <div class="shell">
+          <div class="section-h" style="margin-top:24px">The card <span class="n">· jump times in ${TZ_LABEL[tz]}</span></div>
+          <div class="rc-card">${m.races.map((r) => { const k = fmt(r.time); return `
+            <a class="rc-race t${r.watch.tier}${r.done ? " done" : ""}" href="#/racing/race/${esc(m.id)}/${r.number}">
+              <span class="rc-rn">R${r.number}</span>
+              <span class="rc-race-body"><b>${esc(r.name)}</b> ${rcGroupChip(r.group)}<i>${esc(r.distance)} · ${esc(r.class || "")} · ${r.runners} runners</i>
+                ${r.done && r.placings.length ? `<span class="rc-mini-plc">${r.placings.map((p) => `<span><b>${p.finish}</b> ${esc(p.horse)}${p.sp ? " (" + esc(p.sp) + ")" : ""}</span>`).join("")}</span>`
+                  : (r.favs.length ? `<span class="rc-mini-fav">${r.favs.map((f) => `<span>${f.silk ? `<img src="${esc(f.silk)}" alt="">` : ""}${esc(f.horse)} <em>${esc(f.win || "")}</em></span>`).join("")}</span>` : "")}
+              </span>
+              <span class="rc-race-time tnum">${k.tm}<i>${r.done ? "Result" : (r.status && r.status !== "Open" ? esc(r.status) : "Jump")}</i></span>
+            </a>`; }).join("")}</div>
+        </div>`;
+    } catch (err) {
+      view.innerHTML = `${rcSubnav("watch")}<div class="shell"><div class="loading">Couldn't load the meeting (${esc(err.message)}).</div></div>`;
+    }
+  }
+
+  // ---------- race page: the field ----------
+  async function showRacingRace(meetId, number) {
+    view.innerHTML = `${rcSubnav("watch")}<div class="shell"><div class="loading">Loading the field…</div></div>`;
+    try {
+      const d = await fetchJSON(`/api/racing/race/${encodeURIComponent(meetId)}/${number}`);
+      const r = d.race, mt = d.meeting, k = fmt(r.time);
+      const done = r.done || d.field.some((e) => e.finish === 1);
+      view.innerHTML = `${rcSubnav("watch")}
+        <div class="team-hero rc-hero">
+          <div class="shell">
+            <a class="crumb" href="#/racing/meeting/${esc(meetId)}">← ${esc(r.venue)} card</a>
+            <div class="th-row"><div>
+              <div class="th-loc">${esc(r.venue)} · Race ${r.number} · ${k.wd} ${k.day}</div>
+              <h1 class="th-name">${esc(r.name)} ${rcGroupChip(r.group)}</h1>
+              <div class="th-meta">${[r.distance, r.class, r.runners + " runners", mt.track ? "Track " + mt.track + (mt.rating ? " " + mt.rating : "") : "", mt.rail ? "Rail " + mt.rail : ""].filter(Boolean).map(esc).join(" · ")}</div>
+              <div class="sum-chips"><span class="sum"><b class="tnum">${k.tm}</b> ${done ? "ran" : "jump"} · ${TZ_LABEL[tz]}</span><span class="sum"><b>${esc(TIER_LABEL[r.watch.tier])}</b> watchability</span>${r.status ? `<span class="sum"><b>${esc(r.status)}</b></span>` : ""}</div>
+              <div class="th-next">${rcWatchBtn(r.state, "sm")}${r.url ? ` <a class="watch sm ghost" href="${esc(r.url)}" target="_blank" rel="noopener">Form & replay on Racing.com ↗</a>` : ""}</div>
+            </div></div>
+          </div>
+        </div>
+        <div class="shell">
+          <div class="section-h" style="margin-top:24px">${done ? "The result" : "The field"} <span class="n">· ${done ? "finishing order" : "win / place · fixed odds"}</span></div>
+          <div class="tbl-wrap"><table class="roster rc-field">
+            <thead><tr>${done ? "<th>Fin</th>" : ""}<th>#</th><th>Horse</th><th>Jockey</th><th>Trainer</th><th class="tnum">Bar</th><th class="tnum">Wt</th><th>Last 5</th><th>Career</th>${done ? '<th class="tnum">SP</th><th>Margin</th>' : '<th class="tnum">Win</th><th class="tnum">Place</th>'}</tr></thead>
+            <tbody>${[...d.field].sort((a, b) => done ? ((a.finish || 99) - (b.finish || 99)) : ((a.scratched - b.scratched) || (a.no - b.no))).map((e) => `
+              <tr class="${e.scratched ? "scr" : ""}${e.fav && !done ? " fav" : ""}${done && e.finish === 1 ? " won" : ""}">
+                ${done ? `<td class="tnum"><b>${e.finish ? esc(e.finishAbv || e.finish) : (e.scratched ? "SCR" : "")}</b></td>` : ""}
+                <td class="tnum">${esc(e.no ?? "")}</td>
+                <td class="pl">${e.silk ? `<img class="hs rc-silk" src="${esc(e.silk)}" alt="">` : `<span class="hs hs-empty"></span>`}<a class="pl-nm" href="#/racing/horse/${esc(e.horseId)}">${esc(e.horse)}${e.country && e.country !== "AUS" ? ` <i class="rc-cty">(${esc(e.country)})</i>` : ""}</a>${e.scratched ? ' <span class="rc-scr">Scratched</span>' : ""}${e.emergency ? ' <span class="rc-scr">Em</span>' : ""}</td>
+                <td>${e.jockeyId ? `<a href="#/racing/jockey/${esc(e.jockeyId)}">${esc(e.jockey)}</a>` : esc(e.jockey)}${e.claim ? ` <i class="rc-claim">(a${esc(e.claim)})</i>` : ""}</td>
+                <td>${e.trainerId ? `<a href="#/racing/trainer/${esc(e.trainerId)}">${esc(e.trainer)}</a>` : esc(e.trainer)}</td>
+                <td class="tnum">${esc(e.barrier ?? "")}</td><td class="tnum">${esc(e.weight || "")}</td>
+                <td class="tnum rc-l5">${esc(e.last5 || "")}</td><td class="tnum">${esc(e.record || "")}</td>
+                ${done ? `<td class="tnum">${esc(e.sp || "")}</td><td>${esc(e.margin || "")}</td>` : `<td class="tnum"><b>${esc(e.win || "")}</b></td><td class="tnum">${esc(e.place || "")}</td>`}
+              </tr>`).join("")}</tbody>
+          </table></div>
+          <p class="panel-note" style="margin-top:12px">Odds are the market's fixed win/place at time of load — indicative, not an offer. Career = starts: wins-seconds-thirds.</p>
+          <div class="section-h" style="margin-top:26px">Rest of the card</div>
+          <div class="rc-others">${d.others.map((o) => `<a class="rc-oth${o.number === r.number ? " on" : ""}" href="#/racing/race/${esc(meetId)}/${o.number}"><b>R${o.number}</b><span>${fmt(o.time).tm}</span>${rcGroupChip(o.group)}</a>`).join("")}</div>
+        </div>`;
+    } catch (err) {
+      view.innerHTML = `${rcSubnav("watch")}<div class="shell"><div class="loading">Couldn't load the race (${esc(err.message)}).</div></div>`;
+    }
+  }
+
+  // ---------- premierships page: the people layer ----------
+  const RC_PREM_STATES = [["", "National"], ["VIC", "VIC"], ["NSW", "NSW"], ["QLD", "QLD"], ["SA", "SA"], ["WA", "WA"]];
+  let rcPrem = { entity: "Jockey", state: "", metro: false };
+  async function showRacingPremierships() {
+    view.innerHTML = `${rcSubnav("prem")}<div class="shell">
+      ${pageHero("Racing", `Jockeys, trainers &amp; <em>horses</em>.`, "The premierships as they stand — national or by state, metro or everywhere. Every name clicks through to a profile with recent form.")}
+      <div class="controls">
+        <div class="seg" role="group"><span class="k">Table</span>${["Jockey", "Trainer", "Horse"].map((e) => `<button data-pe="${e}">${e}s</button>`).join("")}</div>
+        <div class="seg" role="group"><span class="k">Scope</span>${RC_PREM_STATES.map(([v, l]) => `<button data-ps="${v}">${l}</button>`).join("")}</div>
+        <div class="seg" role="group"><span class="k">Meetings</span><button data-pm="0">All</button><button data-pm="1">Metro</button></div>
+      </div>
+      <div id="rc-prem-body"><div class="loading">Loading the table…</div></div>
+    </div>`;
+    const sync = () => { view.querySelectorAll("[data-pe]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.pe === rcPrem.entity)));
+      view.querySelectorAll("[data-ps]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.ps === rcPrem.state)));
+      view.querySelectorAll("[data-pm]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.pm === "1") === rcPrem.metro))); };
+    view.querySelectorAll("[data-pe]").forEach((b) => b.onclick = () => { rcPrem.entity = b.dataset.pe; sync(); rcLoadPrem(); });
+    view.querySelectorAll("[data-ps]").forEach((b) => b.onclick = () => { rcPrem.state = b.dataset.ps; sync(); rcLoadPrem(); });
+    view.querySelectorAll("[data-pm]").forEach((b) => b.onclick = () => { rcPrem.metro = b.dataset.pm === "1"; sync(); rcLoadPrem(); });
+    sync(); rcLoadPrem();
+  }
+  async function rcLoadPrem() {
+    const box = $("rc-prem-body"); if (!box) return;
+    box.innerHTML = `<div class="loading">Loading the table…</div>`;
+    try {
+      const qs = `entity=${rcPrem.entity}&size=30${rcPrem.state ? "&state=" + rcPrem.state : ""}${rcPrem.metro ? "&meetType=Metro" : ""}`;
+      const d = await fetchJSON(`/api/racing/premierships?${qs}`);
+      const kind = rcPrem.entity.toLowerCase();
+      const unit = kind === "horse" ? "Wins" : "Wins";
+      box.innerHTML = `
+        <div class="section-h">${esc(rcPrem.entity)} premiership <span class="n">· ${esc(d.label)} · ${esc(rcPrem.state || "national")}${rcPrem.metro ? " · metro" : ""}</span></div>
+        <div class="tbl-wrap"><table class="roster stats rc-prem-tbl">
+          <thead><tr><th class="tnum">#</th><th>${esc(rcPrem.entity)}</th><th class="tnum">${unit}</th><th class="tnum">${kind === "horse" ? "Starts" : (kind === "jockey" ? "Rides" : "Runners")}</th><th class="tnum">Strike</th><th class="tnum">Prize money</th></tr></thead>
+          <tbody>${d.rows.map((r) => `<tr data-go="#/racing/${kind}/${esc(r.id)}" tabindex="0"><td class="tnum">${r.rank}</td><td class="pl"><span class="pl-nm">${esc(r.name)}</span></td><td class="tnum"><b>${r.wins}</b></td><td class="tnum">${r.starts ?? ""}</td><td class="tnum">${r.starts ? Math.round(r.wins / r.starts * 100) + "%" : ""}</td><td class="tnum">${esc(r.prize || "")}</td></tr>`).join("")}</tbody>
+        </table></div>
+        <p class="panel-note" style="margin-top:12px">Racing seasons run 1 August – 31 July. Source: racing.com premiership tables.</p>`;
+      box.querySelectorAll("[data-go]").forEach((tr) => { const go = () => { location.hash = tr.getAttribute("data-go"); }; tr.addEventListener("click", go); tr.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); }); });
+    } catch (err) {
+      box.innerHTML = `<div class="loading">Couldn't load the table (${esc(err.message)}).</div>`;
+    }
+  }
+
+  // ---------- profiles: jockey / trainer / horse ----------
+  async function showRacingPerson(kind, id) {
+    view.innerHTML = `${rcSubnav("prem")}<div class="shell"><div class="loading">Loading…</div></div>`;
+    try {
+      const d = await fetchJSON(`/api/racing/${kind}/${encodeURIComponent(id)}`);
+      const p = d.profile, runs = d.rides || d.runs || [];
+      const chips = kind === "horse"
+        ? [p.age ? p.age + "yo" : "", p.sex, p.colour, p.country && p.country !== "AUS" ? p.country : "", p.sire ? "by " + p.sire : "", p.dam ? "out of " + p.dam : "", p.trainer ? "Trainer " + p.trainer : ""]
+        : kind === "jockey" ? [p.age ? p.age + " yrs" : "", p.weight ? "Rides at " + p.weight : ""] : [p.based ? "Based " + p.based : ""];
+      const sums = kind === "horse"
+        ? [[p.record, "career"], [p.winPct != null ? p.winPct + "%" : "—", "win"], [p.placePct != null ? p.placePct + "%" : "—", "place"], [p.g1 ?? "0", "Group 1 wins"], [p.prize || "—", "prize money"]]
+        : [[p.careerWins ?? "—", "career wins"], [p.seasonWins ?? "—", "this season"], [p.winPct != null ? p.winPct + "%" : "—", "strike rate"], [p.g1 ?? "0", "Group 1 wins"], [p.prize || "—", "prize money"]];
+      const backLbl = kind === "horse" && p.trainerId ? `← ${esc(p.trainer)}` : "← Jockeys & Trainers";
+      const backHref = kind === "horse" && p.trainerId ? `#/racing/trainer/${esc(p.trainerId)}` : "#/racing/premierships";
+      view.innerHTML = `${rcSubnav("prem")}
+        <div class="team-hero rc-hero">
+          <div class="shell">
+            <a class="crumb" href="${backHref}">${backLbl}</a>
+            <div class="th-row">
+              ${kind === "horse" && p.silk ? `<img class="ph rc-silk-lg" src="${esc(p.silk)}" alt="">` : ""}
+              <div>
+                <div class="th-loc">${esc(kind)}${p.status && kind === "horse" ? " · " + esc(p.status) : ""}</div>
+                <h1 class="th-name">${esc(p.name)}</h1>
+                <div class="th-meta">${chips.filter(Boolean).map(esc).join(" · ")}</div>
+                <div class="sum-chips">${sums.map(([v, l]) => `<span class="sum"><b class="tnum">${esc(v)}</b> ${esc(l)}</span>`).join("")}</div>
+                ${p.url ? `<div class="th-next"><a class="watch sm ghost" href="${esc(p.url)}" target="_blank" rel="noopener">Full profile on Racing.com ↗</a></div>` : ""}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="shell">
+          ${kind === "horse" && p.summary ? `<p class="panel-note" style="margin-top:14px">${esc(p.summary)}</p>` : ""}
+          <div class="section-h" style="margin-top:26px">${kind === "jockey" ? "Recent rides" : kind === "trainer" ? "Recent runners" : "Recent starts"} <span class="n">· latest first</span></div>
+          <div class="tbl-wrap"><table class="roster stats rc-runs">
+            <thead><tr><th>Date</th><th>Track</th><th>Race</th>${kind !== "horse" ? "<th>Horse</th>" : ""}${kind !== "jockey" ? "<th>Jockey</th>" : ""}${kind === "jockey" ? "<th>Trainer</th>" : ""}<th class="tnum">Fin</th><th>Margin</th><th class="tnum">SP</th><th class="tnum">Bar</th><th class="tnum">Wt</th></tr></thead>
+            <tbody>${runs.filter((x) => !x.trial).map((x) => `
+              <tr class="${x.finish === 1 ? "won" : ""}">
+                <td>${esc(x.date ? fmt(x.time || x.date + "T00:00:00Z").day : "")}</td>
+                <td><a href="#/racing/meeting/${esc(x.meetId)}">${esc(x.venue || "")}</a></td>
+                <td><a href="#/racing/race/${esc(x.meetId)}/${x.number}">${esc(x.race || "R" + x.number)}</a> ${rcGroupChip(x.group)} <i class="rc-dist">${esc(x.distance || "")}</i></td>
+                ${kind !== "horse" ? `<td>${x.silk ? `<img class="hs rc-silk sm" src="${esc(x.silk)}" alt="">` : ""}${x.horseId ? `<a href="#/racing/horse/${esc(x.horseId)}">${esc(x.horse)}</a>` : esc(x.horse || "")}</td>` : ""}
+                ${kind !== "jockey" ? `<td>${x.jockeyId ? `<a href="#/racing/jockey/${esc(x.jockeyId)}">${esc(x.jockey)}</a>` : esc(x.jockey || "")}</td>` : ""}
+                ${kind === "jockey" ? `<td>${x.trainerId ? `<a href="#/racing/trainer/${esc(x.trainerId)}">${esc(x.trainer)}</a>` : esc(x.trainer || "")}</td>` : ""}
+                <td class="tnum"><b>${x.finish ? esc(x.finishAbv || x.finish) : (x.status && !/paying|final|closed/i.test(x.status) ? esc(x.status) : "")}</b>${x.runners ? `<i class="rc-of">/${x.runners}</i>` : ""}</td>
+                <td>${esc(x.margin || "")}</td><td class="tnum">${esc(x.sp || "")}</td><td class="tnum">${esc(x.barrier ?? "")}</td><td class="tnum">${esc(x.weight || "")}</td>
+              </tr>`).join("") || `<tr><td colspan="9">No recent starts recorded.</td></tr>`}</tbody>
+          </table></div>
+        </div>`;
+    } catch (err) {
+      view.innerHTML = `${rcSubnav("prem")}<div class="shell"><div class="loading">Couldn't load this profile (${esc(err.message)}).</div></div>`;
+    }
+  }
+
   function setNav(active) {
     document.querySelectorAll("[data-nav]").forEach((a) =>
       a.classList.toggle("on", a.getAttribute("data-nav") === active));
@@ -1947,6 +2355,7 @@
     let m;
     clearInterval(rtgTimer);
     clearInterval(leadTimer);
+    if (typeof rcCountdown !== "undefined") { clearInterval(rcCountdown); clearInterval(rcNextTimer); }
     window.scrollTo(0, 0);
     const isLanding = h === "#/" || h === "" || h === "#";
     document.body.classList.toggle("landing", isLanding);
@@ -1956,6 +2365,12 @@
     else if ((m = h.match(new RegExp(`^#/${LG}/player/([\\w-]+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
     else if ((m = h.match(new RegExp(`^#/${LG}/teams$`)))) { league = m[1]; setNav("leagues"); showTeams(); }
     else if ((m = h.match(new RegExp(`^#/${LG}$`)))) { league = m[1]; setNav("leagues"); showHub(); }
+    else if (h === "#/racing") { league = "racing"; setNav("leagues"); showRacingHub(); }
+    else if ((m = h.match(/^#\/racing\/day\/(\d{4}-\d{2}-\d{2})$/))) { league = "racing"; setNav("leagues"); showRacingHub(m[1]); }
+    else if ((m = h.match(/^#\/racing\/meeting\/(\d+)$/))) { league = "racing"; setNav("leagues"); showRacingMeeting(m[1]); }
+    else if ((m = h.match(/^#\/racing\/race\/(\d+)\/(\d+)$/))) { league = "racing"; setNav("leagues"); showRacingRace(m[1], +m[2]); }
+    else if (h === "#/racing/premierships") { league = "racing"; setNav("leagues"); showRacingPremierships(); }
+    else if ((m = h.match(/^#\/racing\/(jockey|trainer|horse)\/(\d+)$/))) { league = "racing"; setNav("leagues"); showRacingPerson(m[1], m[2]); }
     else if ((m = h.match(/^#\/watch\/([\w-]+)$/))) { setNav("watch"); showWatch(m[1]); }
     else if (h === "#/watch") { setNav("watch"); showWatch(); }
     // legacy NFL-only paths

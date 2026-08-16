@@ -176,6 +176,16 @@ def _mel_today() -> str:
         return (datetime.utcnow() + timedelta(hours=10)).strftime("%Y-%m-%d")
 
 
+def _fin(v):
+    """Finishing position, or None. The feed uses codes >= 100 for scratchings,
+    late scratchings and non-finishers — those aren't placings."""
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return None
+    return n if 0 < n < 100 else None
+
+
 def _entry(e: dict) -> dict:
     h = e.get("horse") or {}
     st = (h.get("stats") or [{}])[0] or {}
@@ -198,8 +208,8 @@ def _entry(e: dict) -> dict:
         "silk": e.get("silkUrl"), "last5": last5 or "",
         "record": f'{st.get("starts", "0")}: {st.get("firsts", "0")}-{st.get("seconds", "0")}-{st.get("thirds", "0")}' if st else "",
         "win": (win or {}).get("oddsWin"), "place": (win or {}).get("oddsPlace"), "fav": fav,
-        "finish": e.get("finish"), "finishAbv": e.get("finishAbv"), "margin": e.get("margin"),
-        "sp": e.get("startingPrice"),
+        "finish": _fin(e.get("finish")), "finishAbv": e.get("finishAbv") if _fin(e.get("finish")) else None,
+        "margin": e.get("margin"), "sp": e.get("startingPrice"),
         "claim": e.get("apprenticeAllowedClaim") if e.get("apprenticeCanClaim") else None,
     }
 
@@ -212,7 +222,7 @@ def _race_summary(r: dict, venue: str) -> dict:
     top = sorted(([e for e in entries if any(o.get("oddsWin") for o in (e.get("odds") or []))]),
                  key=lambda e: _f(re.sub(r"[^\d.]", "", next((o["oddsWin"] for o in e["odds"] if o.get("oddsWin")), "999")), 999))[:3]
     done = (r.get("raceStatus") or "").lower() in ("paying", "final", "closed", "interim", "resulted")
-    placings = sorted([e for e in (r.get("formRaceEntries") or []) if str(e.get("finish") or "").isdigit() and int(e["finish"]) <= 3],
+    placings = sorted([e for e in (r.get("formRaceEntries") or []) if _fin(e.get("finish")) and _fin(e["finish"]) <= 3],
                       key=lambda e: int(e["finish"]))
     return {
         "id": r.get("id"), "number": r.get("raceNumber"), "name": r.get("name"),
@@ -382,7 +392,8 @@ def _runs(rows: list) -> list[dict]:
             "venue": e.get("venueName") or (rc.get("meet") or {}).get("venue"), "meetId": e.get("meetCode"),
             "number": e.get("raceNumber"), "race": rc.get("name"), "distance": e.get("raceDistance") or rc.get("distance"),
             "group": None if e.get("group") in (None, "ungrouped") else e.get("group"),
-            "finish": e.get("finish"), "finishAbv": e.get("finishAbv"), "margin": e.get("margin"), "sp": e.get("startingPrice"),
+            "finish": _fin(e.get("finish")), "finishAbv": e.get("finishAbv") if _fin(e.get("finish")) else None,
+            "margin": e.get("margin"), "sp": e.get("startingPrice"),
             "runners": rc.get("runnersCount"), "barrier": e.get("barrierNumber"), "weight": e.get("weight"),
             "track": e.get("trackCondition"), "prize": e.get("totalPrizeMoney"),
             "horse": (e.get("horse") or {}).get("name"), "horseId": (e.get("horse") or {}).get("id"),
