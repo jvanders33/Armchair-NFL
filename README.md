@@ -6,11 +6,18 @@ The platform behind **Armchair Experts** (Cam Luke) — the voice of sports fans
 
 Built on the **ListTrac engine** (the AFL list-management platform's data → product pipeline), generalised so a new league is a config entry rather than a rebuild.
 
+## The product, in one line
+
+A living digital home for Armchair Experts — the podcast is the emotional centre, the sports utility is the reason people come back between episodes. Every product decision serves: **discover the show → understand the latest episode → listen / watch / follow → find something worth watching this week → return.**
+
 ## What's live
 
 | Surface | What it does |
 |---|---|
-| **Landing** | The network front door — logo, tagline, channel menu, socials, and the cross-code **Coming up** calendar (every major event, any code, from `data/events.json`) |
+| **Home** (`/`) | Podcast-first: the latest episode as the hero (Listen now in-page, Watch on YouTube, Episode page, Share), **Never miss an episode** follow strip (real links only), **This week in sport** (two Games of the Week + next calendar moments, plain-English *Why watch?*, one primary provider + also-ons, timestamped), latest episodes, The Experts' take, Coming up, Go deeper chips to every code |
+| **Episodes** (`/episodes`, `/episode/{slug}`) | Every episode from the show's own podcast feed (Omny/iHeart — audio, duration, number, art, chapter topics) matched to YouTube uploads. Episode pages: hero, Listen/Watch/Share, embed, About, In this episode, related hub/show/next/prev, follow strip. Clean URLs served with per-page title/OG/canonical + PodcastEpisode JSON-LD; `sitemap.xml`, `robots.txt` |
+| **Shows** (`/show/{slug}`) | Durable show pages: status (Live / Launching soon), hosts, cadence, latest + all episodes, follow strip, related hub |
+| **Landing** (`#/landing`) | The original network front door — channel menu and the cross-code **Coming up** calendar (`data/events.json`) |
 | **Leagues** | The code picker in three columns of five — **Home** (AFL, NRL, Cricket, NBL, Racing), **Abroad** (NFL, NBA, Premier League, MLB, College Football), **Global** (Tennis, F1, Golf, UFC, LA 2028). Newsletter signup + Ask the Experts mailbag |
 | **League hubs** (`#/nfl`, `#/afl`, `#/nbl`) | Rotating image-led top story, headline ticker, live fixtures with watchability ranking (live-score polling while games run), aggregated news + numbered top stories, clubs and players. NFL adds the MCG versus-strip countdown, the 10-day advent rail and the Experts' calls. AFL adds the full 1–18 ladder with the 2026 wildcard lines, the finals bracket (projected from the ladder until it locks), season leaders, round-by-round form guides and official-stats player pages. NBL adds season leaders, rosters and career pages from the league's own feed |
 | **NRL hub** (`#/nrl`) | Round-by-round draw, live ladder with the top-eight line, all 17 clubs, aggregated news — pure ESPN shell (see the quirks in `LEAGUES_CFG`) |
@@ -37,6 +44,10 @@ Built on the **ListTrac engine** (the AFL list-management platform's data → pr
 **Watchability** ranks each fixture on line closeness, expected points, team quality and timeslot. The NFL has odds so it gets win-probability meters; the Australian codes don't, so the model degrades to form and slot. Racing ranks races on black-type status, metro venue, Saturday and field size.
 
 **Data sources.** ESPN's public JSON for NFL/AFL/NBL fixtures, news and standings. Beyond ESPN: the AFL's official Champion Data stats API (`api.afl.com.au`, token handshake) for AFL leaders, lists, player pages, form guides and the finals bracket; the NBL's Rosetta API (`prod.rosetta.nbl.com.au`, Origin-gated) for NBL leaders, rosters and careers; racing.com's GraphQL layer (Champion Data racing behind `graphql.rmdprod.racing.com`, editorial and premierships behind `graphql.api.racing.com`, public client keys) for everything racing — see `api/racing.py`.
+
+**The podcast layer.** `api/podcast.py` reads the show's real RSS (the feed Apple Podcasts lists) and the YouTube channel feed, matches audio to video by title/date, derives the show from the title, and exposes `/api/episodes`, `/api/episodes/{slug}`, `/api/podcast/shows`. Follow links live in `PLATFORMS` there — add Spotify and socials when confirmed; never fake a link.
+
+**Analytics.** `track(event, label)` in `web/app.js` beacons every audience action (view_home, view_episode, click_listen, click_watch_video, click_follow_platform, share_episode, click_event_watch_provider, click_episode, …) to `/api/track`; `/api/track/summary` shows prototype counts. Enable Vercel Web Analytics (or plug Plausible/GA4) to persist — the calls are already in place. **The one metric:** what share of visitors take an owned-audience action.
 
 **Where to watch.** No exclusive streaming partner. Every watch button points at the real Australian broadcaster for that code (`WATCH` in `web/app.js`): 7plus / Kayo / Game Pass for the NFL, 7plus / Kayo for the AFL, 9Now / Kayo for the NBL, Racing.com / 7plus / Sky Racing for racing.
 
