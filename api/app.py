@@ -25,10 +25,12 @@ try:
     from . import racing as rc          # package import (uvicorn api.app:app)
     from . import globalsports as gs
     from . import podcast as pc
+    from . import ogcard as og
 except ImportError:
     import racing as rc                 # Vercel runs api/index.py with api/ on sys.path
     import globalsports as gs
     import podcast as pc
+    import ogcard as og
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
@@ -2433,6 +2435,18 @@ def _render_shell(title: str, desc: str, image: str | None, path: str, kind: str
     return HTMLResponse(html)
 
 
+@app.get("/og/episode/{slug}.png")
+def og_episode(slug: str):
+    e = pc.episode(slug)
+    if not e:
+        raise HTTPException(status_code=404, detail="Unknown episode")
+    try:
+        png = og.episode_card(e)
+    except Exception as exc:                       # never let a card failure break sharing
+        raise HTTPException(status_code=503, detail=f"card unavailable: {exc}") from exc
+    return Response(content=png, media_type="image/png", headers={"Cache-Control": "public, max-age=21600"})
+
+
 @app.get("/episode/{slug}", response_class=HTMLResponse)
 def page_episode(slug: str):
     e = pc.episode(slug)
@@ -2443,7 +2457,7 @@ def page_episode(slug: str):
                      "url": f"{SITE}/episode/{slug}", "timeRequired": f"PT{max(1, e['durationSec'] // 60)}M",
                      "associatedMedia": {"@type": "MediaObject", "contentUrl": e["audio"]} if e["audio"] else None,
                      "partOfSeries": {"@type": "PodcastSeries", "name": "Armchair Experts", "url": SITE}})
-    return _render_shell(f'{e["title"]} — Armchair Experts', e["summary"][:200] or e["show"]["desc"], e["thumb"],
+    return _render_shell(f'{e["title"]} — Armchair Experts', e["summary"][:200] or e["show"]["desc"], f"{SITE}/og/episode/{slug}.png",
                          f"/episode/{slug}", "article", f'<script type="application/ld+json">{ld}</script>')
 
 
@@ -2498,7 +2512,7 @@ def page_home():
     try:
         latest = pc.episodes()["episodes"][0]
         desc = f'Latest: {latest["title"]}. The voice of sports fans in Australia — the podcast, and what to watch this week.'
-        img = latest["thumb"]
+        img = f"{SITE}/og/episode/{latest['slug']}.png"
     except Exception:
         desc, img = "The voice of sports fans in Australia — the podcast, and what to watch this week.", None
     return _render_shell("Armchair Experts — Every Sport. One Armchair.", desc, img, "/")
