@@ -42,6 +42,9 @@ LEAGUES_CFG = {
     "nrl": {"path": "rugby-league/3", "name": "NRL", "tz": "Australia/Sydney", "slots": "au"},
     # NBA: nightly US games = Australian daytime, so slots are Sydney day-parts; ESPN carries odds
     "nba": {"path": "basketball/nba", "name": "NBA", "tz": "Australia/Sydney", "slots": "au"},
+    # EPL: UK afternoons = Australian nights/early mornings; MLB: US nights = Australian mornings
+    "epl": {"path": "soccer/eng.1", "name": "Premier League", "tz": "Australia/Sydney", "slots": "au"},
+    "mlb": {"path": "baseball/mlb", "name": "MLB", "tz": "Australia/Sydney", "slots": "au"},
 }
 
 
@@ -249,7 +252,7 @@ def _competitor(c: dict, league: str = "nfl") -> dict:
     record = recs[0].get("summary", "") if recs else ""
     return {
         # NRL abbreviations collide (three NEW, two CAN) — link NRL clubs by ESPN id, show the abbr
-        "abbr": t.get("id", abbr) if league == "nrl" else abbr,
+        "abbr": t.get("id", abbr) if league in ("nrl", "epl") else abbr,
         "code": abbr,
         "name": t.get("name", ""),
         "displayName": t.get("displayName", ""),
@@ -461,9 +464,9 @@ def road_to_the_g():
 
 @app.get("/api/aussies")
 def api_aussies(league: str = "nfl"):
-    if league == "nba":
+    if league in ("nba", "mlb", "epl"):
         try:
-            return {"players": _nba_aussies()}
+            return {"players": _roster_aussies(league)}
         except requests.RequestException:
             return {"players": []}
     return {"players": _load_aussies()}
@@ -491,14 +494,32 @@ NBA_DIVISIONS = [
     ("Southwest", ["DAL", "HOU", "MEM", "NO", "SA"]),
 ]
 
+MLB_DIVISIONS = [
+    ("AL East", ["BAL", "BOS", "NYY", "TB", "TOR"]),
+    ("AL Central", ["CHW", "CLE", "DET", "KC", "MIN"]),
+    ("AL West", ["ATH", "HOU", "LAA", "SEA", "TEX"]),
+    ("NL East", ["ATL", "MIA", "NYM", "PHI", "WSH"]),
+    ("NL Central", ["CHC", "CIN", "MIL", "PIT", "STL"]),
+    ("NL West", ["ARI", "COL", "LAD", "SD", "SF"]),
+]
+DIVISION_SETS = {"nfl": None, "nba": None, "mlb": None}   # filled below once DIVISIONS exists
+
 AU_HINTS = ("Australia", ", NSW", ", VIC", ", QLD", ", WA", ", SA", ", TAS", ", ACT", ", NT")
 
 
-def _load_aussies_nba() -> list[dict]:
+def _load_aussies_for(league: str) -> list[dict]:
+    """Curated supplement per league (data/aussies_{league}.json) — names ESPN
+    lists without a birthplace, plus hooks. Missing file = no supplement."""
+    if league == "nfl":
+        return _load_aussies()
     try:
-        return json.loads((DATA / "aussies_nba.json").read_text(encoding="utf-8")).get("players", [])
+        return json.loads((DATA / f"aussies_{league}.json").read_text(encoding="utf-8")).get("players", [])
     except Exception:
         return []
+
+
+def _load_aussies_nba() -> list[dict]:
+    return _load_aussies_for("nba")
 
 
 def _is_aussie(birthplace: dict | str | None, name: str = "", league: str = "nfl") -> bool:
@@ -507,35 +528,39 @@ def _is_aussie(birthplace: dict | str | None, name: str = "", league: str = "nfl
             return True
     if isinstance(birthplace, str) and any(birthplace.endswith(h) or h.strip(", ") == birthplace for h in AU_HINTS):
         return True
-    curated = _load_aussies_nba() if league == "nba" else _load_aussies()
-    return any(p["name"] == name for p in curated)
+    return any(p["name"] == name for p in _load_aussies_for(league))
 
 
-_nba_aussies_cache = {"data": None, "ts": 0.0}
+_roster_aussies_cache: dict[str, tuple[float, list]] = {}
 
 
-def _nba_aussies() -> list[dict]:
-    """Every Australian on an NBA roster right now: birthplace scan of all 30
-    rosters (parallel, 6 h cache) plus the curated list for the players ESPN
+def _roster_aussies(league: str) -> list[dict]:
+    """Every Australian on a roster in the league right now: birthplace scan of
+    every roster (parallel, 6 h cache) plus the curated list for players ESPN
     lists without a birthplace. Self-updates through trades and cut-downs."""
-    if _nba_aussies_cache["data"] and time.time() - _nba_aussies_cache["ts"] < 6 * 3600:
-        return _nba_aussies_cache["data"]
-    curated = {p["name"]: p for p in _load_aussies_nba()}
-    teams = _get_json(f"{_site('nba')}/teams", ttl=86400)["sports"][0]["leagues"][0]["teams"]
+    hit = _roster_aussies_cache.get(league)
+    if hit and time.time() - hit[0] < 6 * 3600:
+        return hit[1]
+    curated = {p["name"]: p for p in _load_aussies_for(league)}
+    teams = _get_json(f"{_site(league)}/teams", ttl=86400)["sports"][0]["leagues"][0]["teams"]
+    by_id = league in ("nrl", "epl")
 
     def scan(entry):
         t = entry["team"]
         try:
-            roster = _get_json(f"{_site('nba')}/teams/{t['abbreviation'].lower()}/roster", ttl=21600)
+            roster = _get_json(f"{_site(league)}/teams/{t['id'] if by_id else t['abbreviation'].lower()}/roster", ttl=21600)
         except requests.HTTPError:
             return []
         out = []
-        for p in roster.get("athletes", []):
+        athletes = roster.get("athletes", [])
+        if athletes and "items" in athletes[0]:                 # grouped rosters (NFL, MLB)
+            athletes = [p for g in athletes for p in g.get("items", [])]
+        for p in athletes:
             born_au = (p.get("birthPlace") or {}).get("country") == "Australia"
             cur = curated.get(p.get("fullName", ""))
             if born_au or cur:
                 out.append({
-                    "id": p.get("id"), "name": p.get("fullName", ""), "team": t["abbreviation"],
+                    "id": p.get("id"), "name": p.get("fullName", ""), "team": t["id"] if by_id else t["abbreviation"],
                     "pos": (p.get("position") or {}).get("abbreviation", ""),
                     "jersey": p.get("jersey", ""), "headshot": (p.get("headshot") or {}).get("href"),
                     "from": (cur or {}).get("from", (p.get("birthPlace") or {}).get("city", "")),
@@ -549,8 +574,12 @@ def _nba_aussies() -> list[dict]:
     order = {n: i for i, n in enumerate(curated)}
     players.sort(key=lambda p: (order.get(p["name"], 999), p["name"]))
     if players:
-        _nba_aussies_cache.update(data=players, ts=time.time())
+        _roster_aussies_cache[league] = (time.time(), players)
     return players
+
+
+def _nba_aussies() -> list[dict]:
+    return _roster_aussies("nba")
 
 
 @app.get("/api/teams")
@@ -560,10 +589,11 @@ def api_teams(league: str = "nfl"):
     for entry in payload["sports"][0]["leagues"][0]["teams"]:
         t = entry["team"]
         logos = t.get("logos") or []
-        by_abbr[t["id"] if league == "nrl" else t["abbreviation"]] = {
+        by_abbr[t["id"] if league in ("nrl", "epl") else t["abbreviation"]] = {
             "id": t.get("id"),
-            # NRL abbreviations collide (three NEW, two CAN) — the shell keys NRL clubs by ESPN id
-            "abbr": t["id"] if league == "nrl" else t["abbreviation"],
+            # NRL abbreviations collide (three NEW, two CAN); ESPN's soccer team-detail route
+            # only answers to ids — both key clubs by ESPN id
+            "abbr": t["id"] if league in ("nrl", "epl") else t["abbreviation"],
             "location": t.get("location", ""),
             "name": t.get("name", ""),
             "displayName": t.get("displayName", ""),
@@ -571,10 +601,11 @@ def api_teams(league: str = "nfl"):
             "altColor": t.get("alternateColor"),
             "logo": logos[0]["href"] if logos else None,
         }
-    if league in ("nfl", "nba"):
+    if league in ("nfl", "nba", "mlb"):
+        divs = {"nfl": DIVISIONS, "nba": NBA_DIVISIONS, "mlb": MLB_DIVISIONS}[league]
         return {"divisions": [
             {"name": name, "teams": [by_abbr[a] for a in abbrs if a in by_abbr]}
-            for name, abbrs in (DIVISIONS if league == "nfl" else NBA_DIVISIONS)
+            for name, abbrs in divs
         ]}
     if league == "afl":
         # ESPN's AFL feed ships a phantom GCFC entry (Gold Coast's logo under
@@ -602,7 +633,7 @@ def api_ladder(league: str = "afl"):
     entries = (data.get("standings") or {}).get("entries") or []
     groups = []
     if not entries and data.get("children"):
-        if league == "nba":
+        if league in ("nba", "mlb"):
             groups = [(c.get("name", ""), (c.get("standings") or {}).get("entries") or []) for c in data["children"]]
             entries = [e for _, es in groups for e in es]
         else:
@@ -616,25 +647,27 @@ def api_ladder(league: str = "afl"):
         rows.append({
             # AFL publishes rank; the NBL only a playoff seed
             "rank": int(val("rank") or val("playoffSeed") or 0),
-            "abbr": t.get("id") if league == "nrl" else t.get("abbreviation"),
+            "abbr": t.get("id") if league in ("nrl", "epl") else t.get("abbreviation"),
             "name": t.get("shortDisplayName") or t.get("displayName"),
             "logo": (t.get("logos") or [{}])[0].get("href"),
             "wins": disp("wins") or disp("gamesWon"), "losses": disp("losses") or disp("gamesLost"),
             "draws": disp("ties") or disp("gamesDrawn"),
-            "pct": disp("percentage") or (disp("pointsDifference") if league == "nrl" else disp("winPercent")),
+            "pct": disp("percentage") or (disp("pointsDifference") if league == "nrl" else
+                                          disp("pointDifferential") if league == "epl" else disp("winPercent")),
             "points": disp("points"),
             "form": disp("form")[-5:],          # season-long string, latest game last
         })
-    if league == "nba":
-        # East / West tables; top six straight to the playoffs, 7-10 into the play-in
+    if league in ("nba", "mlb"):
+        # NBA East/West: top six to the playoffs, 7-10 play-in. MLB AL/NL: top six to the postseason.
         by_abbr = {r["abbr"]: r for r in rows}
         out = []
         for name, es in groups:
             g = sorted((by_abbr[(e.get("team") or {}).get("abbreviation")] for e in es
                         if (e.get("team") or {}).get("abbreviation") in by_abbr), key=lambda r: r["rank"] or 99)
             out.append({"name": name.replace(" Conference", ""), "ladder": g})
-        lines = [{"after": 6, "kind": "top6", "label": "Playoffs — top six"},
-                 {"after": 10, "kind": "wild", "label": "Play-in — 7th to 10th"}]
+        lines = ([{"after": 6, "kind": "top6", "label": "Playoffs — top six"},
+                  {"after": 10, "kind": "wild", "label": "Play-in — 7th to 10th"}] if league == "nba" else
+                 [{"after": 6, "kind": "top6", "label": "Postseason — top six"}])
         return {"ladder": rows, "groups": out, "lines": lines}
     rows.sort(key=lambda r: r["rank"] or 99)
     # 2026 finals: top six straight through, 7th-10th play a wildcard round
@@ -642,6 +675,8 @@ def api_ladder(league: str = "afl"):
               {"after": 10, "kind": "wild", "label": "Wildcard — 7v10 & 8v9 for the last two spots"}]
              if league == "afl" else
              [{"after": 8, "kind": "top6", "label": "Finals — top eight"}] if league == "nrl" else
+             [{"after": 4, "kind": "top6", "label": "Champions League"},
+              {"after": 17, "kind": "wild", "label": "Relegation"}] if league == "epl" else
              [{"after": 6, "kind": "top6", "label": "Finals line"}])
     return {"ladder": rows, "lines": lines}
 
@@ -1314,8 +1349,8 @@ def api_team(abbr: str, league: str = "nfl"):
 
     logos = detail.get("logos") or []
     rec_items = (detail.get("record") or {}).get("items") or [{}]
-    division = (next((n for n, ab in DIVISIONS if detail.get("abbreviation") in ab), "") if league == "nfl"
-                else next((n for n, ab in NBA_DIVISIONS if detail.get("abbreviation") in ab), "") if league == "nba" else "")
+    division = next((n for n, ab in {"nfl": DIVISIONS, "nba": NBA_DIVISIONS, "mlb": MLB_DIVISIONS}.get(league, [])
+                     if detail.get("abbreviation") in ab), "")
 
     next_event = None
     ne = detail.get("nextEvent") or []
@@ -1345,14 +1380,14 @@ def api_team(abbr: str, league: str = "nfl"):
                 "college": (a.get("college") or {}).get("name", ""),
                 "exp": (a.get("experience") or {}).get("years"),
                 "headshot": (a.get("headshot") or {}).get("href"),
-                "aussie": _is_aussie(a.get("birthPlace"), a.get("fullName", ""), league) if league in ("nfl", "nba") else False,
+                "aussie": _is_aussie(a.get("birthPlace"), a.get("fullName", ""), league) if league in ("nfl", "nba", "mlb", "epl") else False,
             })
         players.sort(key=lambda p: (p["pos"], int(p["jersey"]) if str(p["jersey"]).isdigit() else 999))
         groups.append({"key": g.get("position", ""),
                        "label": ROSTER_GROUP_LABELS.get(g.get("position", ""), g.get("position", "").title()),
                        "players": players})
-    if league == "nba" and groups:
-        groups[0]["label"] = "The roster"
+    if league in ("nba", "epl") and groups:
+        groups[0]["label"] = "The squad" if league == "epl" else "The roster"
 
     return {
         "team": {
@@ -1514,6 +1549,18 @@ NEWS_FEEDS = {
         ("outlet", "The Guardian", "https://www.theguardian.com/sport/basketball/rss"),
         ("sweep", "", GNEWS.format("NBL%20basketball%20Australia%20when:7d")),
     ],
+    "epl": [
+        ("outlet", "The Guardian", "https://www.theguardian.com/football/premierleague/rss"),
+        ("outlet", "BBC Sport", "https://feeds.bbci.co.uk/sport/football/rss.xml"),
+        ("outlet", "The Athletic", "https://theathletic.com/football/?rss=1"),
+        ("sweep", "", GNEWS.format("%22Premier%20League%22%20when:2d")),
+    ],
+    "mlb": [
+        ("outlet", "The Athletic", "https://theathletic.com/mlb/?rss=1"),
+        ("outlet", "CBS Sports", "https://www.cbssports.com/rss/headlines/mlb/"),
+        ("outlet", "The Guardian", "https://www.theguardian.com/sport/mlb/rss"),
+        ("sweep", "", GNEWS.format("MLB%20baseball%20when:2d")),
+    ],
     "nba": [
         ("outlet", "The Athletic", "https://theathletic.com/nba/?rss=1"),
         ("outlet", "CBS Sports", "https://www.cbssports.com/rss/headlines/nba/"),
@@ -1548,6 +1595,12 @@ NEWS_RELEVANCE = {
     "nbl": re.compile(
         r"\bNBL|Boomers|Opals|36ers|Taipans|Bullets|Breakers|JackJumpers|"
         r"Hawks|Kings|Melbourne United|Phoenix|Wildcats|Australian basketball", re.I),
+    "epl": re.compile(r"Premier League|\bEPL\b|Arsenal|Liverpool|Chelsea|Man(chester)? (City|United|Utd)|Tottenham|Spurs|Newcastle|"
+                      r"Aston Villa|Everton|Brighton|Fulham|Brentford|Crystal Palace|West Ham|Wolves|Bournemouth|Nottingham Forest|"
+                      r"Leeds|Sunderland|Burnley|Coventry|Hull|Ipswich|Socceroos|Guardiola|Slot|Arteta|Salah|Haaland|Saka|transfer", re.I),
+    "mlb": re.compile(r"\bMLB\b|baseball|World Series|Yankees|Dodgers|Mets|Red Sox|Cubs|Braves|Phillies|Astros|Mariners|Padres|Giants|"
+                      r"Cardinals|Brewers|Orioles|Blue Jays|Rays|Tigers|Guardians|Twins|Royals|Rangers|Angels|Athletics|Rockies|"
+                      r"Diamondbacks|Marlins|Nationals|Reds|Pirates|White Sox|Ohtani|Judge|Bazzana|pennant|wild card", re.I),
     "nba": re.compile(r"\bNBA\b|\bWNBA\b|Lakers|Celtics|Warriors|Knicks|Thunder|Nuggets|Bucks|Cavaliers|Cavs|Heat|Suns|Mavericks|Mavs|"
                       r"Timberwolves|Pacers|76ers|Sixers|Rockets|Spurs|Clippers|Kings|Grizzlies|Pelicans|Hawks|Bulls|Pistons|Magic|Nets|"
                       r"Raptors|Wizards|Hornets|Jazz|Trail Blazers|Blazers|LeBron|Giddey|Boomers|Daniels|Curry|Wembanyama|Jokic|Doncic|"
@@ -1756,6 +1809,8 @@ VIDEO_TAGS = [
     ("nfl", re.compile(r"NFL|MCG|California|Super Bowl|Patriots|Rams|49ers|Siposs|Hollins|Gurley|quarterback", re.I)),
     ("afl", re.compile(r"AFL|Demons|Cats|Blues|Magpies|Bombers|Hawks|Swans|Crows|Lions|Suns|Dockers|Eagles|Power|Saints|Bulldogs|Tigers|Giants|Kangaroos|Brownlow|Coleman|Norm Smith|Harley Reid|wildcard|ladder|finals|footy", re.I)),
     ("nba", re.compile(r"NBA|Giddey|Daniels|Boomers|LeBron|Lakers|Celtics|Warriors|Thunder", re.I)),
+    ("epl", re.compile(r"Premier League|EPL|Arsenal|Liverpool|Chelsea|Man City|Man United|Tottenham|Socceroos", re.I)),
+    ("mlb", re.compile(r"MLB|baseball|World Series|Yankees|Dodgers|Bazzana", re.I)),
     ("nbl", re.compile(r"NBL|basketball|hoops", re.I)),
     ("nrl", re.compile(r"NRL|rugby league|Origin|Panthers|Storm|Broncos|Roosters|Rabbitohs|Sea Eagles|Bulldogs|Sharks|Raiders|Warriors|Dolphins|Cowboys|Titans|Knights|Eels|Dragons|Wests Tigers", re.I)),
     ("racing", re.compile(r"racing|Melbourne Cup|Cox Plate|Caulfield|Flemington|Randwick|Everest|jockey|trainer|Group 1|Stakes|Guineas|Derby|Oaks|punt|tips|Spring Carnival", re.I)),

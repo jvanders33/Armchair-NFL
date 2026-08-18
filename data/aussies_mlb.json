@@ -1,0 +1,30 @@
+{
+  "note": "Aussies-in-the-majors — curated half of the hybrid. /api/aussies?league=mlb scans every ESPN active roster for birthPlace.country == Australia AND matches these names. ESPN MLB rosters are the 26-man active list, so injured/minor-league players simply don't render. Names must match ESPN fullName. Order = display priority.",
+  "players": [
+    {
+      "name": "Travis Bazzana",
+      "from": "Sydney · Oregon State",
+      "hook": "The No. 1 overall pick — the first Australian ever taken first in the MLB draft, and the future of Cleveland's infield."
+    },
+    {
+      "name": "Liam Hendriks",
+      "from": "Perth",
+      "hook": "Three-time All-Star closer who beat cancer and came back to a big-league mound — the toughest man in the sport."
+    },
+    {
+      "name": "Curtis Mead",
+      "from": "Adelaide",
+      "hook": "The Adelaide kid who hit his way to Tampa Bay — a pure bat with a big-league future."
+    },
+    {
+      "name": "Jack O'Loughlin",
+      "from": "Adelaide",
+      "hook": "Left-hander from the Adelaide Giants who made it to the majors the long way."
+    },
+    {
+      "name": "Robert Perez Jr.",
+      "from": "Melbourne",
+      "hook": "Melbourne-born and Venezuelan-raised — Australia's newest big-league bat."
+    }
+  ]
+}

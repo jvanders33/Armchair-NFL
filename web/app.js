@@ -31,6 +31,14 @@
       { key: "kayo", label: "Kayo", sub: "ESPN", url: "https://kayosports.com.au/sports/basketball" },
       { key: "leaguepass", label: "League Pass", sub: "every game", url: "https://www.nba.com/watch/league-pass-stream" },
     ],
+    epl: [
+      { key: "stan", label: "Stan Sport", sub: "every match", url: "https://www.stan.com.au/sport" },
+      { key: "9now", label: "9Now", sub: "free · marquee matches", url: "https://www.9now.com.au" },
+    ],
+    mlb: [
+      { key: "kayo", label: "Kayo", sub: "ESPN", url: "https://kayosports.com.au/sports/baseball" },
+      { key: "mlbtv", label: "MLB.TV", sub: "every game", url: "https://www.mlb.com/tv" },
+    ],
     racing: [
       { key: "racingcom", label: "Racing.com", sub: "free · Victoria", url: "https://www.racing.com/videos/watch-live" },
       { key: "7plus", label: "7plus", sub: "free · Sydney carnival days", url: "https://7plus.com.au/horse-racing" },
@@ -188,7 +196,7 @@
           <span class="ctl-note" id="tz-note"></span>
         </div>
         <div class="slate" id="slate"></div>
-        ${league === "nfl" || league === "nba" ? `<div class="section-h" style="margin-top:32px">Aussies in the ${league.toUpperCase()} <span class="n" id="aus-note">· this week</span></div>
+        ${["nfl", "nba", "mlb"].includes(league) ? `<div class="section-h" style="margin-top:32px">Aussies in the ${league.toUpperCase()} <span class="n" id="aus-note">· this week</span></div>
         <div class="aus" id="aus"></div>` : ""}
 
       </div>
@@ -512,12 +520,12 @@
     aussies.forEach((p) => (byTeam[p.team] ? playing : off).push(p));
     const logoOf = (ab) => {
       const g = byTeam[ab];
-      if (!g) return `https://a.espncdn.com/i/teamlogos/${league === "nba" ? "nba" : "nfl"}/500/scoreboard/${ab.toLowerCase()}.png`;
+      if (!g) return `https://a.espncdn.com/i/teamlogos/${league === "nfl" ? "nfl" : league}/500/scoreboard/${ab.toLowerCase()}.png`;
       return g.home.abbr === ab ? g.home.logo : g.away.logo;
     };
     const card = (p) => {
       const g = byTeam[p.team];
-      let ctx = league === "nba" ? "No game today" : "No game this week";
+      let ctx = league === "nba" || league === "mlb" ? "No game today" : "No game this week";
       if (g) {
         const opp = g.home.abbr === p.team ? "vs " + g.away.name : "at " + g.home.name;
         const k = fmt(g.date);
@@ -530,7 +538,7 @@
         <div class="pg">${esc(p.hook || (p.from ? "From " + p.from : ""))}</div>
       </div>`;
     };
-    const list = playing.concat(off).slice(0, league === "nba" ? 12 : 8);
+    const list = playing.concat(off).slice(0, league === "nfl" ? 8 : 12);
     $("aus").innerHTML = list.map(card).join("");
     $("aus-note").textContent = playing.length ? "· this week" : "· off-week";
   }
@@ -599,7 +607,7 @@
       // conference tables (NBA): playoffs line after 6, play-in after 10, per conference
       const linesG = {}; (lad.lines || []).forEach((l) => { linesG[l.after] = l; });
       const rowG = (r) => `
-        <a class="lad-row${r.rank <= 6 ? " in-six" : r.rank <= 10 ? " in-wild" : ""}" href="#/${league}/team/${esc(r.abbr)}">
+        <a class="lad-row${r.rank <= 6 ? " in-six" : (r.rank <= 10 && league === "nba") ? " in-wild" : ""}" href="#/${league}/team/${esc(r.abbr)}">
           <span class="lad-pos tnum">${r.rank}</span>
           <img class="lad-logo" src="${esc(r.logo || "")}" alt="" loading="lazy">
           <span class="lad-team">${esc(r.name)}</span>
@@ -608,7 +616,7 @@
           <span></span><span></span>
         </a>${linesG[r.rank] ? `<div class="lad-cut ${esc(linesG[r.rank].kind)}"><span>${esc(linesG[r.rank].label)}</span></div>` : ""}`;
       wrap.innerHTML = `
-        <div class="section-h" style="margin-top:30px">The Standings <span class="n">· top six straight to the playoffs · 7–10 play in</span></div>
+        <div class="section-h" style="margin-top:30px">The Standings <span class="n">${league === "mlb" ? "· top six in each league make the postseason" : "· top six straight to the playoffs · 7–10 play in"}</span></div>
         <div class="ladder">
           ${lad.groups.map((g) => `<div class="lad-col">
             <div class="lad-head"><span></span><span></span><span>${esc(g.name)}</span><span>W–L</span><span>Win%</span><span></span><span></span></div>
@@ -623,10 +631,10 @@
     const lines = {};
     (lad.lines || []).forEach((l) => { lines[l.after] = l; });
     const wildTo = Math.max(...(lad.lines || []).map((l) => l.after), 0);
-    const pctLbl = league === "afl" ? "%" : league === "nrl" ? "+/−" : "Win%";
+    const pctLbl = league === "afl" ? "%" : league === "nrl" ? "+/−" : league === "epl" ? "GD" : "Win%";
     const formDots = (f) => f ? `<span class="lf">${[...f].map((c) =>
       `<i class="${c === "W" ? "w" : c === "L" ? "l" : "d"}" title="${c}"></i>`).join("")}</span>` : "<span></span>";
-    const posCls = (r) => r.rank <= (league === "nrl" ? 8 : 6) ? " in-six" : (r.rank <= wildTo && league === "afl" ? " in-wild" : "");
+    const posCls = (r) => r.rank <= (league === "nrl" ? 8 : league === "epl" ? 4 : 6) ? " in-six" : (r.rank <= wildTo && league === "afl" ? " in-wild" : (league === "epl" && r.rank >= 18 ? " in-wild" : ""));
     const rowHTML = (r) => `
       <a class="lad-row${posCls(r)}" href="#/${league}/team/${esc(r.abbr)}">
         <span class="lad-pos tnum">${r.rank}</span>
@@ -637,9 +645,10 @@
         <span class="lad-pts tnum">${esc(r.points || "")}</span>
         ${formDots(r.form)}
       </a>${lines[r.rank] ? `<div class="lad-cut ${esc(lines[r.rank].kind)}"><span>${esc(lines[r.rank].label)}</span></div>` : ""}`;
-    const sub = league === "afl" ? "· live · top 6 straight through · 7–10 play the wildcard round" : league === "nrl" ? "· live · top eight play finals" : "· live";
+    const sub = league === "afl" ? "· live · top 6 straight through · 7–10 play the wildcard round" : league === "nrl" ? "· live · top eight play finals" : league === "epl" ? "· live · top four to the Champions League · bottom three go down" : "· live";
+    const title = league === "epl" ? "The Table" : "The Ladder";
     wrap.innerHTML = `
-      <div class="section-h" style="margin-top:30px">The Ladder <span class="n">${sub}</span></div>
+      <div class="section-h" style="margin-top:30px">${title} <span class="n">${sub}</span></div>
       <div class="lad-wrap${leadersData ? "" : " solo"}">
         <div class="lad-col">
           <div class="lad-head"><span></span><span></span><span>Club</span><span>W–L</span><span>${pctLbl}</span><span>Pts</span><span>${rows.some((r) => r.form) ? "Form" : ""}</span></div>
@@ -929,7 +938,7 @@
     try {
       const [sched, aus, rtg, featured, vids, lad, ldrs, form, finals] = await Promise.all([
         fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
-        (league === "nfl" || league === "nba") && aussiesFor !== league ? fetchJSON(`/api/aussies?league=${league}`) : Promise.resolve(null),
+        ["nfl", "nba", "mlb"].includes(league) && aussiesFor !== league ? fetchJSON(`/api/aussies?league=${league}`) : Promise.resolve(null),
         league === "nfl" ? fetchJSON("/api/road-to-the-g").catch(() => null) : Promise.resolve(null),
         fetchJSON(`/api/featured?league=${league}`).catch(() => null),
         fetchJSON(`/api/videos?league=${league}`).catch(() => null),
@@ -1579,6 +1588,8 @@
     nbl: { name: "NBL", label: "NBL", teamsLabel: "Clubs & Players", tools: [] },
     nrl: { name: "NRL", label: "NRL", teamsLabel: "Clubs", tools: [] },
     nba: { name: "NBA", label: "NBA", teamsLabel: "Teams & Players", tools: [] },
+    epl: { name: "Premier League", label: "EPL", teamsLabel: "Clubs & Squads", tools: [] },
+    mlb: { name: "MLB", label: "MLB", teamsLabel: "Teams & Players", tools: [] },
     racing: { name: "Racing", label: "Racing", teamsLabel: "Jockeys & Trainers", tools: [] },
   };
   let league = "nfl";
@@ -1608,7 +1619,11 @@
     </div>`;
   }
 
-  function LG_LOGO(k) { return k === "racing" ? "/img/racing-mark.svg" : `https://a.espncdn.com/i/teamlogos/leagues/500-dark/${k}.png`; }
+  function LG_LOGO(k) {
+    if (k === "racing") return "/img/racing-mark.svg";
+    if (k === "epl") return "https://a.espncdn.com/i/leaguelogos/soccer/500-dark/23.png";
+    return `https://a.espncdn.com/i/teamlogos/leagues/500-dark/${k}.png`;
+  }
   const LEAGUES = [
     { key: "NFL", name: "NFL", logo: LG_LOGO("nfl"), c1: "#013369", c2: "#D50A0A", status: "live",
       tag: "American football", line: "Every game in your time",
@@ -1626,6 +1641,14 @@
       tag: "Basketball", line: "Every game in your morning",
       desc: "The nightly slate in Sydney time with win-probability, all 30 teams and every roster, career stats, the Aussies in the league — and East/West standings.",
       cta: "Enter the NBA hub", href: "#/nba" },
+    { key: "EPL", name: "Premier League", logo: LG_LOGO("epl"), c1: "#37003C", c2: "#00FF85", status: "live",
+      tag: "Football", line: "Every match, your Saturday night",
+      desc: "The weekend's fixtures in Sydney time with win-probability, the live table with the Champions League and relegation lines, all 20 clubs and squads, and the big stories.",
+      cta: "Enter the Premier League hub", href: "#/epl" },
+    { key: "MLB", name: "MLB", logo: LG_LOGO("mlb"), c1: "#041E42", c2: "#BF0D3E", status: "live",
+      tag: "Baseball", line: "Every game in your morning",
+      desc: "The daily slate in Sydney time, AL and NL standings with the postseason line, all 30 teams and rosters, career stats, and the Aussies in the majors.",
+      cta: "Enter the MLB hub", href: "#/mlb" },
     { key: "NRL", name: "NRL", logo: LG_LOGO("nrl"), c1: "#0B7A3B", c2: "#1B3E8C", status: "live",
       tag: "Rugby league", line: "Every round, every club",
       desc: "The live ladder and draw, all 17 clubs, and the big stories — finals from September, Grand Final 4 October.",
@@ -1636,11 +1659,12 @@
       cta: "Enter the racing hub", href: "#/racing" },
   ];
 
-  function showLeagues() {
-    view.innerHTML = `<div class="shell">
-      ${pageHero("The codes", `Every sport.<br><em>One armchair.</em>`, "Four codes, one platform. Live fixtures, real data, and the tools fans come back to daily — under one masthead.")}
-      <div class="lg-grid">
-        ${LEAGUES.map((l) => `
+  // Home = the codes played here; Abroad = the ones we watch from the armchair at odd hours
+  const LEAGUE_COLS = [
+    { key: "home", title: "Home", sub: "Played here", keys: ["AFL", "NRL", "NBL", "RACING"] },
+    { key: "abroad", title: "Abroad", sub: "Watched from here", keys: ["NFL", "NBA", "EPL", "MLB"] },
+  ];
+  const lgCard = (l) => `
           <${l.href ? `a href="${esc(l.href)}"${l.ext ? ` target="_blank" rel="noopener"` : ""}` : "div"}
             class="lg-card ${l.status === "next" ? "lg-muted" : ""}"
             style="--c1:${l.c1}; --c2:${l.c2}">
@@ -1668,7 +1692,18 @@
                 ${l.cta ? `<span class="lg-cta">${esc(l.cta)}${l.href ? " →" : ""}</span>` : ""}
               </div>
             </div>
-          </${l.href ? "a" : "div"}>`).join("")}
+          </${l.href ? "a" : "div"}>`;
+
+  function showLeagues() {
+    const byKey = Object.fromEntries(LEAGUES.map((l) => [l.key, l]));
+    view.innerHTML = `<div class="shell">
+      ${pageHero("The codes", `Every sport.<br><em>One armchair.</em>`, "Eight codes, one platform — the ones played here and the ones we watch from here. Live fixtures, real data, and the tools fans come back to daily.")}
+      <div class="lg-cols">
+        ${LEAGUE_COLS.map((c) => `
+          <section class="lg-col lg-col-${c.key}">
+            <div class="lg-col-h"><b>${esc(c.title)}</b><span>${esc(c.sub)}</span></div>
+            <div class="lg-stack">${c.keys.map((k) => byKey[k]).filter(Boolean).map(lgCard).join("")}</div>
+          </section>`).join("")}
       </div>
       <div class="section-h" style="margin-top:36px">The Monday Armchair <span class="n">· five minutes with your coffee</span></div>
       <div class="capture">
@@ -2452,7 +2487,7 @@
     window.scrollTo(0, 0);
     const isLanding = h === "#/" || h === "" || h === "#";
     document.body.classList.toggle("landing", isLanding);
-    const LG = "(nfl|afl|nbl|nrl|nba)";
+    const LG = "(nfl|afl|nbl|nrl|nba|epl|mlb)";
     if (isLanding) { setNav(""); showLanding(); }
     else if ((m = h.match(new RegExp(`^#/${LG}/team/([A-Za-z0-9]{2,8})$`)))) { league = m[1]; setNav("leagues"); showTeam(m[2].toUpperCase()); }
     else if ((m = h.match(new RegExp(`^#/${LG}/player/([\\w-]+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
