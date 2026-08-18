@@ -1,5 +1,5 @@
 {
-  "note": "The content slate — the anchor for everything. Update as shows launch, links go live, and co-hosts are announced. Keep unannounced commercial details (co-host negotiations etc.) OUT of this file — it renders publicly. Episode metadata below is SAMPLE for the prototype — production wires each show to its YouTube/RSS feed.",
+  "note": "The content slate — the anchor for everything. Update as shows launch, links go live, and co-hosts are announced. Keep unannounced commercial details (co-host negotiations etc.) OUT of this file — it renders publicly. Episode metadata below is SAMPLE for the prototype — production wires each show to its YouTube/RSS feed. Episodes are NOT kept here — /api/shows attaches the real ones from the podcast feed (api/podcast.py).",
   "shows": [
     {
       "id": "afl",
@@ -10,21 +10,7 @@
       "cadence": "Weekly, in season",
       "url": "https://www.youtube.com/watch?v=gQ2gNGiNLa4",
       "desc": "Sharp AFL analysis with a Brownlow medallist in the second chair — the show that built the audience.",
-      "img": "https://i.ytimg.com/vi/gQ2gNGiNLa4/hqdefault.jpg",
-      "episodes": [
-        {
-          "title": "Trade whispers: who moves before the deadline?",
-          "date": "2026-08-03",
-          "len": "48 min",
-          "url": "https://www.youtube.com/watch?v=gQ2gNGiNLa4"
-        },
-        {
-          "title": "Cooney's All-Australian gripes — the snubs list",
-          "date": "2026-07-27",
-          "len": "52 min",
-          "url": ""
-        }
-      ]
+      "img": "https://i.ytimg.com/vi/gQ2gNGiNLa4/hqdefault.jpg"
     },
     {
       "id": "cali",
@@ -36,27 +22,7 @@
       "url": "",
       "desc": "The story of the NFL's arrival in Australia — players, decision-makers and legends, building to the MCG.",
       "highlight": "Every episode re-released one per day, Sep 1–10 — a ten-day countdown to kick-off.",
-      "img": "/img/show-still.jpg",
-      "episodes": [
-        {
-          "title": "EP 1 — The Announcement: how the MCG got the game",
-          "date": "2026-07-13",
-          "len": "41 min",
-          "url": ""
-        },
-        {
-          "title": "EP 2 — The GM: Charlotte Offord",
-          "date": "2026-07-20",
-          "len": "44 min",
-          "url": ""
-        },
-        {
-          "title": "EP 3 — The Trailblazer: Ben Graham",
-          "date": "2026-07-27",
-          "len": "47 min",
-          "url": ""
-        }
-      ]
+      "img": "/img/show-still.jpg"
     },
     {
       "id": "nfl-weekly",

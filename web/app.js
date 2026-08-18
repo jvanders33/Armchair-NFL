@@ -610,6 +610,7 @@
             <button data-sort="time">Kick-off</button>
           </div>
           <span class="ctl-note" id="tz-note"></span>
+          <a class="ctl-saved" href="#/saved" title="Games saved on this device">★ Saved</a>
         </div>
         <div class="slate" id="slate"></div>
         ${["nfl", "nba", "mlb", "cfb"].includes(league) ? `<div class="section-h" style="margin-top:32px">Aussies in ${league === "cfb" ? "College Football" : "the " + league.toUpperCase()} <span class="n" id="aus-note">· this week</span></div>
@@ -1297,6 +1298,8 @@
     });
   }
 
+  const SAVED_KEY = "ae_saved_v1";   // {id: {league, date, away, home, awayLogo, homeLogo, venue}}
+  const savedMap = () => { try { return JSON.parse(localStorage.getItem(SAVED_KEY) || "{}"); } catch { return {}; } };
   function bindStars() {
     $("slate").querySelectorAll("[data-star]").forEach((s) => {
       s.addEventListener("click", () => {
@@ -1305,12 +1308,48 @@
         const on = set.has(id);
         if (on) set.delete(id); else set.add(id);
         localStorage.setItem(STAR_KEY, JSON.stringify([...set]));
+        const m = savedMap();
+        if (on) delete m[id];
+        else {
+          const g = (hubData && hubData.games || []).find((x) => String(x.id) === String(id));
+          if (g) m[id] = { league, date: g.date, away: g.away.name, home: g.home.name, awayLogo: g.away.logo, homeLogo: g.home.logo, venue: g.venue || "", saved: Date.now() };
+        }
+        localStorage.setItem(SAVED_KEY, JSON.stringify(m));
         s.setAttribute("aria-pressed", String(!on));
         s.textContent = on ? "☆" : "★";
-        if (!on) toast("Saved on this device — find it under ★ next time you're here");
+        if (!on) toast('Saved on this device — see it under <a href="#/saved" style="color:#fff;font-weight:700">★ Saved</a>');
         track(on ? "unsave_event" : "save_event", id);
       });
     });
+  }
+
+  // ---------- SAVED: the games this browser starred, upcoming first ----------
+  function showSaved() {
+    const m = savedMap();
+    const items = Object.entries(m).map(([id, g]) => ({ id, ...g })).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const now = Date.now();
+    const up = items.filter((g) => new Date(g.date) >= now - 4 * 36e5), past = items.filter((g) => new Date(g.date) < now - 4 * 36e5);
+    const row = (g) => { const k = fmt(g.date); const opts = WATCH[g.league] || []; const primary = opts.find((o) => o.every) || opts[0];
+      return `<div class="sv-row"><span class="sc-sport">${esc((LEAGUE_UI[g.league] || {}).name || g.league)}</span>
+        <span class="sv-teams">${g.awayLogo ? `<img src="${esc(g.awayLogo)}" alt="">` : ""}<b>${esc(g.away)}</b><i>${g.league === "nfl" ? "at" : "v"}</i>${g.homeLogo ? `<img src="${esc(g.homeLogo)}" alt="">` : ""}<b>${esc(g.home)}</b></span>
+        <span class="sv-when">${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}</span>
+        ${primary ? `<a class="watch sm ghost" href="${esc(primary.url)}" target="_blank" rel="noopener" data-track="click_event_watch_provider" data-label="${esc(g.league + ":" + primary.key)}">▶ ${esc(primary.label)}</a>` : ""}
+        <a class="wr-more" href="#/${esc(g.league)}">hub →</a>
+        <button class="star on" data-unsave="${esc(g.id)}" title="Remove from this device" aria-label="Remove ${esc(g.away)} v ${esc(g.home)} from saved">★</button></div>`; };
+    view.innerHTML = `<div class="shell">
+      ${pageHero("Saved", `Your <em>games</em>.`, "The games you've starred — kept on this device only, no account needed. Times in your timezone.")}
+      ${items.length ? `
+        ${up.length ? `<div class="section-h" style="margin-top:20px">Coming up <span class="n">· ${up.length}</span></div><div class="sv-list">${up.map(row).join("")}</div>` : ""}
+        ${past.length ? `<div class="section-h" style="margin-top:28px">Played <span class="n">· ${past.length}</span></div><div class="sv-list">${past.map(row).join("")}</div>` : ""}
+        <p class="panel-note" style="margin-top:14px">Saved on this device. Clear your browser data and it's gone — a proper account and reminders come later.</p>` :
+        `<div class="panel roster-empty" style="margin-top:20px"><p>Nothing saved yet. Tap ☆ on any game in a league hub and it lands here.</p><a class="watch sm ghost" href="#/leagues">Browse the leagues →</a></div>`}
+    </div>`;
+    view.querySelectorAll("[data-unsave]").forEach((b) => b.addEventListener("click", () => {
+      const id = b.getAttribute("data-unsave"); const mm = savedMap(); delete mm[id]; localStorage.setItem(SAVED_KEY, JSON.stringify(mm));
+      const set = new Set(JSON.parse(localStorage.getItem(STAR_KEY) || "[]")); set.delete(id); localStorage.setItem(STAR_KEY, JSON.stringify([...set]));
+      track("unsave_event", id); showSaved();
+    }));
+    track("view_saved", String(items.length));
   }
 
   let episodeHTML = "", hubLoadedAt = 0;
@@ -1515,7 +1554,7 @@
                     <td class="tnum">${esc(p.jersey)}</td>
                     <td class="pl">
                       ${p.headshot ? `<img class="hs" src="${esc(p.headshot)}" alt="" loading="lazy">` : `<span class="hs hs-empty"></span>`}
-                      <span class="pl-nm">${esc(p.name)}</span>${p.aussie ? ' <span title="Australian">🇦🇺</span>' : ""}
+                      <a class="pl-nm" href="#/${league}/player/${esc(p.id)}">${esc(p.name)}</a>${p.aussie ? ' <span title="Australian">🇦🇺</span>' : ""}
                     </td>
                     <td>${esc(p.pos)}</td>
                     <td class="tnum">${esc(p.age ?? "")}</td>
@@ -1577,7 +1616,7 @@
                 <td class="tnum">${esc(p.jumper ?? "")}</td>
                 <td class="pl">
                   ${p.photo ? `<img class="hs" src="${esc(p.photo)}" alt="" loading="lazy">` : `<span class="hs hs-empty"></span>`}
-                  <span class="pl-nm">${esc(p.name)}</span>
+                  <a class="pl-nm" href="#/afl/player/${esc(p.id)}">${esc(p.name)}</a>
                 </td>
                 <td>${esc(p.pos)}</td>
                 <td class="tnum">${esc(p.age ?? "")}</td>
@@ -1621,7 +1660,7 @@
                 <td class="tnum">${esc(p.jersey ?? "")}</td>
                 <td class="pl">
                   ${p.photo ? `<img class="hs" src="${esc(p.photo)}" alt="" loading="lazy">` : `<span class="hs hs-empty"></span>`}
-                  <span class="pl-nm">${esc(p.name)}</span>
+                  <a class="pl-nm" href="#/nbl/player/${esc(p.id)}">${esc(p.name)}</a>
                 </td>
                 <td>${esc(p.pos)}</td>
                 <td class="tnum">${p.games || ""}</td>
@@ -3166,6 +3205,7 @@
     else if ((m = h.match(/^#\/show\/([\w-]+)$/))) { setNav("shows"); showShowPage(m[1]); }
     else if ((m = h.match(/^#\/episodes(?:\/([\w-]+))?$/))) { setNav("podcasts"); showEpisodes(m[1]); }
     else if (h === "#/wrap") { setNav("home"); showWrap(); }
+    else if (h === "#/saved") { setNav("leagues"); showSaved(); }
     else if (h === "#/people") { setNav("shows"); showPeople(); }
     else if ((m = h.match(/^#\/people\/([\w-]+)$/))) { setNav("shows"); showPerson(m[1]); }
     else if (h === "#/clips") { setNav("watch"); showClips(); }
