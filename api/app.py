@@ -2123,10 +2123,17 @@ def api_hub(league: str = "nfl", year: int | None = None, seasontype: int | None
         jobs["form"] = (api_afl_form, (), {})
         jobs["finals"] = (api_afl_finals, (), {})
     out = {}
-    with ThreadPoolExecutor(max_workers=len(jobs)) as ex:
-        futs = {k: ex.submit(safe, fn, *a, **kw) for k, (fn, a, kw) in jobs.items()}
-        for k, f in futs.items():
-            out[k] = f.result()
+    from concurrent.futures import TimeoutError as _FTimeout
+    ex = ThreadPoolExecutor(max_workers=len(jobs))
+    futs = {k: ex.submit(safe, fn, *a, **kw) for k, (fn, a, kw) in jobs.items()}
+    # the schedule gets the full wait; optional modules get a budget so one slow
+    # upstream (the NBL API today) can't hold the whole page
+    for k, f in futs.items():
+        try:
+            out[k] = f.result(timeout=25 if k == "schedule" else 6)
+        except _FTimeout:
+            out[k] = None
+    ex.shutdown(wait=False)
     if out.get("schedule") is None:
         raise HTTPException(status_code=502, detail="schedule feed unavailable")
     return out
