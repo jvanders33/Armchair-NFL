@@ -1229,7 +1229,7 @@ a.ldr-row:hover{background:var(--card-2)}
 /* leagues page: HOME / ABROAD columns */
 .lg-cols{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; align-items:start}
 @media (max-width:1100px){.lg-cols{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:760px){.lg-cols{grid-template-columns:1fr}}
+@media (max-width:760px){.lg-cols{grid-template-columns:minmax(0,1fr)} .lg-stack .lg-tag,.lg-stack .lg-cta{white-space:normal} .lg-stack .lg-foot{flex-wrap:wrap}}
 .lg-col-global .lg-col-h{border-bottom-color:#FFB020}
 .lg-col-h{display:flex; align-items:baseline; gap:12px; padding:0 2px 12px; border-bottom:2px solid var(--accent); margin-bottom:14px}
 .lg-col-h b{font-family:var(--f-display); font-weight:400; text-transform:uppercase; font-size:clamp(30px,3.6vw,42px); line-height:1; letter-spacing:.01em}
@@ -1362,3 +1362,5 @@ body.has-audio #audio-dock{display:flex} body.has-audio .wrap{padding-bottom:70p
 .ad-now{font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:800; white-space:nowrap}
 .ad-title{font-weight:700; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:34vw}
 .site-audio{flex:1; min-width:180px; height:36px}
+
+@media (max-width:600px){.hh-desc{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; font-size:15px} .hh-title{font-size:clamp(30px,9vw,40px)}}
