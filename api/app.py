@@ -2521,12 +2521,22 @@ _STATIC_PAGES = {
 }
 
 
-@app.get("/{page}", response_class=HTMLResponse)
-def page_static(page: str):
-    if page not in _STATIC_PAGES:
-        raise HTTPException(status_code=404, detail="Not found")
+def _static_page(page: str):
     title, desc = _STATIC_PAGES[page]
     return _render_shell(title, desc, None, f"/{page}")
+
+
+# explicit routes only — a /{page} catch-all here would swallow /app.js and /styles.css
+@app.get("/people", response_class=HTMLResponse)
+def page_people(): return _static_page("people")
+@app.get("/clips", response_class=HTMLResponse)
+def page_clips(): return _static_page("clips")
+@app.get("/shows", response_class=HTMLResponse)
+def page_shows(): return _static_page("shows")
+@app.get("/watch", response_class=HTMLResponse)
+def page_watch(): return _static_page("watch")
+@app.get("/leagues", response_class=HTMLResponse)
+def page_leagues(): return _static_page("leagues")
 
 
 @app.get("/sitemap.xml")
