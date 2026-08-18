@@ -2068,8 +2068,9 @@
       <div class="section-h" style="margin-top:36px">The Monday Armchair <span class="n">· five minutes with your coffee</span></div>
       <div class="capture">
         <div class="cap-card">
-          <div class="cap-h">📬 Get the Monday Armchair</div>
-          <p class="cap-p">The week in sport, in your inbox — what happened, what's on, and what's worth your time.</p>
+          <div class="cap-h">📬 Get the weekly Armchair Experts wrap</div>
+          <p class="cap-p">The week in sport, in your inbox — the latest episode, what's on, and what's worth your time.</p>
+          <p class="cap-p" style="color:var(--muted); font-size:12px"><b>Coming soon.</b> Sign-ups are held here until the email tool is connected — you won't receive anything yet, and nothing is shared.</p>
           <form class="cap-form" id="sub-form">
             <input type="email" id="sub-email" placeholder="your@email.com" required autocomplete="email">
             <button class="watch" type="submit">Sign me up</button>
