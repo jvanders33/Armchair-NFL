@@ -1288,3 +1288,6 @@ a.ldr-row:hover{background:var(--card-2)}
 @media (max-width:1000px){.la-sports{grid-template-columns:repeat(2,minmax(0,1fr))}} @media (max-width:560px){.la-sports{grid-template-columns:1fr}}
 .la-sport{border:1px solid var(--line); border-radius:14px; background:var(--card); padding:14px 16px; display:flex; flex-direction:column; gap:6px}
 .la-sport b{font-family:var(--f-cond); font-weight:700; text-transform:uppercase; font-size:16px} .la-sport span{font-size:12.5px; color:var(--ink-2); line-height:1.45} .la-sport i{font-style:normal; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+
+.lg-stack .lg-tag,.lg-stack .lg-cta{white-space:nowrap}
+@media (min-width:1101px){.lg-stack .lg-tag{font-size:9.5px; letter-spacing:.12em} .lg-stack .lg-cta{font-size:11px}}
