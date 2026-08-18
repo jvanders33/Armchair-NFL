@@ -292,7 +292,9 @@
     const cards = [];
     const gameCard = (lg, d) => {
       if (!d || !d.games || !d.games.length) return;
-      const g = d.games.find((x) => x.id === (d.experts || {}).gotw) || d.games.find((x) => x.id === d.gotw) || d.games[0];
+      const live = d.games.filter((x) => x.status.state !== "post");
+      const pool = live.length ? live : d.games;
+      const g = pool.find((x) => x.id === (d.experts || {}).gotw) || pool.find((x) => x.id === d.gotw) || pool[0];
       const k = fmt(g.date);
       const opts = WATCH[lg] || [];
       const why = typeof g.expertCall === "string" ? g.expertCall : (g.expertCall && (g.expertCall.quote || g.expertCall.text)) || "";

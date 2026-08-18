@@ -67,6 +67,18 @@ def _topics(desc_html: str) -> list[str]:
     return [t for t in out if t][:14]
 
 
+def _summary(desc_html: str) -> str:
+    """Readable summary: the prose outside the chapter list if there is any,
+    else the first topics joined — never the bullets mashed into one line."""
+    prose = _strip_html(re.sub(r"<ul[^>]*>.*?</ul>|<ol[^>]*>.*?</ol>", " ", desc_html or "", flags=re.S | re.I))
+    if len(prose) >= 40:
+        return prose[:600]
+    tops = _topics(desc_html)
+    if tops:
+        return "In this episode: " + " · ".join(tops[:6]) + ("…" if len(tops) > 6 else "")
+    return _strip_html(desc_html)[:600]
+
+
 def _show_key(title: str) -> str:
     t = title.lower()
     if "cali" in t and "g" in t or "california" in t or "mcg" in t:
@@ -182,7 +194,7 @@ def episodes() -> dict:
             "audio": enc.get("url") if enc is not None else None,
             "link": it.findtext("link") or "",
             "image": eimg.get("href") if eimg is not None else show["art"],
-            "summary": _strip_html(desc_html)[:600],
+            "summary": _summary(desc_html),
             "topics": _topics(desc_html),
             "words": _words(title),
         }
