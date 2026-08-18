@@ -814,7 +814,10 @@ def _afl_pos(d: dict) -> str:
 @app.get("/api/leaders")
 def api_leaders(league: str = "afl"):
     if league == "nbl":
-        return _nbl_leaders_payload()
+        try:
+            return _nbl_leaders_payload()
+        except requests.RequestException:
+            return {"categories": [], "status": "unavailable", "note": "The NBL stats feed isn't answering right now."}
     if league != "afl":
         return {"categories": []}
     if _leaders_cache["data"] and time.time() - _leaders_cache["ts"] < 3600:
@@ -1133,12 +1136,20 @@ _nbl_cache: dict[str, tuple[float, dict]] = {}
 
 
 def _nbl_get(route: str, ttl: int = 900) -> dict:
+    """Rosetta with a short timeout and a last-good fallback: when the NBL's API
+    is slow or down (it has been), we serve the previous copy rather than hang
+    the function or blank the page. Callers see `_stale` on fallback data."""
     hit = _nbl_cache.get(route)
     if hit and time.time() - hit[0] < ttl:
         return hit[1]
-    r = requests.get(f"{NBL_API}/{route}", headers=_NBL_HDRS, timeout=25)
-    r.raise_for_status()
-    data = r.json()
+    try:
+        r = requests.get(f"{NBL_API}/{route}", headers=_NBL_HDRS, timeout=(5, 9))
+        r.raise_for_status()
+        data = r.json()
+    except (requests.RequestException, ValueError):
+        if hit:                                   # expired but present — serve it, flagged
+            return {**hit[1], "_stale": True} if isinstance(hit[1], dict) else hit[1]
+        raise
     _nbl_cache[route] = (time.time(), data)
     return data
 
@@ -1200,6 +1211,13 @@ def _nbl_leaders_payload() -> dict:
 
 @app.get("/api/nbl/list/{abbr}")
 def api_nbl_list(abbr: str):
+    try:
+        return _nbl_list(abbr)
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=503, detail="The NBL stats feed isn't answering right now — try again shortly.") from exc
+
+
+def _nbl_list(abbr: str):
     season = _nbl_season()
     ab = NBL_ESPN_TO_ROSETTA.get(abbr.upper(), abbr.upper())
     # roster route wants the Rosetta team uuid — read it off the standings/leaders
@@ -1254,7 +1272,10 @@ _NBL_STAT_LINES = [
 
 @app.get("/api/nbl/player/{pid}")
 def api_nbl_player(pid: str):
-    career = _nbl_get(f"nbl/statistics/for/player/{pid}", ttl=3600).get("data", [])
+    try:
+        career = _nbl_get(f"nbl/statistics/for/player/{pid}", ttl=3600).get("data", [])
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=503, detail="The NBL stats feed isn't answering right now — try again shortly.") from exc
     if not career:
         raise HTTPException(status_code=404, detail=f"Unknown player {pid}")
     career = [c for c in career if (c.get("season") or {}).get("season_type", "regular") == "regular"]
@@ -1357,8 +1378,11 @@ NBL_ROSETTA_TO_ESPN = {v: k for k, v in NBL_ESPN_TO_ROSETTA.items()}
 def _nbl_team_page(abbr: str) -> dict:
     ab = abbr.upper()
     code = NBL_ESPN_TO_ROSETTA.get(ab, ab)
-    season = _nbl_season()
-    rows = _nbl_get(f"nbl/standings/{season['year']}/regular").get("data", [])
+    try:
+        season = _nbl_season()
+        rows = _nbl_get(f"nbl/standings/{season['year']}/regular").get("data", [])
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=503, detail="The NBL stats feed isn't answering right now — try again shortly.") from exc
     row = next((r for r in rows if (r.get("team") or {}).get("team_code") == code), None)
     if not row:
         raise HTTPException(status_code=404, detail=f"Unknown team {abbr}")
