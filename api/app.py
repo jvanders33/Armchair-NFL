@@ -2512,6 +2512,23 @@ def page_episodes():
     return _render_shell("Episodes — Armchair Experts", "Every episode of Armchair Experts — listen, watch, share.", None, "/episodes")
 
 
+_STATIC_PAGES = {
+    "people": ("Hosts & guests — Armchair Experts", "The voices on the show and everyone who's sat in the guest chair."),
+    "clips": ("Clips & video — Armchair Experts", "Every upload from the Armchair Experts channel, playable here."),
+    "shows": ("Shows — Armchair Experts", "The slate: every show, its status, and where to listen."),
+    "watch": ("Watch — Armchair Experts", "The latest video from Armchair Experts."),
+    "leagues": ("Leagues — Armchair Experts", "Fifteen codes, one platform — the ones played here, the ones we watch from here, and the tours that come to us."),
+}
+
+
+@app.get("/{page}", response_class=HTMLResponse)
+def page_static(page: str):
+    if page not in _STATIC_PAGES:
+        raise HTTPException(status_code=404, detail="Not found")
+    title, desc = _STATIC_PAGES[page]
+    return _render_shell(title, desc, None, f"/{page}")
+
+
 @app.get("/sitemap.xml")
 def sitemap():
     urls = [f"{SITE}/", f"{SITE}/episodes", f"{SITE}/#/leagues", f"{SITE}/#/shows", f"{SITE}/#/watch"]

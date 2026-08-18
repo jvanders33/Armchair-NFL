@@ -1391,3 +1391,5 @@ body.has-audio #audio-dock{display:flex} body.has-audio .wrap{padding-bottom:70p
 .vid-rail.wrap{grid-auto-flow:row; grid-template-columns:repeat(4,minmax(0,1fr)); grid-auto-columns:auto; overflow:visible} @media (max-width:1000px){.vid-rail.wrap{grid-template-columns:repeat(2,minmax(0,1fr))}} @media (max-width:560px){.vid-rail.wrap{grid-template-columns:1fr}}
 
 .ppl-av.photo{object-fit:cover; object-position:top; background:var(--card-2)}
+
+@media (max-width:720px){.tr-when{white-space:normal; text-align:left} .tr-side b{white-space:normal} .tr-lbl{white-space:normal}}
