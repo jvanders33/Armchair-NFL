@@ -71,6 +71,7 @@ def _summary(desc_html: str) -> str:
     """Readable summary: the prose outside the chapter list if there is any,
     else the first topics joined — never the bullets mashed into one line."""
     prose = _strip_html(re.sub(r"<ul[^>]*>.*?</ul>|<ol[^>]*>.*?</ol>", " ", desc_html or "", flags=re.S | re.I))
+    prose = re.sub(r"See\s+omnystudio\.com/listener\s+for privacy information\.?", "", prose, flags=re.I).strip()
     if len(prose) >= 40:
         return prose[:600]
     tops = _topics(desc_html)
