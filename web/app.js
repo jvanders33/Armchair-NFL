@@ -508,7 +508,8 @@
     try {
       const d = await fetchJSON("/api/people");
       const hosts = d.people.filter((p) => p.kind === "host"), guests = d.people.filter((p) => p.kind === "guest");
-      const card = (p) => `<a class="ppl-card" href="#/people/${esc(p.slug)}"><span class="ppl-av">${esc(p.name.split(" ").map((x) => x[0]).join("").slice(0, 2))}</span><span><b>${esc(p.name)}</b><i>${esc(p.role || (p.kind === "guest" ? "Guest" : ""))}</i><em>${p.episodes.length} episode${p.episodes.length === 1 ? "" : "s"}</em></span></a>`;
+      const av = (p, big) => p.photo ? `<img class="ppl-av${big ? " big" : ""} photo" src="${esc(p.photo)}" alt="${esc(p.name)}">` : `<span class="ppl-av${big ? " big" : ""}">${esc(p.name.split(" ").map((x) => x[0]).join("").slice(0, 2))}</span>`;
+      const card = (p) => `<a class="ppl-card" href="#/people/${esc(p.slug)}">${av(p)}<span><b>${esc(p.name)}</b><i>${esc(p.role || (p.kind === "guest" ? "Guest" : ""))}</i><em>${p.episodes.length} episode${p.episodes.length === 1 ? "" : "s"}</em></span></a>`;
       view.innerHTML = `<div class="shell">
         ${pageHero("The people", `Hosts &amp; <em>guests</em>.`, "The voices on the show — and the people who've sat in the guest chair.")}
         <div class="section-h" style="margin-top:22px">The hosts</div><div class="ppl-grid">${hosts.map(card).join("")}</div>
@@ -526,7 +527,7 @@
       view.innerHTML = `
         <div class="team-hero ep-hero"><div class="shell">
           <a class="crumb" href="#/people">← Hosts &amp; guests</a>
-          <div class="th-row"><span class="ppl-av big">${esc(p.name.split(" ").map((x) => x[0]).join("").slice(0, 2))}</span>
+          <div class="th-row">${p.photo ? `<img class="ppl-av big photo" src="${esc(p.photo)}" alt="${esc(p.name)}">` : `<span class="ppl-av big">${esc(p.name.split(" ").map((x) => x[0]).join("").slice(0, 2))}</span>`}
             <div><div class="th-loc">${esc(p.kind === "host" ? "Host" : "Guest")}${p.role ? " · " + esc(p.role) : ""}</div><h1 class="th-name">${esc(p.name)}</h1>${p.bio ? `<div class="th-meta">${esc(p.bio)}</div>` : ""}
               <div class="hh-actions"><button class="watch ghost" id="pp-share">Share</button></div></div></div>
         </div></div>

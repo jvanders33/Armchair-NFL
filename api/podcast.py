@@ -116,7 +116,7 @@ def _guest(title: str, show_key: str) -> dict | None:
 
 
 HOSTS = [
-    {"slug": "cam-luke", "name": "Cam Luke", "role": "Host", "bio": "Seven years fronting Armchair Experts on Channel Seven; now the voice of the independent brand across AFL, NFL, NBL and racing. On radio daily."},
+    {"slug": "cam-luke", "name": "Cam Luke", "role": "Host", "photo": "/img/cam-luke.jpg", "bio": "Seven years fronting Armchair Experts on Channel Seven; now the voice of the independent brand across AFL, NFL, NBL and racing. On radio daily."},
     {"slug": "adam-cooney", "name": "Adam Cooney", "role": "Co-host, The AFL Show", "bio": "2008 Brownlow medallist and Western Bulldogs great — the second chair on The AFL Show."},
 ]
 
@@ -153,23 +153,40 @@ def _youtube_videos() -> list[dict]:
 
 
 def _match_video(ep: dict, videos: list[dict]) -> str | None:
-    """Same upload as the audio episode: best word overlap, must share ≥45% and be
-    within ~4 days. Falls back to None — an audio-only episode is fine."""
-    best, best_score = None, 0.0
+    """Same upload as the audio episode. Three signals, in order:
+    1. series episode number — Cali audio carries itunes:episode N and the
+       YouTube title says "California to the MCG Ep N";
+    2. a full-episode upload the same day (±1) — the AFL uploads carry the
+       "| Armchair Expert" suffix; best word overlap wins if two land;
+    3. best word overlap ≥45% within 4 days (titles that actually match).
+    Short clips only match a short audio item on the same day."""
     ep_dt = datetime.fromisoformat(ep["published"].replace("Z", "+00:00"))
-    for v in videos:
-        if not v["words"] or not ep["words"]:
-            continue
-        inter = len(v["words"] & ep["words"])
-        score = inter / max(1, min(len(v["words"]), len(ep["words"])))
+    def days(v):
         try:
-            vdt = datetime.fromisoformat(v["published"].replace("Z", "+00:00"))
-            if abs((vdt - ep_dt).total_seconds()) > 4 * 86400:
-                score *= 0.5
+            return abs((datetime.fromisoformat(v["published"].replace("Z", "+00:00")) - ep_dt).total_seconds()) / 86400
         except ValueError:
-            pass
-        if score > best_score:
-            best, best_score = v, score
+            return 99
+    if ep.get("showKey") == "cali" and ep.get("number"):
+        for v in videos:
+            m = re.search(r"(?<![A-Za-z])Ep\.?\s*(\d+)(?!\d)", v["title"], flags=re.I)
+            if m and m.group(1) == str(ep["number"]) and re.search(r"california|cali|mcg", v["title"], flags=re.I):
+                return v["id"]
+    def overlap(v):
+        if not v["words"] or not ep["words"]:
+            return 0.0
+        return len(v["words"] & ep["words"]) / max(1, min(len(v["words"]), len(ep["words"])))
+    full = [v for v in videos if days(v) <= 1.2 and re.search(r"\|\s*Armchair Expert", v["title"], flags=re.I)]
+    if ep.get("showKey") == "afl" and full:
+        return max(full, key=overlap)["id"]
+    if ep.get("durationSec", 0) and ep["durationSec"] < 240:            # a clip
+        clips = [v for v in videos if days(v) <= 1.0 and not re.search(r"\|\s*Armchair Expert|California to the MCG", v["title"], flags=re.I)]
+        if clips:
+            return max(clips, key=overlap)["id"]
+    best, best_score = None, 0.0
+    for v in videos:
+        sc = overlap(v) * (0.5 if days(v) > 4 else 1.0)
+        if sc > best_score:
+            best, best_score = v, sc
     return best["id"] if best and best_score >= 0.45 else None
 
 
