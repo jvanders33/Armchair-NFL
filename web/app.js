@@ -270,7 +270,7 @@
         <div class="section-h" style="margin-top:32px">Latest episodes <span class="n">· <a href="#/episodes">all ${eps.count} →</a></span></div>
         <div class="ep-grid">${eps.episodes.slice(1, 7).map((e) => episodeCard(e)).join("")}</div>` : ""}
         <section id="home-take"></section>
-        <div class="wr-teaser"><a class="wr-teaser-in" href="#/wrap"><b>The Weekly Wrap</b><span>The week in five minutes — episodes, games worth watching, the stories, what's coming. Read it →</span></a><a class="wr-teaser-in" href="#/people"><b>Hosts &amp; guests</b><span>Cam, Cooney, and everyone who's sat in the guest chair →</span></a><a class="wr-teaser-in" href="#/clips"><b>Clips &amp; video</b><span>Everything on the channel, playable here →</span></a></div>
+        <div class="wr-teaser"><a class="wr-teaser-in" href="#/wrap"><b>The Weekly Wrap</b><span>The week in five minutes — episodes, games worth watching, the stories, what's coming. Read it →</span></a><a class="wr-teaser-in" href="#/people"><b>Hosts &amp; guests</b><span>Cam, Cooney, and everyone who's sat in the guest chair →</span></a><a class="wr-teaser-in" href="#/watch"><b>Watch</b><span>Every episode, interview and clip on the channel, playable here →</span></a></div>
         <section id="home-moments"></section>
         <div class="section-h" style="margin-top:34px">Go deeper <span class="n">· every code, every fixture, every player</span></div>
         <div class="deep-row">
@@ -286,6 +286,7 @@
   }
 
   // This week in sport — the repeat-visit engine, compact: two Games of the Week + the next calendar moments
+  let homeLiveTimer = null;
   async function homeWeek() {
     const grid = $("hw-grid"), note = $("hw-note"); if (!grid) return;
     const [nfl, afl, ev] = await Promise.all([
@@ -326,6 +327,10 @@
     });
     grid.innerHTML = cards.length ? cards.join("") : `<div class="panel roster-empty"><p>The fixture feeds didn't answer just now — the leagues below still work. <a href="#/" onclick="location.reload()">Try again</a>.</p></div>`;
     if (note) note.textContent = cards.length ? `· updated ${timeAgoShort(new Date().toISOString())} · times in ${TZ_LABEL[tz]}` : "· unavailable";
+    // live: while any featured game is in play, refresh this module every minute (scores/status)
+    clearInterval(homeLiveTimer);
+    const anyLive = [nfl, afl].some((d) => d && (d.games || []).some((g) => g.status.state === "in"));
+    if (anyLive) homeLiveTimer = setInterval(() => { if (!$("hw-grid") || document.hidden) return; _cache.delete("/api/schedule?league=nfl"); _cache.delete("/api/schedule?league=afl"); homeWeek(); }, 60000);
   }
   // plain-language why-watch (no betting jargon)
   function whyPlain(g, lg) {
@@ -2282,7 +2287,7 @@
       if (!watchList.length) throw new Error("no videos");
       watchIdx = Math.max(0, watchList.findIndex((v) => v.id === startId));
       view.innerHTML = `<div class="shell">
-        ${pageHero("The channel", `<em>Watch</em>.`, "Every show, every episode — straight from the channel, updating itself.")}
+        ${pageHero("The channel", `<em>Watch</em>.`, "Every episode, interview and clip from the Armchair Experts channel — playable here, updating itself.")}
         <div class="watch-grid">
           <div class="watch-main">
             <div class="watch-player" id="watch-player"></div>
@@ -2302,6 +2307,8 @@
               </button>`).join("")}
           </aside>
         </div>
+        <div class="section-h" style="margin-top:30px">Everything on the channel <span class="n">· latest ${watchList.length} · a new upload lands here within 15 minutes</span></div>
+        <div class="vid-rail wrap">${watchList.map((v, i) => `<button class="vid-card as-btn" data-wi="${i}"><span class="vc-thumb"><img src="${esc(v.thumb)}" alt="" loading="lazy"><span class="vc-play">▶</span></span><span class="vc-t">${esc(v.title)}</span><span class="vc-m">${timeAgo(v.published)}${v.views ? " · " + v.views.toLocaleString() + " views" : ""}${v.league ? " · " + esc(v.league.toUpperCase()) : ""}</span></button>`).join("")}</div>
       </div>`;
       view.querySelectorAll("[data-wi]").forEach((b) =>
         b.addEventListener("click", () => { watchIdx = +b.getAttribute("data-wi"); paintWatch(); window.scrollTo({ top: 0, behavior: "smooth" }); }));
@@ -3217,7 +3224,7 @@
     else if (h === "#/saved") { setNav("leagues"); showSaved(); }
     else if (h === "#/people") { setNav("shows"); showPeople(); }
     else if ((m = h.match(/^#\/people\/([\w-]+)$/))) { setNav("shows"); showPerson(m[1]); }
-    else if (h === "#/clips") { setNav("watch"); showClips(); }
+    else if (h === "#/clips") { location.replace("#/watch"); return; }
     else if ((m = h.match(new RegExp(`^#/${LG}/team/([A-Za-z0-9]{2,8})$`)))) { league = m[1]; setNav("leagues"); showTeam(m[2].toUpperCase()); }
     else if ((m = h.match(new RegExp(`^#/${LG}/player/([\\w-]+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
     else if ((m = h.match(new RegExp(`^#/${LG}/teams$`)))) { league = m[1]; setNav("leagues"); showTeams(); }
