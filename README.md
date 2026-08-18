@@ -11,10 +11,12 @@ Built on the **ListTrac engine** (the AFL list-management platform's data → pr
 | Surface | What it does |
 |---|---|
 | **Landing** | The network front door — logo, tagline, channel menu, socials, and the cross-code **Coming up** calendar (every major event, any code, from `data/events.json`) |
-| **Leagues** | The code picker: NFL, AFL, NBL, NRL, NBA and Racing, all live. Newsletter signup + Ask the Experts mailbag |
+| **Leagues** | The code picker in two columns — **Home** (AFL, NRL, NBL, Racing: played here) and **Abroad** (NFL, NBA, Premier League, MLB: watched from here). Newsletter signup + Ask the Experts mailbag |
 | **League hubs** (`#/nfl`, `#/afl`, `#/nbl`) | Rotating image-led top story, headline ticker, live fixtures with watchability ranking (live-score polling while games run), aggregated news + numbered top stories, clubs and players. NFL adds the MCG versus-strip countdown, the 10-day advent rail and the Experts' calls. AFL adds the full 1–18 ladder with the 2026 wildcard lines, the finals bracket (projected from the ladder until it locks), season leaders, round-by-round form guides and official-stats player pages. NBL adds season leaders, rosters and career pages from the league's own feed |
 | **NRL hub** (`#/nrl`) | Round-by-round draw, live ladder with the top-eight line, all 17 clubs, aggregated news — pure ESPN shell (see the quirks in `LEAGUES_CFG`) |
 | **NBA hub** (`#/nba`) | The nightly slate in Sydney time with a **day stepper**, win-probability meters, teams by division, full rosters, career-stat player pages, East/West standings with playoff and play-in lines, and **Aussies in the NBA** (roster birthplace scan + `data/aussies_nba.json`) |
+| **Premier League hub** (`#/epl`) | Weekend fixtures in Sydney time with a day stepper and win-probability, the live Table with Champions League and relegation lines, 20 clubs with squads (ESPN soccer keys clubs by id), news. Watch: Stan Sport + 9Now |
+| **MLB hub** (`#/mlb`) | The daily slate, AL/NL standings with the postseason line, teams by division, grouped rosters, career pages, Aussies in the majors, news. Watch: Kayo (ESPN) + MLB.TV |
 | **Racing hub** (`#/racing`) | The same shell on racing.com's national feed: every meeting in every state ranked by black type, Race of the Day with silks and odds, the Road to the Cup countdown, The Spring rail, next-to-jump, the premierships, last Saturday's black-type results, meeting cards, race pages (fields or finishing order), and jockey/trainer/horse profiles with form |
 | **Clubs & players** | Every club, every roster, career stats — ESPN for the NFL, the AFL's Champion Data feed for AFL lists and players, the NBL's Rosetta feed for NBL rosters and careers; AFL clubs also hand off to ListTrac for contracts and trades |
 | **Shows** | The full slate with status, plus the Always On runway — the year with no dark weeks |
@@ -56,6 +58,7 @@ Everything routes through the Python function `api/index.py` (see `vercel.json`)
 | `data/christmas.json` | A Sporting Christmas editorial |
 | `data/audience.json` | Audience figures for the pitch page (`verified: false` renders an "indicative" chip) |
 | `data/aussies.json` | Aussies-in-the-NFL layer |
+| `data/aussies_mlb.json` | Same for MLB (`_roster_aussies(league)` reads `aussies_{league}.json` for any league) |
 | `data/aussies_nba.json` | Curated half of the Aussies-in-the-NBA layer — names ESPN lists without a birthplace, plus hooks; must match ESPN `fullName` |
 | `data/racing.json` | The spring feature-race spine (the Road to the Cup countdown + The Spring rail) — update each winter |
 | `data/events.json` | The landing-page calendar: one line per major event, any code (NRL, NBA, EPL slot in here first) |
