@@ -1234,4 +1234,8 @@ a.ldr-row:hover{background:var(--card-2)}
 .lg-col-h span{font-family:var(--f-cond); font-weight:700; text-transform:uppercase; letter-spacing:.14em; font-size:12px; color:var(--muted)}
 .lg-col-abroad .lg-col-h{border-bottom-color:#5AA7FF}
 .lg-stack{display:flex; flex-direction:column; gap:14px}
-.lg-stack .lg-card{min-height:0}
+/* every code card the same size so the two columns read as a grid */
+.lg-stack .lg-card{height:296px; min-height:0}
+.lg-stack .lg-desc{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; max-width:none}
+.lg-stack .lg-name{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:clamp(34px,3.2vw,46px)}
+@media (max-width:900px){.lg-stack .lg-card{height:auto; min-height:250px}}
