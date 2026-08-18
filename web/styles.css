@@ -1333,7 +1333,8 @@ a.ldr-row:hover{background:var(--card-2)}
 .ep-card{display:flex; flex-direction:column; text-decoration:none; color:inherit; border:1px solid var(--line); border-radius:14px; background:var(--card); overflow:hidden; transition:transform .16s, border-color .16s}
 .ep-card:hover{transform:translateY(-3px); border-color:var(--accent)}
 .ep-card.big{flex-direction:row} .ep-card.big .ep-art{width:42%; aspect-ratio:16/9} @media (max-width:700px){.ep-card.big{flex-direction:column} .ep-card.big .ep-art{width:100%}}
-.ep-art{position:relative; aspect-ratio:16/9; background:var(--card-2)} .ep-art img{width:100%; height:100%; object-fit:cover; display:block}
+.ep-art{position:relative; aspect-ratio:16/9; background:var(--card-2); overflow:hidden} .ep-art img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block}
+.hh-art{position:relative} .hh-art img{position:absolute; inset:0}
 .ep-play{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:44px; height:44px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 8px 22px rgba(0,0,0,.5)}
 .ep-play.audio{background:#FFB020; color:#0F0407}
 .ep-body{display:flex; flex-direction:column; gap:5px; padding:12px 14px 14px}
