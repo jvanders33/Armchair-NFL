@@ -23,8 +23,10 @@ from fastapi.staticfiles import StaticFiles
 
 try:
     from . import racing as rc          # package import (uvicorn api.app:app)
+    from . import globalsports as gs
 except ImportError:
     import racing as rc                 # Vercel runs api/index.py with api/ on sys.path
+    import globalsports as gs
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
@@ -45,6 +47,9 @@ LEAGUES_CFG = {
     # EPL: UK afternoons = Australian nights/early mornings; MLB: US nights = Australian mornings
     "epl": {"path": "soccer/eng.1", "name": "Premier League", "tz": "Australia/Sydney", "slots": "au"},
     "mlb": {"path": "baseball/mlb", "name": "MLB", "tz": "Australia/Sydney", "slots": "au"},
+    # college football: FBS only (groups=80); Saturday windows in the US = Sunday mornings here
+    "cfb": {"path": "football/college-football", "name": "College Football", "tz": "America/New_York", "slots": "us",
+            "params": {"groups": "80", "limit": "300"}},
 }
 
 
@@ -103,6 +108,7 @@ def _fetch_scoreboard(year: int | None, seasontype: int | None, week: int | None
         params["seasontype"] = str(seasontype)
     if week:
         params["week"] = str(week)
+    params.update(_cfg(league).get("params") or {})
     return _get_json(f"{_site(league)}/scoreboard", params)
 
 
@@ -158,7 +164,14 @@ def _slot_au(dt_utc: datetime, tzname: str) -> str:
     return f"{day} {'afternoon' if hr >= 12 else 'morning'}"
 
 
-def _slot(dt_utc: datetime, seasontype: int) -> str:
+def _slot(dt_utc: datetime, seasontype: int, league: str = "nfl") -> str:
+    lbl = _slot_nfl(dt_utc, seasontype)
+    if league == "cfb":
+        lbl = lbl.replace(" Football", "").replace("NFL Kickoff · ", "")
+    return lbl
+
+
+def _slot_nfl(dt_utc: datetime, seasontype: int) -> str:
     try:
         from zoneinfo import ZoneInfo
         et = dt_utc.astimezone(ZoneInfo("America/New_York"))
@@ -252,7 +265,7 @@ def _competitor(c: dict, league: str = "nfl") -> dict:
     record = recs[0].get("summary", "") if recs else ""
     return {
         # NRL abbreviations collide (three NEW, two CAN) — link NRL clubs by ESPN id, show the abbr
-        "abbr": t.get("id", abbr) if league in ("nrl", "epl") else abbr,
+        "abbr": t.get("id", abbr) if league in ("nrl", "epl", "cfb") else abbr,
         "code": abbr,
         "name": t.get("name", ""),
         "displayName": t.get("displayName", ""),
@@ -333,7 +346,7 @@ def schedule(year: int | None = None, seasontype: int | None = None, week: int |
             dt = datetime.fromisoformat(ev["date"].replace("Z", "+00:00")).astimezone(timezone.utc)
         except (KeyError, ValueError):
             continue
-        slot = _slot(dt, st) if cfg["slots"] == "us" else _slot_au(dt, cfg["tz"])
+        slot = _slot(dt, st, league) if cfg["slots"] == "us" else _slot_au(dt, cfg["tz"])
 
         game_aussies = (aussie_by_team.get(h["abbr"], []) + aussie_by_team.get(a["abbr"], [])
                         if league == "nfl" else [])
@@ -464,7 +477,7 @@ def road_to_the_g():
 
 @app.get("/api/aussies")
 def api_aussies(league: str = "nfl"):
-    if league in ("nba", "mlb", "epl"):
+    if league in ("nba", "mlb", "epl", "cfb"):
         try:
             return {"players": _roster_aussies(league)}
         except requests.RequestException:
@@ -542,8 +555,14 @@ def _roster_aussies(league: str) -> list[dict]:
     if hit and time.time() - hit[0] < 6 * 3600:
         return hit[1]
     curated = {p["name"]: p for p in _load_aussies_for(league)}
-    teams = _get_json(f"{_site(league)}/teams", ttl=86400)["sports"][0]["leagues"][0]["teams"]
-    by_id = league in ("nrl", "epl")
+    if league == "cfb":
+        # 136 FBS rosters is too many for one call — scan the AP Top 25 (where the punters are)
+        d = _get_json(f"{_site('cfb')}/rankings", ttl=1800)
+        poll = next((r for r in d.get("rankings", []) if "AP" in r.get("name", "")), (d.get("rankings") or [{}])[0])
+        teams = [{"team": r["team"]} for r in poll.get("ranks", []) if r.get("team")]
+    else:
+        teams = _get_json(f"{_site(league)}/teams", ttl=86400)["sports"][0]["leagues"][0]["teams"]
+    by_id = league in ("nrl", "epl", "cfb")
 
     def scan(entry):
         t = entry["team"]
@@ -561,6 +580,7 @@ def _roster_aussies(league: str) -> list[dict]:
             if born_au or cur:
                 out.append({
                     "id": p.get("id"), "name": p.get("fullName", ""), "team": t["id"] if by_id else t["abbreviation"],
+                    "teamCode": t.get("abbreviation", ""),
                     "pos": (p.get("position") or {}).get("abbreviation", ""),
                     "jersey": p.get("jersey", ""), "headshot": (p.get("headshot") or {}).get("href"),
                     "from": (cur or {}).get("from", (p.get("birthPlace") or {}).get("city", "")),
@@ -582,8 +602,45 @@ def _nba_aussies() -> list[dict]:
     return _roster_aussies("nba")
 
 
+CFB_CONF_ORDER = ["Southeastern Conference", "Big Ten Conference", "Big 12 Conference", "Atlantic Coast Conference",
+                  "FBS Independents", "American Conference", "Mountain West Conference", "Sun Belt Conference",
+                  "Mid-American Conference", "Conference USA", "Pac-12 Conference"]
+CFB_CONF_SHORT = {"Southeastern Conference": "SEC", "Big Ten Conference": "Big Ten", "Big 12 Conference": "Big 12",
+                  "Atlantic Coast Conference": "ACC", "American Conference": "American", "Mountain West Conference": "Mountain West",
+                  "Sun Belt Conference": "Sun Belt", "Mid-American Conference": "MAC", "Conference USA": "Conference USA",
+                  "Pac-12 Conference": "Pac-12", "FBS Independents": "Independents"}
+
+
+def _cfb_teams() -> dict:
+    """FBS teams grouped by conference — ESPN's standings tree carries the
+    conference structure (the teams endpoint ignores its groups param).
+    Clubs key by ESPN id: abbreviations collide (OSU is Ohio State AND
+    Ohio State Newark)."""
+    d = _get_json("https://site.api.espn.com/apis/v2/sports/football/college-football/standings", {"group": "80"}, ttl=86400)
+    by_conf = {}
+    for c in d.get("children", []):
+        entries = (c.get("standings") or {}).get("entries") or []
+        for sub in c.get("children") or []:                       # Sun Belt splits into divisions
+            entries += (sub.get("standings") or {}).get("entries") or []
+        teams = []
+        for e in entries:
+            t = e.get("team") or {}
+            logos = t.get("logos") or []
+            teams.append({"id": t.get("id"), "abbr": t.get("id"), "code": t.get("abbreviation", ""),
+                          "location": t.get("location", ""), "name": t.get("name", "") or t.get("displayName", ""),
+                          "displayName": t.get("displayName", ""), "color": t.get("color"), "altColor": t.get("alternateColor"),
+                          "logo": logos[0]["href"] if logos else None})
+        if teams:
+            by_conf[c.get("name", "")] = sorted(teams, key=lambda t: t["displayName"])
+    order = {n: i for i, n in enumerate(CFB_CONF_ORDER)}
+    return {"divisions": [{"name": CFB_CONF_SHORT.get(n, n), "teams": by_conf[n]}
+                          for n in sorted(by_conf, key=lambda n: order.get(n, 99))]}
+
+
 @app.get("/api/teams")
 def api_teams(league: str = "nfl"):
+    if league == "cfb":
+        return _cfb_teams()
     payload = _get_json(f"{_site(league)}/teams", ttl=86400)
     by_abbr = {}
     for entry in payload["sports"][0]["leagues"][0]["teams"]:
@@ -627,6 +684,18 @@ def api_teams(league: str = "nfl"):
 def api_ladder(league: str = "afl"):
     if league == "nfl":
         raise HTTPException(status_code=400, detail="The NFL runs conference standings, not a ladder")
+    if league == "cfb":
+        d = _get_json(f"{_site('cfb')}/rankings", ttl=1800)
+        poll = next((r for r in d.get("rankings", []) if "AP" in r.get("name", "")), (d.get("rankings") or [{}])[0])
+        rows = []
+        for r in poll.get("ranks", []):
+            t = r.get("team") or {}
+            rows.append({"rank": r.get("current"), "abbr": t.get("id"), "name": t.get("nickname") or t.get("name"),
+                         "logo": ((t.get("logos") or [{}])[0].get("href")) or t.get("logo"),
+                         "wins": (r.get("recordSummary") or "0-0").split("-")[0], "losses": (r.get("recordSummary") or "0-0").split("-")[-1],
+                         "draws": "", "pct": r.get("firstPlaceVotes") or "", "points": r.get("points"), "form": "",
+                         "trend": r.get("trend")})
+        return {"ladder": rows, "lines": [{"after": 12, "kind": "top6", "label": "Playoff — twelve teams"}], "poll": poll.get("name", "AP Top 25")}
     cfg = _cfg(league)
     # standings live under /apis/v2, not /apis/site/v2 like the rest of the feed
     data = _get_json(f"https://site.api.espn.com/apis/v2/sports/{cfg['path']}/standings", ttl=900)
@@ -1549,6 +1618,42 @@ NEWS_FEEDS = {
         ("outlet", "The Guardian", "https://www.theguardian.com/sport/basketball/rss"),
         ("sweep", "", GNEWS.format("NBL%20basketball%20Australia%20when:7d")),
     ],
+    "cfb": [
+        ("outlet", "The Athletic", "https://theathletic.com/college-football/?rss=1"),
+        ("outlet", "CBS Sports", "https://www.cbssports.com/rss/headlines/college-football/"),
+        ("sweep", "", GNEWS.format("%22college%20football%22%20when:2d")),
+    ],
+    "cricket": [
+        ("outlet", "ESPNcricinfo", "https://www.espncricinfo.com/rss/content/story/feeds/0.xml"),
+        ("outlet", "The Guardian", "https://www.theguardian.com/sport/cricket/rss"),
+        ("outlet", "Sydney Morning Herald", "https://www.smh.com.au/rss/sport/cricket.xml"),
+        ("sweep", "", GNEWS.format("cricket%20Australia%20when:2d")),
+    ],
+    "tennis": [
+        ("outlet", "The Guardian", "https://www.theguardian.com/sport/tennis/rss"),
+        ("outlet", "BBC Sport", "https://feeds.bbci.co.uk/sport/tennis/rss.xml"),
+        ("sweep", "", GNEWS.format("tennis%20when:2d")),
+    ],
+    "f1": [
+        ("outlet", "The Guardian", "https://www.theguardian.com/sport/formulaone/rss"),
+        ("outlet", "BBC Sport", "https://feeds.bbci.co.uk/sport/formula1/rss.xml"),
+        ("outlet", "The Athletic", "https://theathletic.com/formula-1/?rss=1"),
+        ("sweep", "", GNEWS.format("%22Formula%201%22%20OR%20F1%20Piastri%20when:2d")),
+    ],
+    "golf": [
+        ("outlet", "The Guardian", "https://www.theguardian.com/sport/golf/rss"),
+        ("outlet", "BBC Sport", "https://feeds.bbci.co.uk/sport/golf/rss.xml"),
+        ("outlet", "The Athletic", "https://theathletic.com/golf/?rss=1"),
+        ("sweep", "", GNEWS.format("golf%20PGA%20when:2d")),
+    ],
+    "ufc": [
+        ("outlet", "The Guardian", "https://www.theguardian.com/sport/mma/rss"),
+        ("sweep", "", GNEWS.format("UFC%20when:2d")),
+    ],
+    "la2028": [
+        ("sweep", "", GNEWS.format("%22LA%202028%22%20OR%20%22LA28%22%20OR%20%222028%20Olympics%22%20when:7d")),
+        ("sweep", "", GNEWS.format("Australian%20Olympic%20team%20when:7d")),
+    ],
     "epl": [
         ("outlet", "The Guardian", "https://www.theguardian.com/football/premierleague/rss"),
         ("outlet", "BBC Sport", "https://feeds.bbci.co.uk/sport/football/rss.xml"),
@@ -1595,6 +1700,15 @@ NEWS_RELEVANCE = {
     "nbl": re.compile(
         r"\bNBL|Boomers|Opals|36ers|Taipans|Bullets|Breakers|JackJumpers|"
         r"Hawks|Kings|Melbourne United|Phoenix|Wildcats|Australian basketball", re.I),
+    "cfb": re.compile(r"college football|\bCFB\b|NCAA|Heisman|Playoff|Buckeyes|Bulldogs|Longhorns|Crimson Tide|Ducks|Nittany|Fighting Irish|"
+                      r"Sooners|Tigers|Wolverines|Trojans|Volunteers|Aggies|Hurricanes|Seminoles|Gators|Razorbacks|Cornhuskers|Badgers|SEC|Big Ten|Big 12|ACC|punter", re.I),
+    "cricket": re.compile(r"cricket|Test|\bODI\b|T20|BBL|Big Bash|Ashes|Sheffield Shield|Cummins|Smith|Head|Starc|Lyon|Perry|Healy|Lanning|Cricinfo|wicket|innings|"
+                          r"Australia|England|India|Pakistan|Sri Lanka|New Zealand|South Africa|West Indies|Bangladesh|Afghanistan|Gardner|Mooney|Boland|Khawaja|Carey|Marsh|Green|Labuschagne", re.I),
+    "tennis": re.compile(r"tennis|\bATP\b|\bWTA\b|Grand Slam|Wimbledon|US Open|Roland|Australian Open|Cincinnati|de Minaur|Sinner|Alcaraz|Djokovic|Sabalenka|Swiatek|Gauff|Kyrgios|Popyrin|Kasatkina|Kokkinakis|Purcell|Ebden|Hijikata", re.I),
+    "f1": re.compile(r"Formula|\bF1\b|Grand Prix|Piastri|Norris|Verstappen|Hamilton|Leclerc|Russell|Antonelli|McLaren|Ferrari|Red Bull|Mercedes|Aston Martin|Williams|Alpine|Haas|Sauber|Audi|Cadillac|Zandvoort|Monza|Melbourne|pole|podium|paddock", re.I),
+    "golf": re.compile(r"golf|\bPGA\b|LPGA|LIV|Masters|Open Championship|Ryder|Presidents Cup|Scheffler|McIlroy|Cam Smith|Jason Day|Min Woo|Minjee|Hannah Green|Adam Scott|Grace Kim|Lucas Herbert|birdie|leaderboard|major", re.I),
+    "ufc": re.compile(r"\bUFC\b|\bMMA\b|Octagon|Volkanovski|Whittaker|Della Maddalena|Tuivasa|Hooker|Dana White|title fight|Fight Night|knockout|submission|Topuria|Makhachev|Jones|Pereira|Adesanya|Strickland", re.I),
+    "la2028": re.compile(r"Olympic|LA28|LA 2028|Los Angeles|Paralympic|Brisbane 2032|AOC|Dolphins|swimming|athletics|Games", re.I),
     "epl": re.compile(r"Premier League|\bEPL\b|Arsenal|Liverpool|Chelsea|Man(chester)? (City|United|Utd)|Tottenham|Spurs|Newcastle|"
                       r"Aston Villa|Everton|Brighton|Fulham|Brentford|Crystal Palace|West Ham|Wolves|Bournemouth|Nottingham Forest|"
                       r"Leeds|Sunderland|Burnley|Coventry|Hull|Ipswich|Socceroos|Guardiola|Slot|Arteta|Salah|Haaland|Saka|transfer", re.I),
@@ -1810,6 +1924,13 @@ VIDEO_TAGS = [
     ("afl", re.compile(r"AFL|Demons|Cats|Blues|Magpies|Bombers|Hawks|Swans|Crows|Lions|Suns|Dockers|Eagles|Power|Saints|Bulldogs|Tigers|Giants|Kangaroos|Brownlow|Coleman|Norm Smith|Harley Reid|wildcard|ladder|finals|footy", re.I)),
     ("nba", re.compile(r"NBA|Giddey|Daniels|Boomers|LeBron|Lakers|Celtics|Warriors|Thunder", re.I)),
     ("epl", re.compile(r"Premier League|EPL|Arsenal|Liverpool|Chelsea|Man City|Man United|Tottenham|Socceroos", re.I)),
+    ("cricket", re.compile(r"cricket|Ashes|BBL|Big Bash|Test match|Cummins|Starc|Head", re.I)),
+    ("cfb", re.compile(r"college football|NCAA|Heisman|punter", re.I)),
+    ("tennis", re.compile(r"tennis|Australian Open|Wimbledon|de Minaur|Kyrgios", re.I)),
+    ("f1", re.compile(r"Formula 1|F1|Grand Prix|Piastri", re.I)),
+    ("golf", re.compile(r"golf|Masters|PGA|Cam Smith|Min Woo", re.I)),
+    ("ufc", re.compile(r"UFC|MMA|Volkanovski|Whittaker|Della Maddalena", re.I)),
+    ("la2028", re.compile(r"Olympic|LA 2028|LA28|Brisbane 2032", re.I)),
     ("mlb", re.compile(r"MLB|baseball|World Series|Yankees|Dodgers|Bazzana", re.I)),
     ("nbl", re.compile(r"NBL|basketball|hoops", re.I)),
     ("nrl", re.compile(r"NRL|rugby league|Origin|Panthers|Storm|Broncos|Roosters|Rabbitohs|Sea Eagles|Bulldogs|Sharks|Raiders|Warriors|Dolphins|Cowboys|Titans|Knights|Eels|Dragons|Wests Tigers", re.I)),
@@ -2084,6 +2205,29 @@ def api_racing_features():
     except Exception:
         out["week"] = []
     return out
+
+
+@app.get("/api/tour/{league}")
+def api_tour(league: str):
+    if league not in gs.TOURS:
+        raise HTTPException(status_code=404, detail=f"Unknown tour {league}")
+    try:
+        return gs.tour(league)
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail=f"feed unavailable: {exc}") from exc
+
+
+@app.get("/api/cricket")
+def api_cricket():
+    try:
+        return gs.cricket()
+    except requests.RequestException:
+        return {"matches": [], "ladder": [], "season": {}}
+
+
+@app.get("/api/la2028")
+def api_la2028():
+    return gs.la2028()
 
 
 @app.get("/api/racing/weekend")

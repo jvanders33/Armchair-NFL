@@ -1,0 +1,20 @@
+{
+  "note": "The cricket hub polls these ESPN competitions and merges the fixtures. ESPN's cricket ids ARE Cricinfo series ids — take the number from any espncricinfo.com/series/... URL. Add each Australian international series (home Tests, ODIs, T20Is, tours) as it's announced; remove finished ones. Domestic comps carry over season to season.",
+  "season": {
+    "label": "Summer 2026-27",
+    "line": "The Test summer starts in late November; the Big Bash from mid-December.",
+    "watch": "Every Test, ODI, T20I and BBL match is on Seven and 7plus (free) and Fox Cricket via Kayo."
+  },
+  "competitions": [
+    {
+      "id": "8044",
+      "name": "Big Bash League",
+      "kind": "domestic"
+    },
+    {
+      "id": "8043",
+      "name": "Sheffield Shield",
+      "kind": "domestic"
+    }
+  ]
+}

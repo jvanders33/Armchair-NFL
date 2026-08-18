@@ -1,0 +1,154 @@
+{
+  "note": "LA 2028 hub — editorial until the competition schedule and Australian team are set. Dates from the LA28 organising committee. Update the milestones as they pass; add sport-by-sport session times when LA28 publishes them (2027).",
+  "title": "LA 2028",
+  "sub": "The Games of the XXXIV Olympiad · Los Angeles",
+  "opening": "2028-07-14T19:00:00-07:00",
+  "closing": "2028-07-30T19:00:00-07:00",
+  "paralympics": {
+    "opening": "2028-08-15",
+    "closing": "2028-08-27"
+  },
+  "timeNote": "LA is 17 hours behind Sydney — morning sessions in LA land in Australian evenings, evening finals in our mornings. The same shape as the NFL: sport in your morning coffee.",
+  "facts": [
+    {
+      "k": "36",
+      "l": "sports — a Games record, with cricket, flag football, baseball/softball, lacrosse and squash added"
+    },
+    {
+      "k": "3rd",
+      "l": "Los Angeles Games, after 1932 and 1984"
+    },
+    {
+      "k": "17",
+      "l": "days of competition, 14–30 July 2028"
+    },
+    {
+      "k": "AUS",
+      "l": "Australia's best-ever medal haul was Paris 2024 — 18 gold, 53 total, 4th on the table"
+    }
+  ],
+  "milestones": [
+    {
+      "when": "2026",
+      "what": "Qualification windows open across most sports"
+    },
+    {
+      "when": "2027",
+      "what": "LA28 publishes the full competition schedule and ticketing opens"
+    },
+    {
+      "when": "Jun 2028",
+      "what": "Australian Olympic team named after the swimming and athletics trials"
+    },
+    {
+      "when": "14 Jul 2028",
+      "what": "Opening Ceremony — split between the LA Memorial Coliseum and SoFi Stadium"
+    },
+    {
+      "when": "30 Jul 2028",
+      "what": "Closing Ceremony"
+    },
+    {
+      "when": "15 Aug 2028",
+      "what": "Paralympic Games open"
+    }
+  ],
+  "sports": [
+    {
+      "name": "Cricket",
+      "note": "T20 — cricket's return after 128 years. Australia will start among the favourites in both draws.",
+      "venue": "Pomona"
+    },
+    {
+      "name": "Swimming",
+      "note": "Australia's medal engine — the Dolphins won 7 gold in Paris.",
+      "venue": "SoFi Stadium (temporary pool)"
+    },
+    {
+      "name": "Athletics",
+      "note": "The Coliseum, third Games as an Olympic track.",
+      "venue": "LA Memorial Coliseum"
+    },
+    {
+      "name": "Rugby sevens",
+      "note": "Both Australian sides are podium regulars.",
+      "venue": "Dignity Health Sports Park"
+    },
+    {
+      "name": "Basketball",
+      "note": "The Boomers and Opals; the men's tournament partly at Intuit Dome.",
+      "venue": "Intuit Dome / Arena Downtown"
+    },
+    {
+      "name": "Surfing",
+      "note": "Trestles — one of the world's great waves, and a genuine Australian medal shot.",
+      "venue": "Lower Trestles, San Clemente"
+    },
+    {
+      "name": "Flag football",
+      "note": "New — NFL players eligible.",
+      "venue": "BMO Stadium"
+    },
+    {
+      "name": "Sailing, rowing, cycling, hockey, water polo",
+      "note": "Australia's traditional depth sports.",
+      "venue": "Long Beach cluster"
+    }
+  ],
+  "aussies": [
+    {
+      "name": "Mollie O'Callaghan",
+      "sport": "Swimming",
+      "hook": "The face of the Dolphins after Paris — freestyle gold on repeat."
+    },
+    {
+      "name": "Kaylee McKeown",
+      "sport": "Swimming",
+      "hook": "Backstroke double-double in Tokyo and Paris; a third Games."
+    },
+    {
+      "name": "Ariarne Titmus",
+      "sport": "Swimming",
+      "hook": "The Terminator — 400 free royalty, if she comes back for a third Games."
+    },
+    {
+      "name": "Jessica Hull",
+      "sport": "Athletics",
+      "hook": "Paris 1500m silver; a genuine gold shot on the Coliseum track."
+    },
+    {
+      "name": "Nina Kennedy",
+      "sport": "Athletics",
+      "hook": "Paris pole vault champion."
+    },
+    {
+      "name": "Matt Wearn",
+      "sport": "Sailing",
+      "hook": "Back-to-back Olympic laser gold."
+    },
+    {
+      "name": "Josh Giddey & Dyson Daniels",
+      "sport": "Basketball",
+      "hook": "The Boomers' next core."
+    },
+    {
+      "name": "Ellyse Perry / Pat Cummins",
+      "sport": "Cricket",
+      "hook": "The first Olympic cricket medals in 128 years are there to be won."
+    }
+  ],
+  "watch": [
+    {
+      "key": "9now",
+      "label": "9Now",
+      "sub": "Nine — free",
+      "url": "https://www.9now.com.au"
+    },
+    {
+      "key": "stan",
+      "label": "Stan Sport",
+      "sub": "every event",
+      "url": "https://www.stan.com.au/sport"
+    }
+  ]
+}
