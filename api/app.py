@@ -373,6 +373,7 @@ def schedule(year: int | None = None, seasontype: int | None = None, week: int |
             "odds": {"details": details, "spread": spread, "overUnder": ou},
             "homeWinProb": hp,
             "watch": {"score": score, "tier": _tier(score)},
+            "ftaConfirmed": in_australia,     # the MCG game is confirmed live and free on Seven/7plus
             "status": {
                 "state": status.get("state", "pre"),
                 "detail": status.get("shortDetail", ""),

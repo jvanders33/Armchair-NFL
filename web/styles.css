@@ -1364,3 +1364,6 @@ body.has-audio #audio-dock{display:flex} body.has-audio .wrap{padding-bottom:70p
 .site-audio{flex:1; min-width:180px; height:36px}
 
 @media (max-width:600px){.hh-desc{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; font-size:15px} .hh-title{font-size:clamp(30px,9vw,40px)}}
+
+.prov-note{flex-basis:100%; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+.watch-chip.free{border-color:color-mix(in srgb, var(--go) 55%, var(--line)); color:var(--go)}

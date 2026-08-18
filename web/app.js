@@ -9,42 +9,45 @@
   // FTA incl. the MCG game; ESPN via Kayo; NFL Game Pass on DAZN for every
   // game. AFL: Seven + Fox Footy/Kayo. NBL: Nine FTA + ESPN via Kayo.
   const WATCH = {
+    // every: true = carries every game of the code; free: true = free-to-air. Selected-game
+    // free-to-air is real but not confirmable per game from our feeds, so it's shown as
+    // "free · selected games", never as the primary claim for a specific fixture.
     nfl: [
-      { key: "7plus", label: "7plus", sub: "free", url: "https://7plus.com.au/nfl" },
-      { key: "kayo", label: "Kayo", sub: "ESPN", url: "https://kayosports.com.au/sports/nfl" },
-      { key: "gamepass", label: "Game Pass", sub: "every game", url: "https://www.dazn.com/en-AU/l/nfl-game-pass" },
+      { key: "kayo", label: "Kayo", sub: "ESPN · most games", url: "https://kayosports.com.au/sports/nfl", every: false },
+      { key: "gamepass", label: "Game Pass", sub: "every game", url: "https://www.dazn.com/en-AU/l/nfl-game-pass", every: true },
+      { key: "7plus", label: "7plus", sub: "free · selected games", url: "https://7plus.com.au/nfl", free: true },
     ],
     afl: [
-      { key: "7plus", label: "7plus", sub: "free", url: "https://7plus.com.au/afl" },
-      { key: "kayo", label: "Kayo", sub: "Fox Footy", url: "https://kayosports.com.au/sports/afl" },
+      { key: "kayo", label: "Kayo", sub: "Fox Footy · every game", url: "https://kayosports.com.au/sports/afl", every: true },
+      { key: "7plus", label: "7plus", sub: "free · selected games", url: "https://7plus.com.au/afl", free: true },
     ],
     nbl: [
-      { key: "9now", label: "9Now", sub: "free", url: "https://www.9now.com.au" },
-      { key: "kayo", label: "Kayo", sub: "ESPN", url: "https://kayosports.com.au/sports/basketball" },
+      { key: "kayo", label: "Kayo", sub: "ESPN · every game", url: "https://kayosports.com.au/sports/basketball", every: true },
+      { key: "9now", label: "9Now", sub: "free · two games a week", url: "https://www.9now.com.au", free: true },
     ],
     // Racing.com carries Victorian racing free; Seven has Sydney's carnival days; Sky Racing is the national channel
     nrl: [
-      { key: "9now", label: "9Now", sub: "free", url: "https://www.9now.com.au" },
-      { key: "kayo", label: "Kayo", sub: "Fox League · every game", url: "https://kayosports.com.au/sports/nrl" },
+      { key: "kayo", label: "Kayo", sub: "Fox League · every game", url: "https://kayosports.com.au/sports/nrl", every: true },
+      { key: "9now", label: "9Now", sub: "free · selected games", url: "https://www.9now.com.au", free: true },
     ],
     nba: [
-      { key: "kayo", label: "Kayo", sub: "ESPN", url: "https://kayosports.com.au/sports/basketball" },
-      { key: "leaguepass", label: "League Pass", sub: "every game", url: "https://www.nba.com/watch/league-pass-stream" },
+      { key: "leaguepass", label: "League Pass", sub: "every game", url: "https://www.nba.com/watch/league-pass-stream", every: true },
+      { key: "kayo", label: "Kayo", sub: "ESPN · selected games", url: "https://kayosports.com.au/sports/basketball" },
     ],
     epl: [
-      { key: "stan", label: "Stan Sport", sub: "every match", url: "https://www.stan.com.au/sport" },
-      { key: "9now", label: "9Now", sub: "free · marquee matches", url: "https://www.9now.com.au" },
+      { key: "stan", label: "Stan Sport", sub: "every match", url: "https://www.stan.com.au/sport", every: true },
+      { key: "9now", label: "9Now", sub: "free · marquee matches", url: "https://www.9now.com.au", free: true },
     ],
     mlb: [
-      { key: "kayo", label: "Kayo", sub: "ESPN", url: "https://kayosports.com.au/sports/baseball" },
-      { key: "mlbtv", label: "MLB.TV", sub: "every game", url: "https://www.mlb.com/tv" },
+      { key: "mlbtv", label: "MLB.TV", sub: "every game", url: "https://www.mlb.com/tv", every: true },
+      { key: "kayo", label: "Kayo", sub: "ESPN · selected games", url: "https://kayosports.com.au/sports/baseball" },
     ],
     cfb: [
-      { key: "kayo", label: "Kayo", sub: "ESPN", url: "https://kayosports.com.au/sports/american-football" },
+      { key: "kayo", label: "Kayo", sub: "ESPN · selected games", url: "https://kayosports.com.au/sports/american-football" },
     ],
     cricket: [
-      { key: "7plus", label: "7plus", sub: "free", url: "https://7plus.com.au/cricket" },
-      { key: "kayo", label: "Kayo", sub: "Fox Cricket", url: "https://kayosports.com.au/sports/cricket" },
+      { key: "7plus", label: "7plus", sub: "free · every international and BBL match", url: "https://7plus.com.au/cricket", free: true, every: true },
+      { key: "kayo", label: "Kayo", sub: "Fox Cricket · every match", url: "https://kayosports.com.au/sports/cricket", every: true },
     ],
     tennis: [
       { key: "stan", label: "Stan Sport", sub: "Grand Slams", url: "https://www.stan.com.au/sport" },
@@ -705,18 +708,25 @@
   // The case for watching, in order of what actually matters in the sport.
   // The Aussie angle is a footnote, not the headline — the game leads.
   function why(g) {
+    // plain language — no lines, totals or betting shorthand
     const bits = [];
     const sp = g.odds && g.odds.spread != null ? Math.abs(g.odds.spread) : null;
     const ou = g.odds && g.odds.overUnder;
     const hot = (r) => { const [w, l] = (r || "0-0").split("-").map(Number); return w + l > 0 && w / (w + l) >= 0.65; };
-    if (g.status.state === "in") bits.push("Live right now — " + g.status.detail);
-    if (hot(g.home.record) && hot(g.away.record)) bits.push("two of the form teams in football");
-    if (sp !== null && sp <= 2.5) bits.push("a genuine coin-flip");
-    else if (sp !== null && sp <= 4.5) bits.push("tight line");
-    if (ou && ou >= 48) bits.push("shootout script (O/U " + ou + ")");
-    if (/NFL Kickoff/.test(g.slot)) bits.push("the season opener — standalone national window");
-    else if (/Night Football/.test(g.slot)) bits.push("the prime-time window");
-    if (!bits.length) bits.push(g.odds && g.odds.details ? "Line: " + g.odds.details : "One for the completists");
+    const cold = (r) => { const [w, l] = (r || "0-0").split("-").map(Number); return w + l > 2 && w / (w + l) <= 0.3; };
+    if (g.status.state === "in") bits.push("live right now — " + g.status.detail);
+    if (hot(g.home.record) && hot(g.away.record)) bits.push("two of the form teams in the league");
+    else if (hot(g.home.record) || hot(g.away.record)) bits.push("one of the form teams is playing");
+    if (sp !== null && sp <= 2.5) bits.push("expected to go down to the wire");
+    else if (sp !== null && sp <= 4.5) bits.push("should be close");
+    else if (sp !== null && sp >= 10) bits.push("one side is heavily favoured — an upset would be the story");
+    if (ou && ou >= 48) bits.push("both teams like to score");
+    if (/NFL Kickoff/.test(g.slot)) bits.push("the season opener, the only game on");
+    else if (/Night Football/.test(g.slot)) bits.push("the prime-time game");
+    else if (/Night/.test(g.slot) && league !== "nfl") bits.push("the night game");
+    if (league === "afl" && hubData && hubData.week && hubData.week.number >= 22) bits.push("finals places on the line");
+    if (league === "nrl" && hubData && hubData.week && hubData.week.number >= 24) bits.push("the run to the finals");
+    if (!bits.length) bits.push(cold(g.home.record) && cold(g.away.record) ? "one for the completists" : "a solid game if you're around");
     let s = bits.join(" · ");
     s = s.charAt(0).toUpperCase() + s.slice(1) + ".";
     if (g.aussies.length) s += ` <span class="aus-note">🇦🇺 ${esc(g.aussies.map((a) => a.name).join(" & "))}</span>`;
@@ -747,13 +757,18 @@
     const opts = watchOpts();
     const utm = `utm_source=armchair&utm_medium=wtw&utm_campaign=week${wk}&utm_content=${g.away.abbr}@${g.home.abbr}`;
     const verb = g.status.state === "post" ? "Replay" : "Watch";
-    const [p, ...rest] = opts;
+    // confirmed for THIS game only where the provider carries every game (or the game is
+    // known FTA, e.g. the MCG); everything else is "also available" — never over-claimed
+    const primary = (g.ftaConfirmed && opts.find((w) => w.free)) || opts.find((w) => w.every) || opts[0];
+    const rest = opts.filter((w) => w !== primary);
+    const confirmed = !!primary.every || !!g.ftaConfirmed;
     return `<span class="watch-row">
-      <a class="watch ${cls || ""}" target="_blank" rel="noopener" data-plat="${esc(p.key)}"
-        href="${esc(p.url)}${p.url.includes("?") ? "&" : "?"}${utm}" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}">
-        <span class="tv">▶</span> ${verb} on ${esc(p.label)}</a>
-      ${rest.map((w) => `<a class="watch-chip" target="_blank" rel="noopener" data-plat="${esc(w.key)}" title="${esc(w.label)} · ${esc(w.sub)}"
-        href="${esc(w.url)}${w.url.includes("?") ? "&" : "?"}${utm}" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}">${esc(w.label)}</a>`).join("")}
+      <a class="watch ${cls || ""}" target="_blank" rel="noopener" data-plat="${esc(primary.key)}" data-track="click_event_watch_provider" data-label="${esc(league + ":" + primary.key)}"
+        href="${esc(primary.url)}${primary.url.includes("?") ? "&" : "?"}${utm}" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}">
+        <span class="tv">▶</span> ${verb} on ${esc(primary.label)}</a>
+      ${rest.map((w) => `<a class="watch-chip${w.free ? " free" : ""}" target="_blank" rel="noopener" data-plat="${esc(w.key)}" data-track="click_event_watch_provider" data-label="${esc(league + ":" + w.key)}" title="${esc(w.label)} · ${esc(w.sub)}"
+        href="${esc(w.url)}${w.url.includes("?") ? "&" : "?"}${utm}" data-watch="${esc(g.away.abbr)}@${esc(g.home.abbr)}">${esc(w.label)}${w.free ? " · free" : ""}</a>`).join("")}
+      <span class="prov-note">${confirmed ? "confirmed" : "provider for this game TBC"}${rest.some((w) => w.free) ? " · free-to-air shows selected games" : ""}</span>
     </span>`;
   }
 
@@ -815,7 +830,7 @@
       return `<article class="game" data-id="${esc(g.id)}">
         <div class="top">
           <span class="badges">${statusBadge(g)}${isExpertsPick(g) ? `<span class="ec-badge">🎙 Experts' pick</span>` : ""}</span>
-          <button class="star" data-star="${esc(g.id)}" aria-pressed="${on}" title="Add to my watchlist" aria-label="Add to watchlist">${on ? "★" : "☆"}</button>
+          <button class="star" data-star="${esc(g.id)}" aria-pressed="${on}" title="${on ? "Saved on this device" : "Save this game on this device"}" aria-label="${on ? "Saved on this device" : "Save this game"}">${on ? "★" : "☆"}</button>
         </div>
         <div class="mu">${teamHTML(g.away, false, showScore)}<span class="at">at</span>${teamHTML(g.home, false, showScore)}</div>
         ${meter(g)}
@@ -1201,14 +1216,17 @@
         localStorage.setItem(STAR_KEY, JSON.stringify([...set]));
         s.setAttribute("aria-pressed", String(!on));
         s.textContent = on ? "☆" : "★";
-        if (!on) toast("Added to your watchlist — we'll remind you before kick-off");
+        if (!on) toast("Saved on this device — find it under ★ next time you're here");
+        track(on ? "unsave_event" : "save_event", id);
       });
     });
   }
 
-  let episodeHTML = "";
+  let episodeHTML = "", hubLoadedAt = 0;
+  setInterval(() => { const n = $("fresh-note"); if (n && hubLoadedAt) n.textContent = "updated " + timeAgoShort(new Date(hubLoadedAt).toISOString()); }, 30000);
   function setTzNote() {
-    $("tz-note").textContent = "Kick-offs converted live to " + TZ_LABEL[tz] + " time";
+    $("tz-note").innerHTML = "Kick-offs in " + TZ_LABEL[tz] + " time · <span id=\"fresh-note\">updated just now</span> · source ESPN";
+    hubLoadedAt = Date.now();
     $("ribbon-sub").innerHTML = episodeHTML || ("Every game in " + TZ_LABEL[tz] + " time, one tap to stream.");
   }
 
@@ -1287,7 +1305,8 @@
       $("loading").hidden = true;
       $("content").hidden = false;
     } catch (err) {
-      $("loading").textContent = "Couldn't reach the live feed (" + err.message + "). Refresh to retry.";
+      $("loading").innerHTML = `We couldn't refresh this section (${esc(err.message)}). <button class="watch sm ghost" id="hub-retry">Try again</button>`;
+      $("hub-retry")?.addEventListener("click", () => { _cache.clear(); track("retry_module", league); loadHub(); });
     }
   }
 
@@ -2716,7 +2735,8 @@
         try { rcHub.nxt = await fetchJSON("/api/racing/next"); rcPaintNext(); } catch { /* next tick */ }
       }, 60000);
     } catch (err) {
-      $("loading").textContent = "Couldn't reach the racing feed (" + err.message + "). Refresh to retry.";
+      $("loading").innerHTML = `We couldn't refresh the racing feed (${esc(err.message)}). <button class="watch sm ghost" id="rc-retry">Try again</button>`;
+      $("rc-retry")?.addEventListener("click", () => { _cache.clear(); track("retry_module", "racing"); showRacingHub(date); });
     }
   }
 
