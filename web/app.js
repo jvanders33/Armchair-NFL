@@ -1406,17 +1406,26 @@
     $("content").hidden = true;
     const qs = (weekView ? (weekView.date ? `?date=${weekView.date}` : `?year=${weekView.year}&seasontype=${weekView.seasontype}&week=${weekView.week}`) : "?") + `&league=${league}`;
     try {
-      const [sched, aus, rtg, featured, vids, lad, ldrs, form, finals] = await Promise.all([
-        fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
-        ["nfl", "nba", "mlb", "cfb"].includes(league) && aussiesFor !== league ? fetchJSON(`/api/aussies?league=${league}`) : Promise.resolve(null),
-        league === "nfl" ? fetchJSON("/api/road-to-the-g").catch(() => null) : Promise.resolve(null),
-        fetchJSON(`/api/featured?league=${league}`).catch(() => null),
-        fetchJSON(`/api/videos?league=${league}`).catch(() => null),
-        league !== "nfl" ? fetchJSON(`/api/ladder?league=${league}`).catch(() => null) : Promise.resolve(null),
-        league !== "nfl" ? fetchJSON(`/api/leaders?league=${league}`).catch(() => null) : Promise.resolve(null),
-        league === "afl" ? fetchJSON("/api/afl/form").catch(() => null) : Promise.resolve(null),
-        league === "afl" ? fetchJSON("/api/afl/finals").catch(() => null) : Promise.resolve(null),
-      ]);
+      // one round-trip: the server fans out to every feed in parallel and returns
+      // the lot; falls back to the per-module calls if the bundle endpoint fails
+      let sched, aus, rtg, featured, vids, lad, ldrs, form, finals;
+      try {
+        const b = await fetch("/api/hub" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); });
+        ({ schedule: sched, aussies: aus, rtg, featured, videos: vids, ladder: lad, leaders: ldrs, form, finals } = b);
+        if (aus && aussiesFor === league) aus = null;
+      } catch (e) {
+        [sched, aus, rtg, featured, vids, lad, ldrs, form, finals] = await Promise.all([
+          fetch("/api/schedule" + qs).then((r) => { if (!r.ok) throw new Error("API " + r.status); return r.json(); }),
+          ["nfl", "nba", "mlb", "cfb"].includes(league) && aussiesFor !== league ? fetchJSON(`/api/aussies?league=${league}`) : Promise.resolve(null),
+          league === "nfl" ? fetchJSON("/api/road-to-the-g").catch(() => null) : Promise.resolve(null),
+          fetchJSON(`/api/featured?league=${league}`).catch(() => null),
+          fetchJSON(`/api/videos?league=${league}`).catch(() => null),
+          league !== "nfl" ? fetchJSON(`/api/ladder?league=${league}`).catch(() => null) : Promise.resolve(null),
+          league !== "nfl" ? fetchJSON(`/api/leaders?league=${league}`).catch(() => null) : Promise.resolve(null),
+          league === "afl" ? fetchJSON("/api/afl/form").catch(() => null) : Promise.resolve(null),
+          league === "afl" ? fetchJSON("/api/afl/finals").catch(() => null) : Promise.resolve(null),
+        ]);
+      }
       hubData = sched;
       if (aus) { aussies = aus.players || []; aussiesFor = league; }
 

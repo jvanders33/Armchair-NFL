@@ -2096,6 +2096,42 @@ def api_person(slug: str):
 _wrap_cache = {"data": None, "ts": 0.0}
 
 
+@app.get("/api/hub")
+def api_hub(league: str = "nfl", year: int | None = None, seasontype: int | None = None, week: int | None = None,
+            date: str | None = None):
+    """Everything a league hub needs in ONE call — schedule, news, videos,
+    ladder, leaders, form, finals, Aussies — fetched in parallel server-side.
+    One function invocation instead of up to nine cold starts per page. Each
+    optional module fails independently (null) so one dead feed never blanks
+    the hub."""
+    _cfg(league)
+    def safe(fn, *a, **kw):
+        try:
+            return fn(*a, **kw)
+        except Exception:
+            return None
+    jobs = {"schedule": (schedule, (), {"year": year, "seasontype": seasontype, "week": week, "league": league, "date": date}),
+            "featured": (featured, (league,), {}), "videos": (api_videos, (league,), {})}
+    if league in ("nfl", "nba", "mlb", "cfb"):
+        jobs["aussies"] = (api_aussies, (league,), {})
+    if league == "nfl":
+        jobs["rtg"] = (road_to_the_g, (), {})
+    if league != "nfl":
+        jobs["ladder"] = (api_ladder, (league,), {})
+        jobs["leaders"] = (api_leaders, (league,), {})
+    if league == "afl":
+        jobs["form"] = (api_afl_form, (), {})
+        jobs["finals"] = (api_afl_finals, (), {})
+    out = {}
+    with ThreadPoolExecutor(max_workers=len(jobs)) as ex:
+        futs = {k: ex.submit(safe, fn, *a, **kw) for k, (fn, a, kw) in jobs.items()}
+        for k, f in futs.items():
+            out[k] = f.result()
+    if out.get("schedule") is None:
+        raise HTTPException(status_code=502, detail="schedule feed unavailable")
+    return out
+
+
 @app.get("/api/wrap")
 def api_wrap():
     """The Weekly Wrap, assembled from the feeds: the week's episodes, the games
