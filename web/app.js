@@ -2193,6 +2193,7 @@
   const flagImg = (a) => a.flag ? `<img class="tr-flag" src="${esc(a.flag)}" alt="${esc(a.country || "")}" title="${esc(a.country || "")}">` : "";
   const auTag = (a) => a.aussie ? `<i class="tr-au">AU</i>` : "";
   const dayLbl = (iso) => { if (!iso) return ""; const k = fmt(iso); return `${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}`; };
+  const F1_SESSION = { FP1: "Practice 1", FP2: "Practice 2", FP3: "Practice 3", SS: "Sprint Qualifying", SQ: "Sprint Qualifying", SR: "Sprint", Qual: "Qualifying", Race: "Race" };
   const cdown = (iso) => { const ms = new Date(iso) - Date.now(); if (ms <= 0) return ""; const d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5), m = Math.floor((ms % 36e5) / 6e4); return d ? `${d}d ${h}h` : `${h}h ${m}m`; };
 
   async function showTour(lg) {
@@ -2216,7 +2217,7 @@
         const side = (a) => a ? `<span class="tr-side${a.winner ? " won" : ""}${a.aussie ? " au" : ""}">${flagImg(a)}<b>${esc(a.name)}</b>${a.seed ? `<i>(${esc(a.seed)})</i>` : ""}${a.record ? `<i>${esc(a.record)}</i>` : ""}${a.team ? `<i>${esc(a.team)}</i>` : ""}${auTag(a)}</span>` : "<span></span>";
         const score = done && cs.length === 2 && cs[0].linescores.length ? `<span class="tr-score tnum">${cs.map((a) => a.linescores.join(" ")).join(" · ")}</span>` : (done && cs.length === 2 && cs[0].score != null ? `<span class="tr-score tnum">${esc(cs[0].score)} – ${esc(cs[1].score)}</span>` : "");
         return `<div class="tr-comp${done ? " done" : ""}${c.state === "in" ? " live" : ""}">
-          <span class="tr-lbl">${esc(c.label)}${c.weight && c.weight !== c.label ? ` · ${esc(c.weight)}` : ""}${c.draw ? ` · ${esc(c.draw)}` : ""}</span>
+          <span class="tr-lbl">${esc(unit === "session" ? (F1_SESSION[c.label] || c.label) : c.label)}${c.weight && c.weight !== c.label ? ` · ${esc(c.weight)}` : ""}${c.draw ? ` · ${esc(c.draw)}` : ""}</span>
           <div class="tr-vs">${side(cs[0])}<em>${unit === "fight" ? "vs" : unit === "match" ? "v" : ""}</em>${side(cs[1])}</div>
           <span class="tr-when">${c.state === "in" ? '<span class="badge-live">● Live</span> ' : ""}${done ? esc(c.detail || "Final") : dayLbl(c.date)}${c.venue ? ` · ${esc(c.venue)}` : ""}</span>
           ${score}
