@@ -2216,7 +2216,7 @@
         const side = (a) => a ? `<span class="tr-side${a.winner ? " won" : ""}${a.aussie ? " au" : ""}">${flagImg(a)}<b>${esc(a.name)}</b>${a.seed ? `<i>(${esc(a.seed)})</i>` : ""}${a.record ? `<i>${esc(a.record)}</i>` : ""}${a.team ? `<i>${esc(a.team)}</i>` : ""}${auTag(a)}</span>` : "<span></span>";
         const score = done && cs.length === 2 && cs[0].linescores.length ? `<span class="tr-score tnum">${cs.map((a) => a.linescores.join(" ")).join(" · ")}</span>` : (done && cs.length === 2 && cs[0].score != null ? `<span class="tr-score tnum">${esc(cs[0].score)} – ${esc(cs[1].score)}</span>` : "");
         return `<div class="tr-comp${done ? " done" : ""}${c.state === "in" ? " live" : ""}">
-          <span class="tr-lbl">${esc(c.label)}${c.weight ? ` · ${esc(c.weight)}` : ""}${c.draw ? ` · ${esc(c.draw)}` : ""}</span>
+          <span class="tr-lbl">${esc(c.label)}${c.weight && c.weight !== c.label ? ` · ${esc(c.weight)}` : ""}${c.draw ? ` · ${esc(c.draw)}` : ""}</span>
           <div class="tr-vs">${side(cs[0])}<em>${unit === "fight" ? "vs" : unit === "match" ? "v" : ""}</em>${side(cs[1])}</div>
           <span class="tr-when">${c.state === "in" ? '<span class="badge-live">● Live</span> ' : ""}${done ? esc(c.detail || "Final") : dayLbl(c.date)}${c.venue ? ` · ${esc(c.venue)}` : ""}</span>
           ${score}
