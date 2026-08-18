@@ -1816,10 +1816,17 @@ def _dedupe_key(headline: str) -> str:
     return " ".join(w for w in words if len(w) > 3)[:60]
 
 
+# ESPN news paths for the codes that aren't in LEAGUES_CFG (tour sports, cricket)
+NEWS_PATHS = {"tennis": "tennis/atp", "f1": "racing/f1", "golf": "golf/pga", "ufc": "mma/ufc", "cricket": "cricket/8044"}
+
+
 def _espn_api_stories(league: str) -> list[dict]:
     """ESPN's JSON feed — its RSS has no art, but this does."""
+    path = NEWS_PATHS.get(league)
+    if league == "la2028":
+        return []
     try:
-        payload = _get_json(f"{_site(league)}/news", {"limit": "24"}, ttl=900)
+        payload = _get_json(f"{ESPN_BASE}/{path}/news" if path else f"{_site(league)}/news", {"limit": "24"}, ttl=900)
     except requests.RequestException:
         return []
     out = []
@@ -1890,7 +1897,7 @@ def featured(league: str = "nfl"):
     Editorial pins ride at the front; after that it's freshness with a nudge
     for stories that brought art, so the page always has pictures.
     """
-    if league != "racing":
+    if league != "racing" and league not in NEWS_PATHS and league != "la2028":
         _cfg(league)
     stories = []
     for pin in ((_load_experts().get("featured_pins") or []) if league == "nfl" else []):
