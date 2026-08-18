@@ -1,0 +1,21 @@
+{
+  "note": "Aussies-in-the-NBA — the curated half of a hybrid. /api/aussies?league=nba scans every ESPN roster for birthPlace.country == Australia AND matches these names (ESPN drops the birthplace on some internationals, Giddey included). Names must match ESPN's fullName exactly. Players not on a roster simply don't render, so retired/unsigned entries are harmless. Order = display priority.",
+  "players": [
+    { "name": "Josh Giddey", "from": "Melbourne · Adelaide 36ers (NBL)", "hook": "The Boomers' playmaker and the face of Australian basketball in the NBA — a triple-double machine running Chicago's offence." },
+    { "name": "Dyson Daniels", "from": "Bendigo · Centre of Excellence", "hook": "The Great Barrier Thief — the NBA's steals leader and Most Improved Player, Australia's best defender in the league." },
+    { "name": "Josh Green", "from": "Sydney · IMG Academy", "hook": "Boomers wing, elite defender and Olympic quarter-finalist — the connective piece every contender wants." },
+    { "name": "Jock Landale", "from": "Melbourne · Melbourne United (NBL)", "hook": "Boomers centre and NBL champion who forced his way into the league — the big-man insurance policy." },
+    { "name": "Johnny Furphy", "from": "Canberra · Kansas", "hook": "The 6'9\" wing who went from Canberra to the lottery conversation in one college season." },
+    { "name": "Tyrese Proctor", "from": "Sydney · Duke", "hook": "The Duke point guard, Boomers-eligible, drafted into Cleveland's contender." },
+    { "name": "Ben Simmons", "from": "Melbourne · LSU", "hook": "The former No. 1 pick and Rookie of the Year — Australia's most talented export, still one of the best passers alive." },
+    { "name": "Patty Mills", "from": "Canberra · Saint Mary's", "hook": "The Boomers' captain and 2021 Olympic bronze medallist — an NBA champion and Australian basketball's spiritual leader." },
+    { "name": "Dante Exum", "from": "Melbourne · Australian Institute of Sport", "hook": "The No. 5 pick who rebuilt his career in Europe and came back a starter — the comeback story." },
+    { "name": "Duop Reath", "from": "Perth · Perth Wildcats (NBL)", "hook": "From the Wildcats to an NBA rotation — the stretch-five who proved the NBL-to-NBA pathway works." },
+    { "name": "Matisse Thybulle", "from": "Boomers · Washington", "hook": "US-born, Boomers-committed — the All-Defensive wing who chose the green and gold." },
+    { "name": "Joe Ingles", "from": "Adelaide · Adelaide 36ers (NBL)", "hook": "The Boomers' greatest — thirteen NBA seasons of jokes, threes and winning plays." },
+    { "name": "Alex Toohey", "from": "Canberra · Sydney Kings (NBL)", "hook": "The Next Star who jumped from the Kings to the NBA — the newest Boomers wing." },
+    { "name": "Rocco Zikarsky", "from": "Brisbane · Brisbane Bullets (NBL)", "hook": "The 7'3\" teenager from the Bullets — the biggest Australian project since Bogut." },
+    { "name": "Lachlan Olbrich", "from": "Adelaide · Illawarra Hawks (NBL)", "hook": "The NBL champion forward drafted straight into the league." },
+    { "name": "Kyrie Irving", "from": "Born Melbourne · Duke", "hook": "Yes, Melbourne-born — an NBA champion and one of the great ball-handlers, with an Australian passport to prove it." }
+  ]
+}
