@@ -270,6 +270,7 @@
         <div class="section-h" style="margin-top:32px">Latest episodes <span class="n">· <a href="#/episodes">all ${eps.count} →</a></span></div>
         <div class="ep-grid">${eps.episodes.slice(1, 7).map((e) => episodeCard(e)).join("")}</div>` : ""}
         <section id="home-take"></section>
+        <div class="wr-teaser"><a class="wr-teaser-in" href="#/wrap"><b>The Weekly Wrap</b><span>The week in five minutes — episodes, games worth watching, the stories, what's coming. Read it →</span></a><a class="wr-teaser-in" href="#/people"><b>Hosts &amp; guests</b><span>Cam, Cooney, and everyone who's sat in the guest chair →</span></a><a class="wr-teaser-in" href="#/clips"><b>Clips &amp; video</b><span>Everything on the channel, playable here →</span></a></div>
         <section id="home-moments"></section>
         <div class="section-h" style="margin-top:34px">Go deeper <span class="n">· every code, every fixture, every player</span></div>
         <div class="deep-row">
@@ -364,13 +365,22 @@
       view.innerHTML = `<div class="shell">
         ${pageHero("The podcast", `Every <em>episode</em>.`, `${d.count} episodes across the shows — listen here, watch on YouTube, or follow wherever you listen.`)}
         ${followStrip(d.platforms, true)}
+        <div class="ep-search"><input type="search" id="ep-q" placeholder="Search episodes — a guest, a club, a topic…" aria-label="Search episodes"><span class="ep-q-n" id="ep-q-n"></span></div>
         <div class="ep-filters" role="tablist">
           <a class="fg-tab" href="#/episodes" aria-pressed="${!showKey}">All</a>
           ${shows.map(([k, s]) => `<a class="fg-tab" href="#/episodes/${esc(k)}" aria-pressed="${showKey === k}">${esc(s.title)}</a>`).join("")}
         </div>
-        <div class="ep-grid">${eps.map((e) => episodeCard(e)).join("")}</div>
+        <div class="ep-grid" id="ep-grid">${eps.map((e) => episodeCard(e)).join("")}</div>
         <p class="panel-note" style="margin-top:12px">Source: the show's podcast feed and YouTube channel · updated ${timeAgoShort(d.updated)}</p>
       </div>`;
+      const q = $("ep-q");
+      if (q) q.addEventListener("input", () => {
+        const s = q.value.trim().toLowerCase();
+        const hits = !s ? eps : eps.filter((e) => (e.title + " " + (e.topics || []).join(" ") + " " + (e.guest ? e.guest.name : "") + " " + e.show.title).toLowerCase().includes(s));
+        $("ep-grid").innerHTML = hits.length ? hits.map((e) => episodeCard(e)).join("") : `<div class="panel roster-empty"><p>No episodes match "${esc(q.value)}".</p></div>`;
+        $("ep-q-n").textContent = s ? `${hits.length} of ${eps.length}` : "";
+        if (s.length > 2) track("search_episodes", s.slice(0, 40));
+      });
       track("view_episodes", showKey || "all");
     } catch (err) {
       view.innerHTML = `<div class="shell"><div class="loading">Couldn't load episodes (${esc(err.message)}). <a href="#/episodes" onclick="location.reload()">Try again</a>.</div></div>`;
@@ -392,7 +402,7 @@
             <div>
               <div class="th-loc">${esc(e.show.title)}${e.number ? ` · Episode ${esc(e.number)}` : ""}${e.season ? ` · Season ${esc(e.season)}` : ""}</div>
               <h1 class="th-name ep-h1">${esc(e.title)}</h1>
-              <div class="th-meta">With ${esc(e.show.hosts)} · Published ${esc(epDate(e.published))}${e.duration ? " · " + esc(e.duration) : ""}</div>
+              <div class="th-meta">With <a class="ppl-link" href="#/people/cam-luke">Cam Luke</a>${e.showKey === "afl" ? ' &amp; <a class="ppl-link" href="#/people/adam-cooney">Adam Cooney</a>' : ""}${e.guest ? ` · Guest: <a class="ppl-link" href="#/people/${esc(e.guest.slug)}">${esc(e.guest.name)}</a>${e.guest.role ? ` <i>(${esc(e.guest.role)})</i>` : ""}` : ""} · Published ${esc(epDate(e.published))}${e.duration ? " · " + esc(e.duration) : ""}</div>
               <div class="hh-actions">
                 ${e.audio ? `<button class="watch big" id="ep-listen">▶ Listen now</button>` : ""}
                 ${e.videoId ? `<a class="watch ghost" href="#/watch/${esc(e.videoId)}" data-track="click_watch_video" data-label="${esc(e.slug)}">Watch on YouTube</a>` : ""}
@@ -463,6 +473,86 @@
     } catch (err) {
       view.innerHTML = `<div class="shell"><div class="loading">Couldn't load this show (${esc(err.message)}). <a href="#/shows">All shows →</a></div></div>`;
     }
+  }
+
+  // ---------- THE WEEKLY WRAP: the digest as a page (and, later, the email body) ----------
+  async function showWrap() {
+    view.innerHTML = `<div class="shell"><div class="loading" aria-live="polite">Assembling the wrap…</div></div>`;
+    try {
+      const w = await fetchJSON("/api/wrap");
+      const gameRow = (x) => { const g = x.game; const k = fmt(g.date); const opts = WATCH[x.league] || []; const primary = opts.find((o) => o.every) || opts[0];
+        return `<div class="wr-game"><span class="sc-sport">${esc(x.name)}</span><b>${esc(g.away.name)} ${x.league === "nfl" ? "at" : "v"} ${esc(g.home.name)}</b><span class="wr-when">${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}</span>${primary ? `<a class="watch sm ghost" href="${esc(primary.url)}" target="_blank" rel="noopener" data-track="click_event_watch_provider" data-label="${esc(x.league + ":" + primary.key)}">▶ ${esc(primary.label)}</a>` : ""}<a class="wr-more" href="#/${x.league}">hub →</a></div>`; };
+      view.innerHTML = `<div class="shell">
+        ${pageHero("The Weekly Wrap", `Five minutes<br><em>with your coffee</em>.`, `The week from Armchair Experts — the episodes, the games worth your time, the stories, and what's coming. Assembled ${timeAgoShort(w.generated)}.`)}
+        <div class="wr-actions"><button class="watch ghost" id="wr-share">Share this wrap</button><a class="watch ghost" href="#/leagues" data-track="click_follow_platform" data-label="newsletter">✉ Get it by email (coming soon)</a></div>
+        <div class="section-h" style="margin-top:28px">This week's episodes</div>
+        <div class="ep-grid">${w.episodes.map((e) => episodeCard(e)).join("")}</div>
+        <div class="section-h" style="margin-top:30px">Worth watching this week</div>
+        <div class="wr-games">${w.games.map(gameRow).join("")}</div>
+        <div class="section-h" style="margin-top:30px">The stories</div>
+        <div class="wr-news">${w.news.map((n) => `<div class="wr-newscol"><div class="ldr-h">${esc(n.name)}</div>${n.stories.map((s) => `<a class="wr-story" href="${esc(s.link)}" target="_blank" rel="noopener">${s.image ? `<img src="${esc(s.image)}" alt="" loading="lazy">` : ""}<span><b>${esc(s.headline)}</b><i>${esc(s.source || "")}</i></span></a>`).join("")}</div>`).join("")}</div>
+        <div class="section-h" style="margin-top:30px">Coming up</div>
+        <div class="cal-row">${w.events.map((e) => { const k = fmt(e.time); return `<a class="cal-card" href="${esc(e.href || "#/leagues")}"><span class="cal-when">${esc(k.wd)} ${esc(k.day)}</span><b>${esc(e.name)}</b><i>${esc(e.code || "")}</i></a>`; }).join("")}</div>
+        ${followStrip(w.platforms, true)}
+      </div>`;
+      $("wr-share")?.addEventListener("click", () => share("The Weekly Wrap — Armchair Experts", `${SITE}/wrap`, "share_wrap"));
+      track("view_wrap");
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't assemble the wrap (${esc(err.message)}). <a href="#/wrap" onclick="location.reload()">Try again</a>.</div></div>`;
+    }
+  }
+
+  // ---------- PEOPLE: hosts and guests ----------
+  async function showPeople() {
+    view.innerHTML = `<div class="shell"><div class="loading" aria-live="polite">Loading…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/people");
+      const hosts = d.people.filter((p) => p.kind === "host"), guests = d.people.filter((p) => p.kind === "guest");
+      const card = (p) => `<a class="ppl-card" href="#/people/${esc(p.slug)}"><span class="ppl-av">${esc(p.name.split(" ").map((x) => x[0]).join("").slice(0, 2))}</span><span><b>${esc(p.name)}</b><i>${esc(p.role || (p.kind === "guest" ? "Guest" : ""))}</i><em>${p.episodes.length} episode${p.episodes.length === 1 ? "" : "s"}</em></span></a>`;
+      view.innerHTML = `<div class="shell">
+        ${pageHero("The people", `Hosts &amp; <em>guests</em>.`, "The voices on the show — and the people who've sat in the guest chair.")}
+        <div class="section-h" style="margin-top:22px">The hosts</div><div class="ppl-grid">${hosts.map(card).join("")}</div>
+        <div class="section-h" style="margin-top:28px">Guests <span class="n">· from the interview series</span></div><div class="ppl-grid">${guests.map(card).join("")}</div>
+      </div>`;
+      track("view_people");
+    } catch (err) { view.innerHTML = `<div class="shell"><div class="loading">Couldn't load (${esc(err.message)}).</div></div>`; }
+  }
+  async function showPerson(slug) {
+    view.innerHTML = `<div class="shell"><div class="loading" aria-live="polite">Loading…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/people/" + encodeURIComponent(slug));
+      const p = d.person;
+      document.title = `${p.name} — Armchair Experts`;
+      view.innerHTML = `
+        <div class="team-hero ep-hero"><div class="shell">
+          <a class="crumb" href="#/people">← Hosts &amp; guests</a>
+          <div class="th-row"><span class="ppl-av big">${esc(p.name.split(" ").map((x) => x[0]).join("").slice(0, 2))}</span>
+            <div><div class="th-loc">${esc(p.kind === "host" ? "Host" : "Guest")}${p.role ? " · " + esc(p.role) : ""}</div><h1 class="th-name">${esc(p.name)}</h1>${p.bio ? `<div class="th-meta">${esc(p.bio)}</div>` : ""}
+              <div class="hh-actions"><button class="watch ghost" id="pp-share">Share</button></div></div></div>
+        </div></div>
+        <div class="shell">
+          <div class="section-h" style="margin-top:24px">${p.kind === "host" ? "Episodes" : "On the show"} <span class="n">· ${d.episodes.length}</span></div>
+          <div class="ep-grid">${d.episodes.map((e) => episodeCard(e)).join("")}</div>
+          ${followStrip(d.platforms, true)}
+        </div>`;
+      $("pp-share")?.addEventListener("click", () => share(`${p.name} — Armchair Experts`, `${SITE}/people/${p.slug}`, "share_person"));
+      track("view_person", p.slug);
+    } catch (err) { view.innerHTML = `<div class="shell"><div class="loading">Couldn't load (${esc(err.message)}). <a href="#/people">All people →</a></div></div>`; }
+  }
+
+  // ---------- CLIPS: everything on the channel, newest first ----------
+  async function showClips() {
+    view.innerHTML = `<div class="shell"><div class="loading" aria-live="polite">Loading clips…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/videos");
+      const vids = d.videos || [];
+      view.innerHTML = `<div class="shell">
+        ${pageHero("Clips & video", `Straight from <em>the channel</em>.`, "Every upload from the Armchair Experts YouTube channel — episodes, interviews and clips — playable here.")}
+        <div class="vid-rail wrap">${vids.map((v) => `<a class="vid-card" href="#/watch/${esc(v.id)}" data-track="click_watch_video" data-label="${esc(v.id)}"><span class="vc-thumb"><img src="${esc(v.thumb)}" alt="" loading="lazy"><span class="vc-play">▶</span></span><span class="vc-t">${esc(v.title)}</span><span class="vc-m">${timeAgo(v.published)}${v.views ? " · " + v.views.toLocaleString() + " views" : ""}${v.league ? " · " + esc(v.league.toUpperCase()) : ""}</span></a>`).join("")}</div>
+        <p class="panel-note" style="margin-top:12px">Source: the channel's public feed (latest ${vids.length}) — a new upload appears here within 15 minutes.</p>
+      </div>`;
+      track("view_clips");
+    } catch (err) { view.innerHTML = `<div class="shell"><div class="loading">Couldn't load clips (${esc(err.message)}).</div></div>`; }
   }
 
   // =====================================================================
@@ -3074,6 +3164,10 @@
     else if ((m = h.match(/^#\/episode\/([\w-]+)$/))) { setNav("podcasts"); showEpisode(m[1]); }
     else if ((m = h.match(/^#\/show\/([\w-]+)$/))) { setNav("shows"); showShowPage(m[1]); }
     else if ((m = h.match(/^#\/episodes(?:\/([\w-]+))?$/))) { setNav("podcasts"); showEpisodes(m[1]); }
+    else if (h === "#/wrap") { setNav("home"); showWrap(); }
+    else if (h === "#/people") { setNav("shows"); showPeople(); }
+    else if ((m = h.match(/^#\/people\/([\w-]+)$/))) { setNav("shows"); showPerson(m[1]); }
+    else if (h === "#/clips") { setNav("watch"); showClips(); }
     else if ((m = h.match(new RegExp(`^#/${LG}/team/([A-Za-z0-9]{2,8})$`)))) { league = m[1]; setNav("leagues"); showTeam(m[2].toUpperCase()); }
     else if ((m = h.match(new RegExp(`^#/${LG}/player/([\\w-]+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
     else if ((m = h.match(new RegExp(`^#/${LG}/teams$`)))) { league = m[1]; setNav("leagues"); showTeams(); }

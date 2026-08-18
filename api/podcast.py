@@ -93,6 +93,33 @@ def _show_key(title: str) -> str:
     return "afl"
 
 
+ROLE_WORDS = {"NE", "Patriots", "WR", "QB", "RB", "TE", "GM", "NFL", "Au", "NZ", "Minister", "Sport", "Major", "Events",
+              "Coach", "Captain", "Star", "Legend", "Rams", "49ers", "Former", "Ex", "The"}
+
+
+def _guest(title: str, show_key: str) -> dict | None:
+    """Guest from an interview-style title, e.g. "'Cali to the G' - NE Patriots WR
+    Mack Hollins" → Mack Hollins. Series prefix stripped, role suffix after a
+    second dash dropped, then the last Firstname Lastname pair. Only for the
+    interview series; the AFL show titles are topics, not guests."""
+    if show_key != "cali":
+        return None
+    t = re.sub(r"^\s*['‘’\"]?\s*cali\s+to\s+the\s+g\s*['‘’\"]?\s*[-–:]?\s*", "", title, flags=re.I).strip()
+    seg = re.split(r"\s+[-–]\s+", t)[0]
+    words = [w for w in re.findall(r"[A-Z][A-Za-z'’-]+", seg)]
+    cand = [w for w in words if w not in ROLE_WORDS]
+    if len(cand) < 2:
+        return None
+    name = f"{cand[-2]} {cand[-1]}"
+    role = seg.replace(name, "").strip(" -,") or (re.split(r"\s+[-–]\s+", t)[1] if len(re.split(r"\s+[-–]\s+", t)) > 1 else "")
+    return {"name": name, "slug": _slug(name), "role": role}
+
+
+HOSTS = [
+    {"slug": "cam-luke", "name": "Cam Luke", "role": "Host", "bio": "Seven years fronting Armchair Experts on Channel Seven; now the voice of the independent brand across AFL, NFL, NBL and racing. On radio daily."},
+    {"slug": "adam-cooney", "name": "Adam Cooney", "role": "Co-host, The AFL Show", "bio": "2008 Brownlow medallist and Western Bulldogs great — the second chair on The AFL Show."},
+]
+
 SHOW_META = {
     "afl": {"slug": "the-afl-show", "title": "The AFL Show", "sport": "AFL", "hosts": "Cam Luke & Adam Cooney",
             "cadence": "Weekly, in season", "desc": "Sharp AFL analysis with a Brownlow medallist in the second chair — the show that built the audience.",
@@ -201,6 +228,7 @@ def episodes() -> dict:
         }
         ep["showKey"] = _show_key(title)
         ep["show"] = SHOW_META[ep["showKey"]]
+        ep["guest"] = _guest(title, ep["showKey"])
         ep["videoId"] = _match_video(ep, videos)
         ep["thumb"] = f"https://i.ytimg.com/vi/{ep['videoId']}/hqdefault.jpg" if ep["videoId"] else ep["image"]
         del ep["words"]
@@ -219,6 +247,27 @@ def episodes() -> dict:
 
 def episode(slug: str) -> dict | None:
     return next((e for e in episodes()["episodes"] if e["slug"] == slug), None)
+
+
+def people() -> list[dict]:
+    """Hosts (curated) + guests (derived from interview episodes), each with
+    the episodes they appear in."""
+    eps = episodes()["episodes"]
+    out = [{**h, "kind": "host", "episodes": [e["slug"] for e in eps if e["showKey"] in ("afl", "cali", "nfl") and (h["slug"] != "adam-cooney" or e["showKey"] == "afl")][:60]} for h in HOSTS]
+    guests: dict[str, dict] = {}
+    for e in eps:
+        g = e.get("guest")
+        if not g:
+            continue
+        rec = guests.setdefault(g["slug"], {"slug": g["slug"], "name": g["name"], "role": g["role"], "kind": "guest", "episodes": []})
+        rec["episodes"].append(e["slug"])
+        if not rec["role"] and g["role"]:
+            rec["role"] = g["role"]
+    return out + sorted(guests.values(), key=lambda x: x["name"])
+
+
+def person(slug: str) -> dict | None:
+    return next((p for p in people() if p["slug"] == slug), None)
 
 
 def shows() -> list[dict]:

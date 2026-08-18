@@ -2053,6 +2053,63 @@ def api_podcast_shows():
     return {"shows": pc.shows(), "platforms": pc.PLATFORMS}
 
 
+@app.get("/api/people")
+def api_people():
+    return {"people": pc.people(), "platforms": pc.PLATFORMS}
+
+
+@app.get("/api/people/{slug}")
+def api_person(slug: str):
+    p = pc.person(slug)
+    if not p:
+        raise HTTPException(status_code=404, detail="Unknown person")
+    eps = {e["slug"]: e for e in pc.episodes()["episodes"]}
+    return {"person": p, "episodes": [eps[x] for x in p["episodes"] if x in eps], "platforms": pc.PLATFORMS}
+
+
+_wrap_cache = {"data": None, "ts": 0.0}
+
+
+@app.get("/api/wrap")
+def api_wrap():
+    """The Weekly Wrap, assembled from the feeds: the week's episodes, the games
+    of the week across the home codes, the top stories, what's coming up.
+    Shareable page now; the email body when the ESP is connected."""
+    if _wrap_cache["data"] and time.time() - _wrap_cache["ts"] < 900:
+        return _wrap_cache["data"]
+    from datetime import timedelta as _td
+    eps = pc.episodes()
+    cutoff = (datetime.now(timezone.utc) - _td(days=8)).isoformat()
+    week_eps = [e for e in eps["episodes"] if e["published"] >= cutoff][:6] or eps["episodes"][:3]
+
+    def gotw(lg):
+        try:
+            d = schedule(league=lg)
+            live = [g for g in d["games"] if g["status"]["state"] != "post"] or d["games"]
+            g = next((x for x in live if x["id"] == (d.get("experts") or {}).get("gotw")), None) or next((x for x in live if x["id"] == d.get("gotw")), None) or (live[0] if live else None)
+            return {"league": lg, "name": LEAGUES_CFG[lg]["name"], "game": g, "week": d.get("week")} if g else None
+        except Exception:
+            return None
+
+    def stories(lg):
+        try:
+            f = featured(lg)
+            return {"league": lg, "name": LEAGUES_CFG.get(lg, {}).get("name", lg.upper()), "stories": (f.get("stories") or f.get("more") or [])[:3]}
+        except Exception:
+            return None
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        games = [g for g in ex.map(gotw, ["afl", "nrl", "nfl"]) if g]
+        news = [n for n in ex.map(stories, ["afl", "nfl", "nrl"]) if n and n["stories"]]
+    try:
+        events = [e for e in api_events()["events"] if not e.get("past")][:4]
+    except Exception:
+        events = []
+    data = {"generated": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "episodes": week_eps,
+            "games": games, "news": news, "events": events, "platforms": pc.PLATFORMS}
+    _wrap_cache.update(data=data, ts=time.time())
+    return data
+
+
 # ---------- news feed (ListTrac pattern: Google News RSS, link-out only) ----------
 
 NEWS_URL = "https://news.google.com/rss/search?q=NFL%20when:2d&hl=en-US&gl=US&ceid=US:en"
@@ -2399,6 +2456,19 @@ def page_show(slug: str):
     return _render_shell(f'{sh["title"]} — Armchair Experts', sh["desc"], img, f"/show/{slug}")
 
 
+@app.get("/people/{slug}", response_class=HTMLResponse)
+def page_person(slug: str):
+    p = pc.person(slug)
+    if not p:
+        return _render_shell("Armchair Experts", "Every sport. One armchair.", None, f"/people/{slug}")
+    return _render_shell(f'{p["name"]} — Armchair Experts', f'{p["name"]} — {p.get("role") or "guest"} on Armchair Experts. Episodes, clips and where to listen.', None, f"/people/{slug}", "profile")
+
+
+@app.get("/wrap", response_class=HTMLResponse)
+def page_wrap():
+    return _render_shell("The Weekly Wrap — Armchair Experts", "This week's episodes, the games worth watching, the stories, and what's coming up — in five minutes.", None, "/wrap")
+
+
 @app.get("/episodes", response_class=HTMLResponse)
 def page_episodes():
     return _render_shell("Episodes — Armchair Experts", "Every episode of Armchair Experts — listen, watch, share.", None, "/episodes")
@@ -2409,6 +2479,7 @@ def sitemap():
     urls = [f"{SITE}/", f"{SITE}/episodes", f"{SITE}/#/leagues", f"{SITE}/#/shows", f"{SITE}/#/watch"]
     try:
         urls += [f"{SITE}/show/{sh['slug']}" for sh in pc.shows()]
+        urls += [f"{SITE}/people/{p['slug']}" for p in pc.people()] + [f"{SITE}/wrap"]
         urls += [f"{SITE}/episode/{e['slug']}" for e in pc.episodes()["episodes"]]
     except Exception:
         pass
