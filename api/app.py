@@ -24,9 +24,11 @@ from fastapi.staticfiles import StaticFiles
 try:
     from . import racing as rc          # package import (uvicorn api.app:app)
     from . import globalsports as gs
+    from . import podcast as pc
 except ImportError:
     import racing as rc                 # Vercel runs api/index.py with api/ on sys.path
     import globalsports as gs
+    import podcast as pc
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
@@ -2003,10 +2005,51 @@ def api_videos(league: str = ""):
 
 @app.get("/api/shows")
 def api_shows():
+    """The slate from data/shows.json, with each show's REAL episodes attached
+    from the podcast feed (sample episode metadata in the file is ignored)."""
     try:
-        return json.loads((DATA / "shows.json").read_text(encoding="utf-8"))
+        data = json.loads((DATA / "shows.json").read_text(encoding="utf-8"))
     except Exception:
-        return {"shows": [], "runway": []}
+        data = {"shows": [], "runway": []}
+    try:
+        live = {sh["title"].lower(): sh for sh in pc.shows()}
+    except Exception:
+        live = {}
+    for sh in data.get("shows", []):
+        real = live.get((sh.get("title") or "").lower())
+        sh.pop("episodes", None)
+        if real:
+            sh["slug"] = real["slug"]
+            sh["key"] = real["key"]
+            sh["episodeCount"] = real["count"]
+            sh["latest"] = real["latest"]
+            if real["count"]:
+                sh["status"] = "live"
+        else:
+            sh["episodeCount"] = 0
+    return data
+
+
+@app.get("/api/episodes")
+def api_episodes(show: str | None = None, limit: int = 60):
+    d = pc.episodes()
+    eps = d["episodes"]
+    if show:
+        eps = [e for e in eps if e["showKey"] == show or e["show"]["slug"] == show]
+    return {**d, "episodes": eps[:limit]}
+
+
+@app.get("/api/episodes/{slug}")
+def api_episode(slug: str):
+    e = pc.episode(slug)
+    if not e:
+        raise HTTPException(status_code=404, detail="Unknown episode")
+    return {"episode": e, "platforms": pc.PLATFORMS, "show": pc.episodes()["show"]}
+
+
+@app.get("/api/podcast/shows")
+def api_podcast_shows():
+    return {"shows": pc.shows(), "platforms": pc.PLATFORMS}
 
 
 # ---------- news feed (ListTrac pattern: Google News RSS, link-out only) ----------
@@ -2084,16 +2127,34 @@ PARTNER_SAMPLE = {
 }
 
 
+_events: dict[tuple, int] = {}
+
+
 @app.post("/api/track")
 async def track(req: Request):
+    """Funnel events from the site (click_listen, click_watch_video,
+    click_follow_platform, share_episode, click_event_watch_provider, …).
+    Prototype store per instance; the same payload is what a real analytics
+    sink (Vercel Analytics / Plausible / GA4) would receive."""
     try:
         data = json.loads(await req.body())
+        if data.get("event"):
+            key = (str(data.get("event"))[:32], str(data.get("label", ""))[:48], str(data.get("route", ""))[:48])
+            _events[key] = _events.get(key, 0) + 1
+            return {"ok": True}
         key = (str(data.get("medium", ""))[:24], str(data.get("campaign", ""))[:24],
                str(data.get("content", ""))[:24])
         _clicks[key] = _clicks.get(key, 0) + 1
         return {"ok": True}
     except Exception:
         return {"ok": False}
+
+
+@app.get("/api/track/summary")
+def track_summary():
+    rows = sorted(_events.items(), key=lambda kv: -kv[1])[:100]
+    return {"events": [{"event": k[0], "label": k[1], "route": k[2], "count": v} for k, v in rows],
+            "note": "per-instance prototype counts — wire a real analytics sink for production"}
 
 
 # ---------- audience capture: newsletter + mailbag ----------
@@ -2267,6 +2328,108 @@ def api_racing_horse(pid: str):
         return rc.horse(pid)
     except KeyError:
         raise HTTPException(status_code=404, detail="Unknown horse")
+
+
+# ---------------------------------------------------------------------------
+# Clean URLs: the same SPA shell, served with per-page <title>/<meta>/OG so an
+# episode or show link unfurls properly when shared. The router accepts these
+# paths as well as the #/ hashes.
+# ---------------------------------------------------------------------------
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response  # noqa: E402
+
+SITE = "https://armchair-nfl.vercel.app"
+_shell_cache = {"html": None, "ts": 0.0}
+
+
+def _shell_html() -> str:
+    if not _shell_cache["html"] or time.time() - _shell_cache["ts"] > 60:
+        _shell_cache.update(html=(WEB / "index.html").read_text(encoding="utf-8"), ts=time.time())
+    return _shell_cache["html"]
+
+
+def _esc(s: str) -> str:
+    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
+
+
+def _render_shell(title: str, desc: str, image: str | None, path: str, kind: str = "website", extra: str = "") -> HTMLResponse:
+    html = _shell_html()
+    head = f"""<title>{_esc(title)}</title>
+  <meta name="description" content="{_esc(desc)}">
+  <link rel="canonical" href="{SITE}{path}">
+  <meta property="og:type" content="{kind}">
+  <meta property="og:site_name" content="Armchair Experts">
+  <meta property="og:title" content="{_esc(title)}">
+  <meta property="og:description" content="{_esc(desc)}">
+  <meta property="og:url" content="{SITE}{path}">
+  <meta property="og:image" content="{_esc(image or SITE + '/img/og.png')}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{_esc(title)}">
+  <meta name="twitter:description" content="{_esc(desc)}">
+  <meta name="twitter:image" content="{_esc(image or SITE + '/img/og.png')}">
+  {extra}"""
+    # replace the static head block between <title> and the stylesheet link
+    start = html.find("<title>")
+    end = html.find('<link rel="stylesheet"')
+    if start > -1 and end > start:
+        html = html[:start] + head + "\n  " + html[end:]
+    return HTMLResponse(html)
+
+
+@app.get("/episode/{slug}", response_class=HTMLResponse)
+def page_episode(slug: str):
+    e = pc.episode(slug)
+    if not e:
+        return _render_shell("Armchair Experts", "Every sport. One armchair.", None, f"/episode/{slug}")
+    ld = json.dumps({"@context": "https://schema.org", "@type": "PodcastEpisode", "name": e["title"],
+                     "datePublished": e["published"], "description": e["summary"][:300],
+                     "url": f"{SITE}/episode/{slug}", "timeRequired": f"PT{max(1, e['durationSec'] // 60)}M",
+                     "associatedMedia": {"@type": "MediaObject", "contentUrl": e["audio"]} if e["audio"] else None,
+                     "partOfSeries": {"@type": "PodcastSeries", "name": "Armchair Experts", "url": SITE}})
+    return _render_shell(f'{e["title"]} — Armchair Experts', e["summary"][:200] or e["show"]["desc"], e["thumb"],
+                         f"/episode/{slug}", "article", f'<script type="application/ld+json">{ld}</script>')
+
+
+@app.get("/show/{slug}", response_class=HTMLResponse)
+def page_show(slug: str):
+    sh = next((x for x in pc.shows() if x["slug"] == slug), None)
+    if not sh:
+        return _render_shell("Armchair Experts", "Every sport. One armchair.", None, f"/show/{slug}")
+    img = (sh["latest"] or {}).get("thumb")
+    return _render_shell(f'{sh["title"]} — Armchair Experts', sh["desc"], img, f"/show/{slug}")
+
+
+@app.get("/episodes", response_class=HTMLResponse)
+def page_episodes():
+    return _render_shell("Episodes — Armchair Experts", "Every episode of Armchair Experts — listen, watch, share.", None, "/episodes")
+
+
+@app.get("/sitemap.xml")
+def sitemap():
+    urls = [f"{SITE}/", f"{SITE}/episodes", f"{SITE}/#/leagues", f"{SITE}/#/shows", f"{SITE}/#/watch"]
+    try:
+        urls += [f"{SITE}/show/{sh['slug']}" for sh in pc.shows()]
+        urls += [f"{SITE}/episode/{e['slug']}" for e in pc.episodes()["episodes"]]
+    except Exception:
+        pass
+    body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + \
+           "".join(f"  <url><loc>{u}</loc></url>\n" for u in urls) + "</urlset>\n"
+    return Response(content=body, media_type="application/xml")
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+def robots():
+    return f"User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: {SITE}/sitemap.xml\n"
+
+
+@app.get("/", response_class=HTMLResponse)
+def page_home():
+    try:
+        latest = pc.episodes()["episodes"][0]
+        desc = f'Latest: {latest["title"]}. The voice of sports fans in Australia — the podcast, and what to watch this week.'
+        img = latest["thumb"]
+    except Exception:
+        desc, img = "The voice of sports fans in Australia — the podcast, and what to watch this week.", None
+    return _render_shell("Armchair Experts — Every Sport. One Armchair.", desc, img, "/")
 
 
 app.mount("/", StaticFiles(directory=str(WEB), html=True), name="web")

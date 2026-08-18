@@ -89,6 +89,32 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   const _cache = new Map();
+  // Funnel analytics: one beacon per audience action. Same payload a real sink
+  // (Vercel Analytics / Plausible / GA4) would take — swap the transport, keep the calls.
+  function track(event, label, extra) {
+    try {
+      const body = JSON.stringify({ event, label: label || "", route: location.hash || location.pathname, ts: Date.now(), ...(extra || {}) });
+      if (navigator.sendBeacon) navigator.sendBeacon("/api/track", new Blob([body], { type: "application/json" }));
+      else fetch("/api/track", { method: "POST", body, keepalive: true }).catch(() => {});
+      if (window.va) window.va("event", { name: event, data: { label } });
+    } catch { /* analytics must never break the page */ }
+  }
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-track]");
+    if (a) track(a.getAttribute("data-track"), a.getAttribute("data-label") || a.textContent.trim().slice(0, 48));
+  });
+  const SITE = location.origin;
+  async function share(title, url, event) {
+    track(event || "share", title);
+    try {
+      if (navigator.share) { await navigator.share({ title, url }); return; }
+      await navigator.clipboard.writeText(url);
+      toast("Link copied · " + esc(url.replace(/^https?:\/\//, "")));
+    } catch { toast("Copy this link: " + esc(url)); }
+  }
+  const timeAgoShort = (iso) => { const m = Math.max(0, Math.round((Date.now() - new Date(iso)) / 6e4)); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.floor(m / 60)}h ago` : `${Math.floor(m / 1440)}d ago`; };
+  const epDate = (iso) => new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
+
   async function fetchJSON(url) {
     if (_cache.has(url)) return _cache.get(url);
     const r = await fetch(url);
@@ -159,6 +185,279 @@
     el.classList.add("on");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove("on"), 2600);
+  }
+
+  // =====================================================================
+  // THE PODCAST — home, episodes, episode page, show page, follow strip
+  // =====================================================================
+  const PLAT_ICON = { youtube: "▶", apple: "", iheart: "♥", rss: "◉", spotify: "●" };
+  function followStrip(platforms, compact) {
+    const ps = platforms || [];
+    return `<section class="follow${compact ? " compact" : ""}" aria-label="Follow Armchair Experts">
+      <div class="fl-h"><b>Never miss an episode</b><span>Follow Armchair Experts wherever you listen.</span></div>
+      <div class="fl-row">
+        ${ps.map((p) => `<a class="fl-btn fl-${esc(p.key)}" href="${esc(p.url)}" target="_blank" rel="noopener" data-track="click_follow_platform" data-label="${esc(p.key)}">${PLAT_ICON[p.key] || ""} ${esc(p.verb)} on ${esc(p.label)}</a>`).join("")}
+        <a class="fl-btn fl-mail" href="#/leagues" data-track="click_follow_platform" data-label="newsletter">✉ Get the weekly wrap</a>
+      </div>
+      ${compact ? "" : `<div class="fl-note">Spotify, Instagram, TikTok and X links land here as soon as the handles are confirmed — nothing is faked in the meantime.</div>`}
+    </section>`;
+  }
+  const epThumb = (e) => e.thumb || e.image || "/img/logo-badge.png";
+  function episodeCard(e, opts) {
+    const o = opts || {};
+    return `<a class="ep-card${o.big ? " big" : ""}" href="#/episode/${esc(e.slug)}" data-track="click_episode" data-label="${esc(e.slug)}">
+      <span class="ep-art"><img src="${esc(epThumb(e))}" alt="" loading="lazy">${e.videoId ? '<span class="ep-play">▶</span>' : '<span class="ep-play audio">♪</span>'}</span>
+      <span class="ep-body">
+        <span class="ep-show">${esc(e.show.title)}${e.number ? ` · Ep ${esc(e.number)}` : ""}</span>
+        <span class="ep-t">${esc(e.title)}</span>
+        <span class="ep-m">${esc(epDate(e.published))}${e.duration ? " · " + esc(e.duration) : ""}</span>
+      </span>
+    </a>`;
+  }
+  let audioEl = null;
+  function playAudio(url, title) {
+    if (!audioEl) {
+      audioEl = document.createElement("audio");
+      audioEl.controls = true; audioEl.preload = "none"; audioEl.className = "site-audio";
+      const dock = document.createElement("div"); dock.id = "audio-dock"; dock.setAttribute("aria-live", "polite");
+      dock.innerHTML = `<span class="ad-now">Now playing</span><span class="ad-title" id="ad-title"></span>`;
+      dock.appendChild(audioEl); document.body.appendChild(dock);
+    }
+    if (audioEl.src !== url) audioEl.src = url;
+    $("ad-title").textContent = title;
+    document.body.classList.add("has-audio");
+    audioEl.play().catch(() => {});
+    track("click_listen", title);
+  }
+
+  // ---------- HOME: podcast first ----------
+  async function showHome() {
+    view.innerHTML = `<div class="shell"><div class="loading" aria-live="polite">Loading the latest episode…</div></div>`;
+    let eps = null, err = null;
+    try { eps = await fetchJSON("/api/episodes?limit=12"); } catch (e) { err = e; }
+    const latest = eps && eps.episodes && eps.episodes[0];
+    const platforms = (eps && eps.platforms) || [];
+    view.innerHTML = `
+      <section class="home-hero" aria-labelledby="home-h1">
+        <div class="shell hh-grid">
+          <div class="hh-copy">
+            <div class="hh-eyebrow">The latest from Armchair Experts</div>
+            ${latest ? `
+              <div class="hh-show">${esc(latest.show.title)}${latest.number ? ` · Episode ${esc(latest.number)}` : ""}</div>
+              <h1 id="home-h1" class="hh-title">${esc(latest.title)}</h1>
+              <p class="hh-desc">${esc(latest.summary.slice(0, 220))}${latest.summary.length > 220 ? "…" : ""}</p>
+              <div class="hh-meta">${esc(latest.show.hosts)} · ${esc(epDate(latest.published))}${latest.duration ? " · " + esc(latest.duration) : ""}</div>
+              <div class="hh-actions">
+                ${latest.audio ? `<button class="watch big" id="hh-listen" data-track="click_listen_hero" data-label="${esc(latest.slug)}">▶ Listen now</button>` : ""}
+                ${latest.videoId ? `<a class="watch ghost" href="#/watch/${esc(latest.videoId)}" data-track="click_watch_video" data-label="${esc(latest.slug)}">Watch on YouTube</a>` : ""}
+                <a class="watch ghost" href="#/episode/${esc(latest.slug)}" data-track="click_episode" data-label="${esc(latest.slug)}">Episode page</a>
+                <button class="watch ghost" id="hh-share" data-track="share_episode" data-label="${esc(latest.slug)}">Share</button>
+              </div>` : `
+              <h1 id="home-h1" class="hh-title">Every sport. One armchair.</h1>
+              <p class="hh-desc">The voice of sports fans in Australia.</p>
+              <div class="hh-meta">${err ? "The episode feed didn't answer just now — the shows are still on YouTube and Apple below." : ""}</div>`}
+          </div>
+          <div class="hh-art">${latest ? `<a href="#/episode/${esc(latest.slug)}"><img src="${esc(epThumb(latest))}" alt="${esc(latest.title)}"></a>` : `<img src="/img/logo-badge.png" alt="Armchair Experts">`}</div>
+        </div>
+      </section>
+      <div class="shell">
+        ${followStrip(platforms)}
+        <section id="home-week" aria-labelledby="hw-h"><div class="section-h" style="margin-top:32px" id="hw-h">This week in sport <span class="n" id="hw-note">· loading</span></div><div class="hw-grid" id="hw-grid"><div class="loading">Finding what's worth watching…</div></div></section>
+        ${eps && eps.episodes && eps.episodes.length > 1 ? `
+        <div class="section-h" style="margin-top:32px">Latest episodes <span class="n">· <a href="#/episodes">all ${eps.count} →</a></span></div>
+        <div class="ep-grid">${eps.episodes.slice(1, 7).map((e) => episodeCard(e)).join("")}</div>` : ""}
+        <section id="home-take"></section>
+        <section id="home-moments"></section>
+        <div class="section-h" style="margin-top:34px">Go deeper <span class="n">· every code, every fixture, every player</span></div>
+        <div class="deep-row">
+          ${["afl", "nrl", "cricket", "nbl", "racing", "nfl", "nba", "epl", "mlb", "cfb", "tennis", "f1", "golf", "ufc", "la2028"].map((k) => `<a class="deep-chip" href="#/${k}"><img src="${LG_LOGO(k)}" alt="">${esc((LEAGUE_UI[k] || {}).label || k.toUpperCase())}</a>`).join("")}
+        </div>
+        <p class="panel-note" style="margin-top:8px">${eps ? `Episodes from the show's podcast feed and YouTube channel · updated ${timeAgoShort(eps.updated)}` : ""}</p>
+      </div>`;
+    if (latest && latest.audio) $("hh-listen")?.addEventListener("click", () => playAudio(latest.audio, latest.title));
+    if (latest) $("hh-share")?.addEventListener("click", () => share(latest.title, `${SITE}/episode/${latest.slug}`, "share_episode"));
+    track("view_home", latest ? latest.slug : "no-episode");
+    homeWeek(); homeTake(); homeMoments();
+    armMotion();
+  }
+
+  // This week in sport — the repeat-visit engine, compact: two Games of the Week + the next calendar moments
+  async function homeWeek() {
+    const grid = $("hw-grid"), note = $("hw-note"); if (!grid) return;
+    const [nfl, afl, ev] = await Promise.all([
+      fetchJSON("/api/schedule?league=nfl").catch(() => null),
+      fetchJSON("/api/schedule?league=afl").catch(() => null),
+      fetchJSON("/api/events").catch(() => null),
+    ]);
+    const cards = [];
+    const gameCard = (lg, d) => {
+      if (!d || !d.games || !d.games.length) return;
+      const g = d.games.find((x) => x.id === (d.experts || {}).gotw) || d.games.find((x) => x.id === d.gotw) || d.games[0];
+      const k = fmt(g.date);
+      const opts = WATCH[lg] || [];
+      const why = typeof g.expertCall === "string" ? g.expertCall : (g.expertCall && (g.expertCall.quote || g.expertCall.text)) || "";
+      cards.push(`<article class="hw-card">
+        <div class="hw-top"><span class="sc-sport">${esc((LEAGUE_UI[lg] || {}).name || lg)}</span>${statusBadge(g)}</div>
+        <div class="hw-teams"><img src="${esc(g.away.logo)}" alt=""><b>${esc(g.away.name)}</b><i>${lg === "nfl" ? "at" : "v"}</i><img src="${esc(g.home.logo)}" alt=""><b>${esc(g.home.name)}</b></div>
+        <div class="hw-when">${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}</div>
+        <div class="hw-why"><b>Why watch?</b> ${esc(why || whyPlain(g, lg))}</div>
+        <div class="hw-watch">${opts[0] ? `<a class="watch sm" href="${esc(opts[0].url)}" target="_blank" rel="noopener" data-track="click_event_watch_provider" data-label="${esc(lg + ":" + opts[0].key)}">▶ Watch on ${esc(opts[0].label)}</a>` : ""}${opts.length > 1 ? `<span class="watch-also">also on ${opts.slice(1).map((w) => esc(w.label)).join(" · ")}</span>` : ""}</div>
+      </article>`);
+    };
+    gameCard("nfl", nfl); gameCard("afl", afl);
+    const upcoming = ((ev && ev.events) || []).filter((e) => !e.past).slice(0, 2);
+    upcoming.forEach((e) => {
+      const k = fmt(e.time);
+      const lg = (e.code || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const opts = WATCH[lg] || [];
+      cards.push(`<article class="hw-card">
+        <div class="hw-top"><span class="sc-sport">${esc(e.code || "")}</span><span class="badge-final">${esc(k.wd)} ${esc(k.day)}</span></div>
+        <div class="hw-title">${esc(e.name)}</div>
+        <div class="hw-when">${k.tm} ${TZ_LABEL[tz]}</div>
+        <div class="hw-why"><b>Why watch?</b> ${esc(e.sub || "")}</div>
+        <div class="hw-watch">${e.href ? `<a class="watch sm ghost" href="${esc(e.href)}">Open the hub →</a>` : ""}${opts[0] ? `<span class="watch-also">on ${opts.map((w) => esc(w.label)).join(" · ")}</span>` : ""}</div>
+      </article>`);
+    });
+    grid.innerHTML = cards.length ? cards.join("") : `<div class="panel roster-empty"><p>The fixture feeds didn't answer just now — the leagues below still work. <a href="#/" onclick="location.reload()">Try again</a>.</p></div>`;
+    if (note) note.textContent = cards.length ? `· updated ${timeAgoShort(new Date().toISOString())} · times in ${TZ_LABEL[tz]}` : "· unavailable";
+  }
+  // plain-language why-watch (no betting jargon)
+  function whyPlain(g, lg) {
+    const bits = [];
+    if (g.homeWinProb != null) { const p = Math.round(Math.max(g.homeWinProb, 1 - g.homeWinProb) * 100); bits.push(p <= 58 ? "a genuine coin-flip" : p <= 68 ? "a close contest on paper" : "one side is favoured, but upsets happen"); }
+    if (g.slot && /Night|Kickoff/.test(g.slot)) bits.push("the prime-time slot");
+    if (g.watch && g.watch.tier === 1) bits.push("the game of the round");
+    if (lg === "afl") bits.push("finals places on the line");
+    return bits.length ? bits.join(" · ").replace(/^./, (c) => c.toUpperCase()) + "." : "The pick of the round.";
+  }
+  async function homeTake() {
+    const el = $("home-take"); if (!el) return;
+    const d = await fetchJSON("/api/schedule?league=nfl").catch(() => null);
+    const g = d && d.games ? d.games.find((x) => x.expertCall) : null;
+    if (!g) { el.innerHTML = ""; return; }
+    const c = typeof g.expertCall === "string" ? g.expertCall : (g.expertCall.quote || g.expertCall.text || "");
+    const by = (d.experts && d.experts.show && d.experts.show.hosts) || "The Experts";
+    el.innerHTML = `<div class="section-h" style="margin-top:32px">The Experts' take <span class="n">· this week</span></div>
+      <blockquote class="take"><p>${esc(c)}</p><footer>— ${esc(by)} · on ${esc(g.away.name)} at ${esc(g.home.name)} · <a href="#/nfl">the NFL hub →</a></footer></blockquote>`;
+  }
+  async function homeMoments() {
+    const el = $("home-moments"); if (!el) return;
+    const ev = await fetchJSON("/api/events").catch(() => null);
+    const items = ((ev && ev.events) || []).filter((e) => !e.past).slice(2, 6);
+    if (!items.length) { el.innerHTML = ""; return; }
+    el.innerHTML = `<div class="section-h" style="margin-top:32px">Coming up <span class="n">· the moments that matter · <a href="#/landing">the full calendar →</a></span></div>
+      <div class="cal-row">${items.map((e) => { const k = fmt(e.time); return `<a class="cal-card" href="${esc(e.href || "#/leagues")}"><span class="cal-when">${esc(k.wd)} ${esc(k.day)}</span><b>${esc(e.name)}</b><i>${esc(e.code || "")}</i></a>`; }).join("")}</div>`;
+  }
+
+  // ---------- EPISODES list ----------
+  async function showEpisodes(showKey) {
+    view.innerHTML = `<div class="shell"><div class="loading" aria-live="polite">Loading episodes…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/episodes?limit=100");
+      const shows = [...new Map(d.episodes.map((e) => [e.showKey, e.show])).entries()];
+      const eps = showKey ? d.episodes.filter((e) => e.showKey === showKey) : d.episodes;
+      view.innerHTML = `<div class="shell">
+        ${pageHero("The podcast", `Every <em>episode</em>.`, `${d.count} episodes across the shows — listen here, watch on YouTube, or follow wherever you listen.`)}
+        ${followStrip(d.platforms, true)}
+        <div class="ep-filters" role="tablist">
+          <a class="fg-tab" href="#/episodes" aria-pressed="${!showKey}">All</a>
+          ${shows.map(([k, s]) => `<a class="fg-tab" href="#/episodes/${esc(k)}" aria-pressed="${showKey === k}">${esc(s.title)}</a>`).join("")}
+        </div>
+        <div class="ep-grid">${eps.map((e) => episodeCard(e)).join("")}</div>
+        <p class="panel-note" style="margin-top:12px">Source: the show's podcast feed and YouTube channel · updated ${timeAgoShort(d.updated)}</p>
+      </div>`;
+      track("view_episodes", showKey || "all");
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load episodes (${esc(err.message)}). <a href="#/episodes" onclick="location.reload()">Try again</a>.</div></div>`;
+    }
+  }
+
+  // ---------- EPISODE page ----------
+  async function showEpisode(slug) {
+    view.innerHTML = `<div class="shell"><div class="loading" aria-live="polite">Loading episode…</div></div>`;
+    try {
+      const d = await fetchJSON("/api/episodes/" + encodeURIComponent(slug));
+      const e = d.episode;
+      document.title = `${e.title} — Armchair Experts`;
+      view.innerHTML = `
+        <div class="team-hero ep-hero"><div class="shell">
+          <a class="crumb" href="#/show/${esc(e.show.slug)}">← ${esc(e.show.title)}</a>
+          <div class="th-row">
+            <img class="ep-hero-art" src="${esc(epThumb(e))}" alt="">
+            <div>
+              <div class="th-loc">${esc(e.show.title)}${e.number ? ` · Episode ${esc(e.number)}` : ""}${e.season ? ` · Season ${esc(e.season)}` : ""}</div>
+              <h1 class="th-name ep-h1">${esc(e.title)}</h1>
+              <div class="th-meta">With ${esc(e.show.hosts)} · Published ${esc(epDate(e.published))}${e.duration ? " · " + esc(e.duration) : ""}</div>
+              <div class="hh-actions">
+                ${e.audio ? `<button class="watch big" id="ep-listen">▶ Listen now</button>` : ""}
+                ${e.videoId ? `<a class="watch ghost" href="#/watch/${esc(e.videoId)}" data-track="click_watch_video" data-label="${esc(e.slug)}">Watch on YouTube</a>` : ""}
+                <button class="watch ghost" id="ep-share">Share</button>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="shell">
+          <div class="ep-cols">
+            <div>
+              ${e.videoId ? `<div class="ep-video"><iframe src="https://www.youtube-nocookie.com/embed/${esc(e.videoId)}" title="${esc(e.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>` : ""}
+              <div class="section-h" style="margin-top:22px">About this episode</div>
+              <p class="ep-summary">${esc(e.summary || e.show.desc)}</p>
+              ${e.topics && e.topics.length ? `<div class="section-h" style="margin-top:22px">In this episode</div><ul class="ep-topics">${e.topics.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+            </div>
+            <aside class="ep-side">
+              ${followStrip(d.platforms, true)}
+              <div class="ep-related">
+                <div class="ldr-h">Related</div>
+                <a class="ep-rel" href="${esc(e.show.hub)}">${esc(e.show.sport)} · what to watch this week →</a>
+                <a class="ep-rel" href="#/show/${esc(e.show.slug)}">More from ${esc(e.show.title)} →</a>
+                ${e.next ? `<a class="ep-rel" href="#/episode/${esc(e.next)}">Next episode →</a>` : ""}
+                ${e.prev ? `<a class="ep-rel" href="#/episode/${esc(e.prev)}">← Previous episode</a>` : ""}
+              </div>
+            </aside>
+          </div>
+        </div>`;
+      $("ep-listen")?.addEventListener("click", () => playAudio(e.audio, e.title));
+      $("ep-share")?.addEventListener("click", () => share(e.title, `${SITE}/episode/${e.slug}`, "share_episode"));
+      track("view_episode", e.slug);
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load this episode (${esc(err.message)}). <a href="#/episodes">All episodes →</a></div></div>`;
+    }
+  }
+
+  // ---------- SHOW page ----------
+  async function showShowPage(slug) {
+    view.innerHTML = `<div class="shell"><div class="loading" aria-live="polite">Loading the show…</div></div>`;
+    try {
+      const [ps, all] = await Promise.all([fetchJSON("/api/podcast/shows"), fetchJSON("/api/episodes?limit=100")]);
+      const sh = ps.shows.find((x) => x.slug === slug);
+      if (!sh) throw new Error("Unknown show");
+      const eps = all.episodes.filter((e) => e.showKey === sh.key);
+      const latest = eps[0];
+      document.title = `${sh.title} — Armchair Experts`;
+      view.innerHTML = `
+        <div class="team-hero ep-hero"><div class="shell">
+          <a class="crumb" href="#/shows">← Shows</a>
+          <div class="th-row">
+            ${latest ? `<img class="ep-hero-art" src="${esc(epThumb(latest))}" alt="">` : ""}
+            <div>
+              <div class="th-loc">${esc(sh.sport)} · ${esc(sh.cadence)} · <span class="sc-status ${sh.count ? "live" : "coming"}">${sh.count ? "● Live" : "Launching soon"}</span></div>
+              <h1 class="th-name">${esc(sh.title)}</h1>
+              <div class="th-meta">${esc(sh.desc)}</div>
+              <div class="th-meta">Hosts: ${esc(sh.hosts)}</div>
+            </div>
+          </div>
+        </div></div>
+        <div class="shell">
+          ${followStrip(ps.platforms, true)}
+          ${latest ? `<div class="section-h" style="margin-top:28px">Latest episode</div>${episodeCard(latest, { big: true })}` : `<div class="panel roster-empty" style="margin-top:22px"><p>No episodes yet — follow the feed and it'll land here the day it drops.</p></div>`}
+          ${eps.length > 1 ? `<div class="section-h" style="margin-top:28px">Episodes <span class="n">· ${eps.length}</span></div><div class="ep-grid">${eps.slice(1).map((e) => episodeCard(e)).join("")}</div>` : ""}
+          <div class="section-h" style="margin-top:28px">Related</div>
+          <div class="ep-related"><a class="ep-rel" href="${esc(sh.hub)}">${esc(sh.sport)} · what to watch this week →</a><a class="ep-rel" href="#/episodes">Every episode across the shows →</a></div>
+        </div>`;
+      track("view_show", sh.slug);
+    } catch (err) {
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load this show (${esc(err.message)}). <a href="#/shows">All shows →</a></div></div>`;
+    }
   }
 
   // =====================================================================
@@ -1889,7 +2188,7 @@
           ${d.shows.map((s) => {
             const look = SHOW_LOOK[s.sport] || { c1: "#8C0F27", c2: "#2A0212" };
             return `
-            <${s.url ? `a href="${esc(s.url)}"${s.url.startsWith("#") ? "" : ` target="_blank" rel="noopener"`}` : "div"} class="show-card" style="--sc1:${look.c1}; --sc2:${look.c2}">
+            <${s.slug ? `a href="#/show/${esc(s.slug)}"` : s.url ? `a href="${esc(s.url)}"${s.url.startsWith("#") ? "" : ` target="_blank" rel="noopener"`}` : "div"} class="show-card" style="--sc1:${look.c1}; --sc2:${look.c2}">
               ${s.img ? `<img class="sc-bg" src="${esc(s.img)}" alt="" loading="lazy">` : ""}
               <div class="sc-scrim"></div>
               <div class="sc-in">
@@ -1902,9 +2201,9 @@
                 <div class="sc-cad">${esc(s.cadence)}</div>
                 <p class="sc-desc">${esc(s.desc)}</p>
                 ${s.highlight ? `<div class="sc-hl">★ ${esc(s.highlight)}</div>` : ""}
-                ${s.url ? `<div class="sc-watch">▶ Watch</div>` : ""}
+                ${s.slug ? `<div class="sc-watch">${s.episodeCount ? `${s.episodeCount} episodes →` : "Show page →"}</div>` : s.url ? `<div class="sc-watch">▶ Watch</div>` : ""}
               </div>
-            </${s.url ? "a" : "div"}>`;
+            </${s.slug || s.url ? "a" : "div"}>`;
           }).join("")}
         </div>
 
@@ -2731,17 +3030,27 @@
       a.classList.toggle("on", a.getAttribute("data-nav") === active));
   }
 
+  // clean URLs (/episode/x, /show/x, /episodes) route like their hash twins
+  function pathToHash(p) {
+    if (!p || p === "/" || p === "/index.html") return "";
+    return "#" + p.replace(/\/$/, "");
+  }
   function route() {
-    const h = location.hash || "#/";
+    const h = location.hash || pathToHash(location.pathname) || "#/";
     let m;
     clearInterval(rtgTimer);
     clearInterval(leadTimer);
     if (typeof rcCountdown !== "undefined") { clearInterval(rcCountdown); clearInterval(rcNextTimer); }
     window.scrollTo(0, 0);
-    const isLanding = h === "#/" || h === "" || h === "#";
+    const isLanding = h === "#/landing";
     document.body.classList.toggle("landing", isLanding);
+    document.body.classList.toggle("is-home", h === "#/" || h === "" || h === "#");
     const LG = "(nfl|afl|nbl|nrl|nba|epl|mlb|cfb)";
     if (isLanding) { setNav(""); showLanding(); }
+    else if (h === "#/" || h === "" || h === "#") { setNav("home"); showHome(); }
+    else if ((m = h.match(/^#\/episode\/([\w-]+)$/))) { setNav("podcasts"); showEpisode(m[1]); }
+    else if ((m = h.match(/^#\/show\/([\w-]+)$/))) { setNav("shows"); showShowPage(m[1]); }
+    else if ((m = h.match(/^#\/episodes(?:\/([\w-]+))?$/))) { setNav("podcasts"); showEpisodes(m[1]); }
     else if ((m = h.match(new RegExp(`^#/${LG}/team/([A-Za-z0-9]{2,8})$`)))) { league = m[1]; setNav("leagues"); showTeam(m[2].toUpperCase()); }
     else if ((m = h.match(new RegExp(`^#/${LG}/player/([\\w-]+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
     else if ((m = h.match(new RegExp(`^#/${LG}/teams$`)))) { league = m[1]; setNav("leagues"); showTeams(); }
@@ -2762,7 +3071,7 @@
     else if ((m = h.match(/^#\/player\/(\d+)$/))) { league = "nfl"; setNav("leagues"); showPlayer(m[1]); }
     else if (h === "#/teams") { league = "nfl"; setNav("leagues"); showTeams(); }
     else if (h === "#/leagues") { setNav("leagues"); showLeagues(); }
-    else if (h === "#/podcasts") { setNav("podcasts"); showPodcasts(); }
+    else if (h === "#/podcasts") { setNav("podcasts"); showEpisodes(); }
     else if (h === "#/christmas") { setNav("shows"); showChristmas(); }
     else if (h === "#/audience") { setNav("audience"); showAudience(); }
     else if (h === "#/shows") { setNav("shows"); showShows(); }
