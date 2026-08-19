@@ -1454,5 +1454,5 @@ a.pl-nm{color:inherit; text-decoration:none} a.pl-nm:hover{color:var(--accent)}
 
 /* NBL game log */
 .gamelog td{white-space:nowrap} .gamelog .n{color:var(--muted); font-size:11px; margin-left:4px}
-.gl-opp{display:inline-flex; align-items:center; gap:6px; color:var(--ink); text-decoration:none} .gl-opp img{width:18px; height:18px; object-fit:contain} .gl-opp:hover{color:#fff}
+.roster.gamelog td .gl-opp{display:inline-flex; align-items:center; gap:6px; color:var(--ink); text-decoration:none} .gl-opp img{width:18px; height:18px; object-fit:contain} .gl-opp:hover{color:#fff}
 .res-w{color:#3DDC84; font-weight:700} .res-l{color:var(--accent); font-weight:700}
