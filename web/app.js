@@ -1873,6 +1873,19 @@
             <thead><tr><th>Stat</th><th class="tnum">Total</th><th class="tnum">Per game</th></tr></thead>
             <tbody>${d.stats.map((s) => `<tr><td>${esc(s.label)}</td><td class="tnum">${s.total}</td><td class="tnum">${s.avg ?? ""}</td></tr>`).join("")}</tbody>
           </table></div>
+          ${(d.games || []).length ? `
+          <div class="section-h" style="margin-top:26px">Game log <span class="n">· ${esc(yr({ year: d.seasons[0].year }))} · ${d.games.length} games · newest first</span></div>
+          <div class="tbl-wrap"><table class="roster stats gamelog">
+            <thead><tr><th>Date</th><th>Opponent</th><th>Result</th><th class="tnum">MIN</th><th class="tnum">PTS</th><th class="tnum">REB</th><th class="tnum">AST</th><th class="tnum">STL</th><th class="tnum">BLK</th><th class="tnum">TO</th><th class="tnum">FG</th><th class="tnum">3P</th><th class="tnum">FT</th></tr></thead>
+            <tbody>${d.games.map((g) => `<tr>
+              <td>${esc(fmt(g.date).day)}${g.round ? ` <span class="n">${esc(g.round)}</span>` : ""}</td>
+              <td><a class="gl-opp" href="#/nbl/team/${esc(g.oppKey)}">${g.oppLogo ? `<img src="${esc(g.oppLogo)}" alt="">` : ""}${g.home ? "vs" : "at"} ${esc(g.opp)}</a></td>
+              <td class="${g.result === "W" ? "res-w" : g.result === "L" ? "res-l" : ""}">${g.result ? `${esc(g.result)} ${esc(g.us)}–${esc(g.them)}` : ""}</td>
+              <td class="tnum">${g.min}</td><td class="tnum"><b>${g.pts}</b></td><td class="tnum">${g.reb}</td><td class="tnum">${g.ast}</td>
+              <td class="tnum">${g.stl}</td><td class="tnum">${g.blk}</td><td class="tnum">${g.to}</td>
+              <td class="tnum">${esc(g.fg)}</td><td class="tnum">${esc(g.tp)}</td><td class="tnum">${esc(g.ft)}</td>
+            </tr>`).join("")}</tbody>
+          </table></div>` : ""}
         </div>`;
     } catch (err) {
       view.innerHTML = `<div class="shell"><div class="loading">Couldn't load player (${esc(err.message)}).</div></div>`;

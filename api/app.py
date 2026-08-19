@@ -1301,7 +1301,12 @@ def api_nbl_player(pid: str):
     } for c in career]
     lines = [{"label": lbl, "total": int(latest.get(k) or 0), "avg": f1(latest.get(ak))}
              for k, lbl, ak in _NBL_STAT_LINES if latest.get(k) not in (None, 0)]
-    return {"player": {
+    games = []
+    try:
+        games = _nbl_game_log(pid, (latest.get("season") or {}).get("year"), t.get("team_code", ""))
+    except (requests.RequestException, ValueError, KeyError):
+        games = []
+    return {"games": games, "player": {
         "id": pid, "name": _nbl_pname(p), "photo": _nbl_photo(p),
         "jersey": p.get("jersey_number"), "pos": p.get("playing_position", ""),
         "club": NBL_ROSETTA_TO_ESPN.get(t.get("team_code", ""), t.get("team_code", "")), "clubName": t.get("name", ""), "color": t.get("color_primary"),
@@ -1310,6 +1315,50 @@ def api_nbl_player(pid: str):
         "ppg": f1(latest.get("points_average")), "rpg": f1(latest.get("rebounds_average")),
         "apg": f1(latest.get("assists_average")), "fg": pct(latest.get("field_goals_percentage")),
     }, "stats": lines, "seasons": seasons}
+
+
+def _nbl_game_log(pid: str, year, team_code: str) -> list[dict]:
+    """One row per match the player took part in that season, newest first,
+    joined to the match feed for opponent, venue and the final score."""
+    if not year:
+        return []
+    rows = _nbl_get(f"nbl/player_boxscores/for/{pid}/in/season/{year}/regular", ttl=1800).get("data", []) or []
+    matches = {}
+    for m in _nbl_matches(year):
+        for k in (m.get("id"), m.get("external_id")):
+            if k:
+                matches[k] = m
+    out = []
+    for r in rows:
+        if not r.get("participated", True):
+            continue
+        bm = r.get("match") or {}
+        m = matches.get(bm.get("id")) or matches.get(bm.get("external_id")) or bm
+        code = (r.get("team") or {}).get("team_code") or team_code
+        home = (m.get("home_team") or {}).get("team_code") == code
+        them = (m.get("away_team") if home else m.get("home_team")) or {}
+        us_s, them_s = (m.get("home_score"), m.get("away_score")) if home else (m.get("away_score"), m.get("home_score"))
+        try:
+            res = "W" if int(us_s) > int(them_s) else "L" if int(us_s) < int(them_s) else "D"
+        except (TypeError, ValueError):
+            res, us_s, them_s = "", None, None
+        st = bm.get("start_time_datetime") or m.get("start_time") or ""
+        rd = str(m.get("override_round") or m.get("round") or "")
+        f = lambda k: int(float(r.get(k) or 0))
+        out.append({
+            "matchId": bm.get("id"), "date": st + ("Z" if st and not st.endswith("Z") else ""),
+            "round": f"Rd {rd}" if rd.isdigit() else rd.title(),
+            "opp": them.get("name", ""), "oppKey": NBL_ROSETTA_TO_ESPN.get(them.get("team_code", ""), them.get("team_code", "")),
+            "oppLogo": them.get("team_logo_transparent") or them.get("team_logo"), "home": home,
+            "result": res, "us": us_s, "them": them_s,
+            "min": round(float(r.get("minutes") or 0), 1), "pts": f("points"), "reb": f("rebounds"), "ast": f("assists"),
+            "stl": f("steals"), "blk": f("blocks"), "to": f("turnovers"), "pf": f("personal_fouls"),
+            "fg": f'{f("field_goals_made")}/{f("field_goals_attempted")}',
+            "tp": f'{f("three_points_made")}/{f("three_points_attempted")}',
+            "ft": f'{f("free_throws_made")}/{f("free_throws_attempted")}',
+        })
+    out.sort(key=lambda g: g["date"], reverse=True)
+    return out
 
 
 # the player-page stat lines, in display order: (totals key, label, decimals)
