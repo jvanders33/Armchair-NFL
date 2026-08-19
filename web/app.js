@@ -2037,7 +2037,7 @@
         ${d.rows.length ? `<div class="tbl-wrap"><table class="roster stats gamelog">
           <thead><tr><th>Date</th><th>Opponent</th><th>Result</th>${d.labels.map((l, i) => `<th class="tnum" title="${esc(d.displayNames[i] || l)}">${esc(l)}</th>`).join("")}</tr></thead>
           <tbody>${d.rows.map((g) => `<tr>
-            <td>${esc(fmt(g.date).day)}${g.group && !/stats|season/i.test(g.group) ? ` <span class="n">${esc(g.group)}</span>` : ""}${/post|playoff/i.test(g.phase) ? ` <span class="n">Playoffs</span>` : ""}</td>
+            <td>${esc(fmt(g.date).day)}${g.group && !/stats|season|^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(g.group) ? ` <span class="n">${esc(g.group)}</span>` : ""}${/post|playoff/i.test(g.phase) ? ` <span class="n">Playoffs</span>` : ""}</td>
             <td><a class="gl-opp" href="#/${league}/team/${esc(g.oppKey)}">${g.oppLogo ? `<img src="${esc(g.oppLogo)}" alt="" onerror="this.remove()">` : ""}${g.home ? "vs" : "at"} ${esc(g.oppAbbr || g.opp)}</a></td>
             <td class="${g.result === "W" ? "res-w" : g.result === "L" ? "res-l" : ""}">${esc(g.result)} ${esc(g.score)}</td>
             ${g.stats.map((v) => `<td class="tnum">${esc(v)}</td>`).join("")}
