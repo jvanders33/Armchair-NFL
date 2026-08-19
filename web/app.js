@@ -927,7 +927,7 @@
       if (!ms.length) { el.innerHTML = auto ? "" : `<span class="h2h-l">Head-to-head</span><span class="h2h-note">no recent meetings on record</span>`; return; }
       el.innerHTML = `<span class="h2h-l">Head-to-head</span>${d.headline ? `<b class="h2h-hd">${esc(d.headline)}</b>` : ""}
         <div class="h2h-rows">${ms.map((m) => { const k = fmt(m.date); const hw = +m.home.score > +m.away.score, aw = +m.away.score > +m.home.score;
-          return `<span class="h2h-row"><i>${esc(k.day)}${/\d/.test(k.day) ? "" : ""} ${new Date(m.date).getFullYear()}</i><span class="${aw ? "won" : ""}">${m.away.logo ? `<img src="${esc(m.away.logo)}" alt="">` : ""}${esc(m.away.name)}</span><em class="tnum">${esc(m.away.score ?? "")}–${esc(m.home.score ?? "")}</em><span class="${hw ? "won" : ""}">${esc(m.home.name)}${m.home.logo ? `<img src="${esc(m.home.logo)}" alt="">` : ""}</span></span>`; }).join("")}</div>`;
+          return `<span class="h2h-row"><i>${esc(k.day)} ${new Date(m.date).getFullYear()}</i><span class="${aw ? "won" : ""}">${m.away.logo ? `<img src="${esc(m.away.logo)}" alt="">` : ""}${esc(m.away.name)}</span><em class="tnum">${esc(m.away.score ?? "")}–${esc(m.home.score ?? "")}</em><span class="${hw ? "won" : ""}">${esc(m.home.name)}${m.home.logo ? `<img src="${esc(m.home.logo)}" alt="">` : ""}</span></span>`; }).join("")}</div>`;
       track("view_h2h", `${league}:${g.away.abbr}@${g.home.abbr}`);
     } catch { el.innerHTML = auto ? "" : `<span class="h2h-l">Head-to-head</span><span class="h2h-note">unavailable right now</span>`; }
   }
