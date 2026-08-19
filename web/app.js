@@ -555,7 +555,7 @@
       const vids = d.videos || [];
       view.innerHTML = `<div class="shell">
         ${pageHero("Clips & video", `Straight from <em>the channel</em>.`, "Every upload from the Armchair Experts YouTube channel — episodes, interviews and clips — playable here.")}
-        <div class="vid-rail wrap">${vids.map((v) => `<a class="vid-card" href="#/watch/${esc(v.id)}" data-track="click_watch_video" data-label="${esc(v.id)}"><span class="vc-thumb"><img src="${esc(v.thumb)}" alt="" loading="lazy"><span class="vc-play">▶</span></span><span class="vc-t">${esc(v.title)}</span><span class="vc-m">${timeAgo(v.published)}${v.views ? " · " + v.views.toLocaleString() + " views" : ""}${v.league ? " · " + esc(v.league.toUpperCase()) : ""}</span></a>`).join("")}</div>
+        <div class="vid-rail wrap">${vids.map((v) => `<a class="vid-card" href="#/watch/${esc(v.id)}" data-track="click_watch_video" data-label="${esc(v.id)}"><span class="vc-thumb"><img src="${esc(v.thumb)}" alt="" loading="lazy"><span class="vc-play">▶</span>${v.duration ? `<span class="vc-dur">${esc(v.duration)}</span>` : ""}</span><span class="vc-t">${esc(v.title)}</span><span class="vc-m">${timeAgo(v.published)}${v.views ? " · " + v.views.toLocaleString() + " views" : ""}${v.league ? " · " + esc(v.league.toUpperCase()) : ""}</span></a>`).join("")}</div>
         <p class="panel-note" style="margin-top:12px">Source: the channel's public feed (latest ${vids.length}) — a new upload appears here within 15 minutes.</p>
       </div>`;
       track("view_clips");
@@ -2438,7 +2438,7 @@
           </aside>
         </div>
         <div class="section-h" style="margin-top:30px">Everything on the channel <span class="n">· latest ${watchList.length} · a new upload lands here within 15 minutes</span></div>
-        <div class="vid-rail wrap">${watchList.map((v, i) => `<button class="vid-card as-btn" data-wi="${i}"><span class="vc-thumb"><img src="${esc(v.thumb)}" alt="" loading="lazy"><span class="vc-play">▶</span></span><span class="vc-t">${esc(v.title)}</span><span class="vc-m">${timeAgo(v.published)}${v.views ? " · " + v.views.toLocaleString() + " views" : ""}${v.league ? " · " + esc(v.league.toUpperCase()) : ""}</span></button>`).join("")}</div>
+        <div class="vid-rail wrap">${watchList.map((v, i) => `<button class="vid-card as-btn" data-wi="${i}"><span class="vc-thumb"><img src="${esc(v.thumb)}" alt="" loading="lazy"><span class="vc-play">▶</span>${v.duration ? `<span class="vc-dur">${esc(v.duration)}</span>` : ""}</span><span class="vc-t">${esc(v.title)}</span><span class="vc-m">${timeAgo(v.published)}${v.views ? " · " + v.views.toLocaleString() + " views" : ""}${v.league ? " · " + esc(v.league.toUpperCase()) : ""}</span></button>`).join("")}</div>
       </div>`;
       view.querySelectorAll("[data-wi]").forEach((b) =>
         b.addEventListener("click", () => { watchIdx = +b.getAttribute("data-wi"); paintWatch(); window.scrollTo({ top: 0, behavior: "smooth" }); }));
@@ -2456,7 +2456,7 @@
       <div class="vid-rail">
         ${videos.slice(0, 6).map((v) => `
           <a class="vid-card" href="#/watch/${esc(v.id)}">
-            <span class="vc-thumb"><img src="${esc(v.thumb)}" alt="" loading="lazy"><span class="vc-play">▶</span></span>
+            <span class="vc-thumb"><img src="${esc(v.thumb)}" alt="" loading="lazy"><span class="vc-play">▶</span>${v.duration ? `<span class="vc-dur">${esc(v.duration)}</span>` : ""}</span>
             <span class="vc-t">${esc(v.title)}</span>
             <span class="vc-m">${timeAgo(v.published)}${v.views ? " · " + v.views.toLocaleString() + " views" : ""}</span>
           </a>`).join("")}

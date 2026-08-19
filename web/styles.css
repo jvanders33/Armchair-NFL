@@ -1449,3 +1449,5 @@ a.pl-nm{color:inherit; text-decoration:none} a.pl-nm:hover{color:var(--accent)}
 .inj-more{font-size:10.5px; color:var(--muted)}
 .inj-list{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px} @media (max-width:760px){.inj-list{grid-template-columns:1fr}}
 .inj-row.card{border:1px solid var(--line); border-radius:12px; background:var(--card); padding:10px 12px; align-items:flex-start} .inj-row.card b{color:#fff} .inj-row.card small{display:block; color:var(--muted); font-size:11px; margin-top:3px; line-height:1.4}
+
+.vc-thumb{position:relative} .vc-dur{position:absolute; right:6px; bottom:6px; font-family:var(--f-cond); font-weight:700; font-size:11px; letter-spacing:.04em; padding:1px 6px; border-radius:5px; background:rgba(0,0,0,.78); color:#fff}

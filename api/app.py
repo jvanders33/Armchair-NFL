@@ -26,11 +26,13 @@ try:
     from . import globalsports as gs
     from . import podcast as pc
     from . import ogcard as og
+    from . import youtube as yt
 except ImportError:
     import racing as rc                 # Vercel runs api/index.py with api/ on sys.path
     import globalsports as gs
     import podcast as pc
     import ogcard as og
+    import youtube as yt
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
@@ -2192,38 +2194,24 @@ def _tag_video(title: str, desc: str) -> str:
 
 
 def _fetch_videos() -> list[dict]:
-    hit = _cache.get("videos")
-    if hit and time.time() - hit[0] < 900:
-        return hit[1]
-    try:
-        r = requests.get(f"https://www.youtube.com/feeds/videos.xml?channel_id={YT_CHANNEL}",
-                         timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-        r.raise_for_status()
-        root = ET.fromstring(r.content)
-    except Exception:
-        return hit[1] if hit else []
+    """Channel uploads via api/youtube.py (RSS when it answers, the channel page
+    otherwise) shaped for the Watch grid and hub video rails."""
     out = []
-    for e in root.findall("a:entry", YT_NS):
-        vid = e.findtext("yt:videoId", namespaces=YT_NS)
-        title = e.findtext("a:title", namespaces=YT_NS) or ""
-        if not vid or not title:
-            continue
-        g = e.find("m:group", YT_NS)
-        desc = (g.findtext("m:description", namespaces=YT_NS) or "") if g is not None else ""
-        stats = g.find("m:community/m:statistics", YT_NS) if g is not None else None
-        series = "cali" if re.search(r"California to the MCG", title, re.I) else ""
+    for v in yt.videos():
+        title, desc = v["title"], v.get("description") or ""
         out.append({
-            "id": vid,
+            "id": v["id"],
             "title": title,
-            "published": e.findtext("a:published", namespaces=YT_NS) or "",
-            "thumb": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+            "published": v.get("published") or "",
+            "approxDate": bool(v.get("tolerance")),
+            "thumb": f"https://i.ytimg.com/vi/{v['id']}/hqdefault.jpg",
             "description": desc[:220],
-            "views": int(stats.get("views")) if stats is not None and stats.get("views") else 0,
+            "views": v.get("views") or 0,
+            "duration": v.get("duration") or "",
             "league": _tag_video(title, desc),
-            "series": series,
-            "url": f"https://www.youtube.com/watch?v={vid}",
+            "series": "cali" if re.search(r"California to the MCG", title, re.I) else "",
+            "url": f"https://www.youtube.com/watch?v={v['id']}",
         })
-    _cache["videos"] = (time.time(), out)
     return out
 
 

@@ -15,6 +15,11 @@ from email.utils import parsedate_to_datetime
 
 import requests
 
+try:
+    from . import youtube as yt
+except ImportError:
+    import youtube as yt
+
 FEED_URL = ("https://www.omnycontent.com/d/playlist/fa326977-3de5-4283-9b8b-af3500c58607/"
             "79013d11-dac9-4dbf-a99b-b432000d168d/6ec95aea-3b38-4770-9254-b432000d16a4/podcast.rss")
 APPLE_ID = "1883991744"
@@ -138,18 +143,10 @@ SHOW_META = {
 
 
 def _youtube_videos() -> list[dict]:
-    try:
-        xml = _get(f"https://www.youtube.com/feeds/videos.xml?channel_id={YT_CHANNEL}")
-    except requests.RequestException:
-        return []
-    root = ET.fromstring(xml)
-    out = []
-    for e in root.findall("atom:entry", NS):
-        vid = e.findtext("yt:videoId", namespaces=NS)
-        title = e.findtext("atom:title", namespaces=NS) or ""
-        pub = e.findtext("atom:published", namespaces=NS) or ""
-        out.append({"id": vid, "title": title, "published": pub, "words": _words(title)})
-    return out
+    # shared fetcher: RSS when YouTube serves it, channel-page fallback otherwise
+    # (fallback dates are relative — "6 days ago" — so carry their tolerance)
+    return [{"id": v["id"], "title": v["title"], "published": v.get("published") or "",
+             "tolerance": v.get("tolerance") or 0, "words": _words(v["title"])} for v in yt.videos()]
 
 
 def _match_video(ep: dict, videos: list[dict]) -> str | None:
@@ -163,9 +160,10 @@ def _match_video(ep: dict, videos: list[dict]) -> str | None:
     ep_dt = datetime.fromisoformat(ep["published"].replace("Z", "+00:00"))
     def days(v):
         try:
-            return abs((datetime.fromisoformat(v["published"].replace("Z", "+00:00")) - ep_dt).total_seconds()) / 86400
+            raw = abs((datetime.fromisoformat(v["published"].replace("Z", "+00:00")) - ep_dt).total_seconds()) / 86400
         except ValueError:
             return 99
+        return max(0.0, raw - float(v.get("tolerance") or 0))   # scraped dates: within tolerance counts as same-day
     if ep.get("showKey") == "cali" and ep.get("number"):
         for v in videos:
             m = re.search(r"(?<![A-Za-z])Ep\.?\s*(\d+)(?!\d)", v["title"], flags=re.I)
