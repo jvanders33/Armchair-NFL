@@ -1827,6 +1827,49 @@ def api_injuries(league: str = "nfl", event: str | None = None, team: str | None
         return {"teams": [], "status": "unavailable"}
 
 
+GAMELOG_LEAGUES = ("nfl", "nba", "mlb", "cfb")
+
+
+@app.get("/api/player/{pid}/gamelog")
+def api_player_gamelog(pid: str, league: str = "nfl", season: str = ""):
+    """ESPN's per-game log for a player, flattened: one row per game, newest
+    first, with the stat labels for the table header. NFL/NBA/MLB/college."""
+    if league not in GAMELOG_LEAGUES:
+        return {"labels": [], "rows": [], "league": league}
+    web = f"{ESPN_WEB_BASE}/{_cfg(league)['path']}"
+    try:
+        d = _get_json(f"{web}/athletes/{pid}/gamelog", {"season": season} if season else None, ttl=1800)
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail="ESPN isn't answering for this game log.") from exc
+    events = d.get("events") or {}
+    logo_sport = {"nfl": "nfl", "nba": "nba", "mlb": "mlb", "cfb": "ncaa"}[league]
+    rows = []
+    for st in d.get("seasonTypes") or []:
+        for cat in st.get("categories") or []:
+            for ev in cat.get("events") or []:
+                e = events.get(ev.get("eventId")) or {}
+                opp = e.get("opponent") or {}
+                ab = opp.get("abbreviation") or ""
+                logo = (f"https://a.espncdn.com/i/teamlogos/{logo_sport}/500/{ab.lower()}.png" if ab and league != "cfb"
+                        else f"https://a.espncdn.com/i/teamlogos/ncaa/500/{opp.get('id')}.png" if opp.get("id") else None)
+                rows.append({
+                    "eventId": ev.get("eventId"), "date": e.get("gameDate") or "",
+                    "phase": st.get("displayName", ""), "group": cat.get("displayName", ""),
+                    "opp": opp.get("displayName") or "", "oppAbbr": ab, "oppKey": opp.get("id") if league == "cfb" else ab,
+                    "oppLogo": logo, "home": (e.get("atVs") or "vs") == "vs",
+                    "result": e.get("gameResult") or "", "score": e.get("score") or "",
+                    "stats": ev.get("stats") or [],
+                })
+    rows.sort(key=lambda r: r["date"], reverse=True)
+    seasons = []
+    for f in d.get("filters") or []:
+        if f.get("name") == "season":
+            seasons = [{"value": o.get("value"), "label": o.get("displayValue")} for o in f.get("options") or []][:6]
+            season = season or f.get("value") or ""
+    return {"labels": d.get("labels") or [], "names": d.get("names") or [], "displayNames": d.get("displayNames") or [],
+            "rows": rows, "season": season, "seasons": seasons, "league": league, "source": "ESPN"}
+
+
 @app.get("/api/player/{pid}")
 def api_player(pid: str, league: str = "nfl"):
     web = f"{ESPN_WEB_BASE}/{_cfg(league)['path']}"

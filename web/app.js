@@ -2013,13 +2013,39 @@
               </tbody>
             </table></div>`).join("")
           : `<div class="loading">No senior stats recorded yet${p.experience ? "" : " — rookie season ahead"}.</div>`}
+          <div id="pl-gamelog"></div>
           ${d.news.length ? `
             <div class="section-h" style="margin-top:26px">${esc(p.name.split(" ").slice(-1)[0])} in the news</div>
             <ul class="news">${d.news.map((n) => `<li><a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.headline)}</a></li>`).join("")}</ul>` : ""}
         </div>`;
+      if (["nfl", "nba", "mlb", "cfb"].includes(league)) loadGameLog(pid);
     } catch (err) {
       view.innerHTML = `<div class="shell"><div class="loading">Couldn't load player (${esc(err.message)}).</div></div>`;
     }
+  }
+
+  // Game-by-game log under the season tables (ESPN); season picker when there's history
+  async function loadGameLog(pid, season) {
+    const box = $("pl-gamelog"); if (!box) return;
+    try {
+      const d = await fetchJSON(`/api/player/${encodeURIComponent(pid)}/gamelog?league=${league}${season ? "&season=" + encodeURIComponent(season) : ""}`);
+      if (!d.rows.length && !season) { box.innerHTML = ""; return; }
+      const cur = d.seasons.find((s) => s.value === d.season);
+      box.innerHTML = `
+        <div class="section-h" style="margin-top:26px">Game log <span class="n">· ${d.rows.length} games · newest first · source ESPN</span>
+          ${d.seasons.length > 1 ? `<select class="gl-season" aria-label="Season">${d.seasons.map((s) => `<option value="${esc(s.value)}"${s.value === d.season ? " selected" : ""}>${esc(s.label)}</option>`).join("")}</select>` : ""}</div>
+        ${d.rows.length ? `<div class="tbl-wrap"><table class="roster stats gamelog">
+          <thead><tr><th>Date</th><th>Opponent</th><th>Result</th>${d.labels.map((l, i) => `<th class="tnum" title="${esc(d.displayNames[i] || l)}">${esc(l)}</th>`).join("")}</tr></thead>
+          <tbody>${d.rows.map((g) => `<tr>
+            <td>${esc(fmt(g.date).day)}${g.group && !/stats|season/i.test(g.group) ? ` <span class="n">${esc(g.group)}</span>` : ""}${/post|playoff/i.test(g.phase) ? ` <span class="n">Playoffs</span>` : ""}</td>
+            <td><a class="gl-opp" href="#/${league}/team/${esc(g.oppKey)}">${g.oppLogo ? `<img src="${esc(g.oppLogo)}" alt="" onerror="this.remove()">` : ""}${g.home ? "vs" : "at"} ${esc(g.oppAbbr || g.opp)}</a></td>
+            <td class="${g.result === "W" ? "res-w" : g.result === "L" ? "res-l" : ""}">${esc(g.result)} ${esc(g.score)}</td>
+            ${g.stats.map((v) => `<td class="tnum">${esc(v)}</td>`).join("")}
+          </tr>`).join("")}</tbody>
+        </table></div>` : `<div class="loading">No games logged for ${esc(cur ? cur.label : "that season")}.</div>`}`;
+      const sel = box.querySelector(".gl-season");
+      if (sel) sel.addEventListener("change", () => { track("gamelog_season", `${league}:${sel.value}`); loadGameLog(pid, sel.value); });
+    } catch { box.innerHTML = ""; }
   }
 
   // =====================================================================
