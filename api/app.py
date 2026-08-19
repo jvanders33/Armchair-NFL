@@ -482,11 +482,14 @@ def road_to_the_g():
 
 @app.get("/api/aussies")
 def api_aussies(league: str = "nfl"):
-    if league in ("nba", "mlb", "epl", "cfb"):
+    if league in ("nba", "mlb", "epl", "cfb", "nfl"):
         try:
-            return {"players": _roster_aussies(league)}
+            players = _roster_aussies(league)
+            if players or league != "nfl":
+                return {"players": players}
         except requests.RequestException:
-            return {"players": []}
+            if league != "nfl":
+                return {"players": []}
     return {"players": _load_aussies()}
 
 
@@ -593,7 +596,7 @@ def _roster_aussies(league: str) -> list[dict]:
                     "bornAu": born_au,
                 })
         return out
-    with ThreadPoolExecutor(max_workers=10) as ex:
+    with ThreadPoolExecutor(max_workers=16) as ex:
         players = [p for chunk in ex.map(scan, teams) for p in chunk]
     # curated order first (the names people know), then the rest alphabetically
     order = {n: i for i, n in enumerate(curated)}
@@ -2188,9 +2191,11 @@ def api_aussies_abroad(league: str | None = None):
 
     def team_league(lg):
         try:
-            players = _load_aussies() if lg == "nfl" else _roster_aussies(lg)
+            players = _roster_aussies(lg)
+            if lg == "nfl" and not players:
+                players = _load_aussies()
         except Exception:
-            players = []
+            players = _load_aussies() if lg == "nfl" else []
         return league_block(lg, players, next_game_map(lg)) if players else None
 
     def tour_league(lg):
