@@ -1722,6 +1722,44 @@ def _espn_form(league: str, abbr: str) -> dict:
 LADDER_FORM_LEAGUES = ("nba", "mlb", "cfb", "epl", "nrl", "nbl")
 
 
+def _epl_league_form(keys: list) -> dict:
+    """Last five results per club from date-range scoreboards: the last ~11 weeks,
+    then last season's run-in if the new season hasn't produced five yet."""
+    from datetime import timedelta as _td
+    site = _site("epl")
+    today = datetime.now(timezone.utc)
+    def window(a, b):
+        try:
+            return _get_json(f"{site}/scoreboard", {"dates": f"{a:%Y%m%d}-{b:%Y%m%d}", "limit": "400"}, ttl=1800).get("events", [])
+        except requests.RequestException:
+            return []
+    windows = [window(today - _td(days=77), today + _td(days=1))]
+    def collect(evs, acc):
+        for e in sorted(evs, key=lambda e: e.get("date", "")):
+            comp = (e.get("competitions") or [{}])[0]
+            if ((comp.get("status") or {}).get("type") or {}).get("state") != "post":
+                continue
+            cs = comp.get("competitors") or []
+            if len(cs) != 2:
+                continue
+            for me, other in ((cs[0], cs[1]), (cs[1], cs[0])):
+                tid = (me.get("team") or {}).get("id")
+                try:
+                    a, b = float(me.get("score")), float(other.get("score"))
+                except (TypeError, ValueError):
+                    continue
+                acc.setdefault(tid, []).append("W" if a > b else "L" if a < b else "D")
+    acc = {}
+    collect(windows[0], acc)
+    if any(len(acc.get(k, [])) < 5 for k in keys):
+        prev = {}
+        yr = today.year if today.month >= 7 else today.year - 1      # the year last season ended
+        collect(window(today.replace(year=yr, month=3, day=1), today.replace(year=yr, month=6, day=15)), prev)
+        for k in keys:
+            acc[k] = (prev.get(k, []) + acc.get(k, []))
+    return {k: "".join(acc.get(k, [])[-5:]) for k in keys}
+
+
 @app.get("/api/ladder/form")
 def api_ladder_form(league: str = "nrl"):
     """Last-five form for every club on the ladder — {abbr: "WLWWL", ...},
@@ -1736,6 +1774,12 @@ def api_ladder_form(league: str = "nrl"):
         return hit[1]
     lad = api_ladder(league)
     keys = [r["abbr"] for r in lad.get("ladder", []) if r.get("abbr")]
+    if league == "epl":
+        # one scoreboard call per window covers every club — 40 per-club schedule calls took 16s
+        res = {"form": _epl_league_form(keys), "league": league, "source": "ESPN"}
+        if any(res["form"].values()):
+            _cache[ck] = (time.time(), res)
+        return res
     def one(k):
         try:
             d = _nbl_form(k) if league == "nbl" else _espn_form(league, k)
