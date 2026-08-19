@@ -1422,3 +1422,8 @@ a.pl-nm{color:inherit; text-decoration:none} a.pl-nm:hover{color:var(--accent)}
 .ab-name{font-family:var(--f-cond); font-weight:700; text-transform:uppercase; font-size:19px; letter-spacing:.02em} .ab-name a{color:inherit; text-decoration:none} .ab-name a:hover{color:var(--accent)}
 .ab-when{font-size:12.5px; color:#fff} .ab-when b{color:#FFB020}
 .ab-hook{font-size:12px; color:var(--ink-2); line-height:1.4} .ab-hook.muted{color:var(--muted)}
+
+/* club form (ESPN codes) */
+.cf-next{display:grid; grid-template-columns:44px 1fr auto; gap:14px; align-items:center; text-decoration:none; color:inherit; border:1px solid var(--line); border-radius:14px; background:var(--card); padding:12px 16px}
+.cf-next img{width:44px; height:44px; object-fit:contain} .cf-next span{display:flex; flex-direction:column} .cf-next b{font-family:var(--f-cond); font-weight:700; text-transform:uppercase; font-size:20px} .cf-next i{font-style:normal; font-size:12px; color:var(--ink-2)} .cf-next em{font-style:normal; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); font-weight:800}
+.cf-card{position:relative; text-decoration:none; color:inherit} .cf-opp{position:absolute; right:12px; top:12px; width:28px; height:28px; object-fit:contain; opacity:.85}

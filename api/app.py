@@ -1509,6 +1509,72 @@ def api_team(abbr: str, league: str = "nfl"):
     }
 
 
+# ---------- club form: last five + next fixture, every ESPN code ----------
+def _team_form_events(league: str, key: str) -> list[dict]:
+    """Raw ESPN events for a team. NFL/NBA/MLB by abbreviation slug; college and
+    EPL by id with their required params; NRL's team schedule 500s, so its
+    events are gathered from the round scoreboards around now."""
+    site = _site(league)
+    if league == "nrl":
+        cur = _fetch_scoreboard(None, None, None, "nrl")
+        wk = ((cur.get("week") or {}).get("number")) or 1
+        yr = ((cur.get("season") or {}).get("year")) or datetime.now().year
+        weeks = list(range(max(1, wk - 6), min(27, wk + 1) + 1))
+        def one(w):
+            try:
+                return _fetch_scoreboard(yr, 1, w, "nrl").get("events", [])
+            except requests.RequestException:
+                return []
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            evs = [e for chunk in ex.map(one, weeks) for e in chunk]
+        return [e for e in evs if any(c.get("team", {}).get("id") == key for c in e["competitions"][0]["competitors"])]
+    params = {"fixture": "true"} if league == "epl" else {"season": str(datetime.now().year), "seasontype": "2"} if league == "cfb" else None
+    slug = key if league in ("cfb", "epl") else key.lower()
+    return _get_json(f"{site}/teams/{slug}/schedule", params, ttl=1800).get("events", [])
+
+
+@app.get("/api/team/{abbr}/form")
+def api_team_form(abbr: str, league: str = "nfl"):
+    if league not in ("nfl", "nba", "mlb", "cfb", "epl", "nrl"):
+        return {"last": [], "next": None}
+    try:
+        events = _team_form_events(league, abbr)
+    except requests.RequestException:
+        return {"last": [], "next": None, "status": "unavailable"}
+    def side(c):
+        return c.get("team", {})
+    def is_us(c):
+        t = side(c)
+        return t.get("id") == abbr or (t.get("abbreviation") or "").upper() == abbr.upper()
+    def score_of(c):
+        sc = c.get("score")
+        return sc.get("displayValue") if isinstance(sc, dict) else sc
+    last, nxt = [], None
+    for e in sorted(events, key=lambda e: e.get("date", "")):
+        comp = (e.get("competitions") or [{}])[0]
+        cs = comp.get("competitors") or []
+        us = next((c for c in cs if is_us(c)), None)
+        them = next((c for c in cs if not is_us(c)), None)
+        if not us or not them:
+            continue
+        st = (comp.get("status") or {}).get("type") or {}
+        row = {"date": e.get("date"), "opp": side(them).get("shortDisplayName") or side(them).get("displayName") or side(them).get("name", ""),
+               "oppLogo": side(them).get("logo") or ((side(them).get("logos") or [{}])[0].get("href")),
+               "oppKey": side(them).get("id") if league in ("nrl", "epl", "cfb") else side(them).get("abbreviation"),
+               "home": us.get("homeAway") == "home", "venue": (comp.get("venue") or {}).get("fullName", ""),
+               "state": st.get("state", "pre")}
+        if st.get("state") == "post":
+            s_us, s_them = score_of(us), score_of(them)
+            try:
+                res = "W" if float(s_us) > float(s_them) else "L" if float(s_us) < float(s_them) else "D"
+            except (TypeError, ValueError):
+                res = "W" if us.get("winner") else "L" if them.get("winner") else "D"
+            last.append({**row, "us": s_us, "them": s_them, "result": res})
+        elif nxt is None:
+            nxt = {**row, "detail": st.get("shortDetail", "")}
+    return {"last": last[-5:][::-1], "next": nxt, "source": "ESPN", "league": league}
+
+
 @app.get("/api/player/{pid}")
 def api_player(pid: str, league: str = "nfl"):
     web = f"{ESPN_WEB_BASE}/{_cfg(league)['path']}"

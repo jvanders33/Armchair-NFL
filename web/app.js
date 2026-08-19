@@ -1631,9 +1631,34 @@
       });
       if (league === "afl" && !d.groups.length) loadAflList(abbr);
       if (league === "nbl" && !d.groups.length) loadNblList(abbr);
+      if (["nfl", "nba", "mlb", "cfb", "epl", "nrl"].includes(league)) loadClubForm(abbr);
     } catch (err) {
       view.innerHTML = `<div class="shell"><div class="loading">Couldn't load ${esc(abbr)} (${esc(err.message)}).</div></div>`;
     }
+  }
+
+  // Club form: last five + next fixture, from ESPN team schedules (NRL from the round scoreboards)
+  async function loadClubForm(abbr) {
+    const shell = view.querySelector(".team-hero + .shell") || view.querySelector(".shell:last-of-type");
+    if (!shell) return;
+    const mount = document.createElement("div"); mount.id = "club-form";
+    shell.insertBefore(mount, shell.firstChild);
+    try {
+      const f = await fetchJSON(`/api/team/${encodeURIComponent(abbr)}/form?league=${league}`);
+      const last = f.last || [];
+      const n = f.next;
+      if (!last.length && !n) { mount.remove(); return; }
+      const oppLink = (r) => r.oppKey ? `#/${league}/team/${esc(r.oppKey)}` : `#/${league}`;
+      mount.innerHTML = `
+        ${n ? `<div class="section-h" style="margin-top:22px">Next up</div>
+        <a class="cf-next" href="${oppLink(n)}">${n.oppLogo ? `<img src="${esc(n.oppLogo)}" alt="">` : ""}<span><b>${n.home ? "vs" : "at"} ${esc(n.opp)}</b><i>${esc(fmt(n.date).wd)} ${esc(fmt(n.date).day)} · ${esc(fmt(n.date).tm)} ${TZ_LABEL[tz]}${n.venue ? " · " + esc(n.venue) : ""}</i></span><em>Game page →</em></a>` : ""}
+        ${last.length ? `<div class="section-h" style="margin-top:22px">Form <span class="n">· last ${last.length}, newest first</span></div>
+        <div class="cf-strip">${last.map((r) => `<a class="cf-card ${r.result === "W" ? "w" : r.result === "L" ? "l" : "d"}" href="${oppLink(r)}">
+            <div class="cf-rd">${esc(fmt(r.date).wd)} ${esc(fmt(r.date).day)} <i>${r.home ? "vs" : "at"} ${esc(r.opp)}</i></div>
+            <div class="cf-res">${esc(r.result)} ${esc(r.us)}–${esc(r.them)}</div>
+            ${r.oppLogo ? `<img class="cf-opp" src="${esc(r.oppLogo)}" alt="">` : ""}
+          </a>`).join("")}</div>` : ""}`;
+    } catch { mount.remove(); }
   }
 
   // AFL lists come from the official Champion Data feed, not ESPN
