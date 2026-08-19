@@ -1667,6 +1667,50 @@ def api_h2h(league: str, home: str, away: str, event: str | None = None):
     return {"meetings": meetings, "headline": headline, "source": "ESPN"}
 
 
+# ---------- injuries / availability: NFL, NBA, MLB (ESPN carries them) ----------
+INJ_LEAGUES = ("nfl", "nba", "mlb")
+
+
+def _inj_row(i: dict) -> dict:
+    a = i.get("athlete") or {}
+    det = i.get("details") or {}
+    return {"name": a.get("displayName", ""), "id": a.get("id"), "pos": (a.get("position") or {}).get("abbreviation", ""),
+            "headshot": (a.get("headshot") or {}).get("href") if isinstance(a.get("headshot"), dict) else None,
+            "status": i.get("status") or (i.get("type") or {}).get("description", ""),
+            "injury": det.get("type") or "", "detail": det.get("detail") or "",
+            "returnDate": det.get("returnDate"), "comment": (i.get("shortComment") or "")[:160], "date": i.get("date")}
+
+
+@app.get("/api/injuries")
+def api_injuries(league: str = "nfl", event: str | None = None, team: str | None = None):
+    """Availability. For a game (event=): both clubs from the game summary. For a
+    club (team=): from the league-wide list. Not every code publishes this —
+    NFL/NBA/MLB do; the rest return empty and the UI stays quiet."""
+    if league not in INJ_LEAGUES:
+        return {"teams": [], "status": "not-published"}
+    try:
+        if event:
+            summ = _get_json(f"{_site(league)}/summary", {"event": event}, ttl=900)
+            teams = []
+            for b in summ.get("injuries") or []:
+                t = b.get("team") or {}
+                rows = [_inj_row(i) for i in b.get("injuries", [])]
+                teams.append({"abbr": t.get("abbreviation"), "name": t.get("displayName") or t.get("name", ""), "logo": t.get("logo") or ((t.get("logos") or [{}])[0].get("href")), "players": rows})
+            return {"teams": teams, "source": "ESPN", "updated": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
+        d = _get_json(f"{_site(league)}/injuries", ttl=1800)
+        blocks = d.get("injuries") or []
+        if team:
+            # the league list has team display names + ids, not abbreviations — resolve via the teams feed
+            tm = _get_json(f"{_site(league)}/teams", ttl=86400)["sports"][0]["leagues"][0]["teams"]
+            want = next((e["team"] for e in tm if (e["team"].get("abbreviation") or "").upper() == team.upper() or e["team"].get("id") == team), None)
+            blocks = [b for b in blocks if want and (b.get("id") == want.get("id") or b.get("displayName") == want.get("displayName"))]
+        return {"teams": [{"id": b.get("id"), "name": b.get("displayName", ""),
+                           "players": [r for r in (_inj_row(i) for i in b.get("injuries", [])) if (r["status"] or "").lower() != "active"]} for b in blocks],
+                "source": "ESPN", "updated": d.get("timestamp")}
+    except requests.RequestException:
+        return {"teams": [], "status": "unavailable"}
+
+
 @app.get("/api/player/{pid}")
 def api_player(pid: str, league: str = "nfl"):
     web = f"{ESPN_WEB_BASE}/{_cfg(league)['path']}"

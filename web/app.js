@@ -913,7 +913,28 @@
         </div>
       </div>`;
     bindWatch($("gotw"));
-    if (H2H_LEAGUES.includes(league)) loadH2H(g, $("gotw-h2h"), true);
+    if (H2H_LEAGUES.includes(league)) loadH2H(g, $("gotw-h2h"), true).then(() => loadInjuries(g, $("gotw-h2h")));
+  }
+
+  // ---------- availability / injuries (NFL, NBA, MLB publish them) ----------
+  const INJ_LEAGUES = ["nfl", "nba", "mlb"];
+  const injCls = (st) => /out|ir|injured|60|reserve|suspend/i.test(st) ? "out" : /doubt|questionable|day-to-day|10-day|15-day|gtd/i.test(st) ? "q" : "";
+  function injuriesHTML(teams, max) {
+    const blocks = (teams || []).filter((tm) => tm.players && tm.players.length);
+    if (!blocks.length) return "";
+    return `<div class="inj"><span class="h2h-l">Availability</span>
+      ${blocks.map((tm) => `<div class="inj-team"><b>${tm.logo ? `<img src="${esc(tm.logo)}" alt="">` : ""}${esc(tm.abbr || tm.name)}</b>
+        ${tm.players.slice(0, max || 4).map((p) => `<span class="inj-row"><i class="inj-st ${injCls(p.status)}">${esc(p.status)}</i><span>${esc(p.name)}${p.pos ? ` <em>${esc(p.pos)}</em>` : ""}${p.injury ? ` · ${esc(p.injury)}` : ""}${p.returnDate ? ` · back ${esc(fmt(p.returnDate).day)}` : ""}</span></span>`).join("")}
+        ${tm.players.length > (max || 4) ? `<span class="inj-more">+${tm.players.length - (max || 4)} more on the report</span>` : ""}</div>`).join("")}
+      <span class="h2h-note">Source ESPN · injury reports change through the week</span></div>`;
+  }
+  async function loadInjuries(g, el) {
+    if (!el || !INJ_LEAGUES.includes(league)) return;
+    try {
+      const d = await fetchJSON(`/api/injuries?league=${league}&event=${encodeURIComponent(g.id)}`);
+      const html = injuriesHTML(d.teams, 4);
+      if (html) { el.insertAdjacentHTML("beforeend", html); track("view_injuries", `${league}:${g.id}`); }
+    } catch { /* quiet — availability is a bonus, not a blocker */ }
   }
 
   // ---------- head-to-head: recent meetings between the two clubs ----------
@@ -955,14 +976,14 @@
         </div>
         <p class="why">${why(g)}</p>
         ${expertCallHTML(g)}
-        ${H2H_LEAGUES.includes(league) ? `<button class="h2h-btn" data-h2h-btn="${esc(g.id)}" aria-expanded="false">Head-to-head ▾</button><div class="h2h" data-h2h="${esc(g.id)}" hidden></div>` : ""}
+        ${H2H_LEAGUES.includes(league) ? `<button class="h2h-btn" data-h2h-btn="${esc(g.id)}" aria-expanded="false">${INJ_LEAGUES.includes(league) ? "Head-to-head &amp; availability" : "Head-to-head"} ▾</button><div class="h2h" data-h2h="${esc(g.id)}" hidden></div>` : ""}
         <div class="foot">${aus}${watchBtn(g, "sm ghost")}</div>
       </article>`;
     }).join("");
     $("slate").querySelectorAll("[data-h2h-btn]").forEach((b) => b.addEventListener("click", () => {
       const id = b.getAttribute("data-h2h-btn"); const box = $("slate").querySelector(`.h2h[data-h2h="${CSS.escape(id)}"]`); const g = hubData.games.find((x) => String(x.id) === id);
-      const open = box.hidden; box.hidden = !open; b.setAttribute("aria-expanded", String(open)); b.textContent = open ? "Head-to-head ▴" : "Head-to-head ▾";
-      if (open && g && !box.dataset.loaded) { box.dataset.loaded = "1"; loadH2H(g, box, false); }
+      const open = box.hidden; box.hidden = !open; b.setAttribute("aria-expanded", String(open)); b.textContent = (INJ_LEAGUES.includes(league) ? "Head-to-head & availability " : "Head-to-head ") + (open ? "▴" : "▾");
+      if (open && g && !box.dataset.loaded) { box.dataset.loaded = "1"; loadH2H(g, box, false).then(() => loadInjuries(g, box)); }
     }));
     $("slate-count").textContent = "· " + list.length + (list.length === 1 ? " game" : " games");
     bindStars();
@@ -1656,6 +1677,7 @@
       if (league === "afl" && !d.groups.length) loadAflList(abbr);
       if (league === "nbl" && !d.groups.length) loadNblList(abbr);
       if (["nfl", "nba", "mlb", "cfb", "epl", "nrl"].includes(league)) loadClubForm(abbr);
+      if (INJ_LEAGUES.includes(league)) loadClubInjuries(abbr);
     } catch (err) {
       view.innerHTML = `<div class="shell"><div class="loading">Couldn't load ${esc(abbr)} (${esc(err.message)}).</div></div>`;
     }
@@ -1683,6 +1705,20 @@
             ${r.oppLogo ? `<img class="cf-opp" src="${esc(r.oppLogo)}" alt="">` : ""}
           </a>`).join("")}</div>` : ""}`;
     } catch { mount.remove(); }
+  }
+
+  async function loadClubInjuries(abbr) {
+    try {
+      const d = await fetchJSON(`/api/injuries?league=${league}&team=${encodeURIComponent(abbr)}`);
+      const tm = (d.teams || [])[0];
+      if (!tm || !tm.players.length) return;
+      const shell = view.querySelector(".team-hero + .shell") || view.querySelector(".shell:last-of-type");
+      const anchor = shell && shell.querySelector("#club-form");
+      const el = document.createElement("div"); el.id = "club-inj";
+      el.innerHTML = `<div class="section-h" style="margin-top:22px">Availability <span class="n">· ${tm.players.length} on the report · source ESPN</span></div>
+        <div class="inj-list">${tm.players.map((p) => `<span class="inj-row card"><i class="inj-st ${injCls(p.status)}">${esc(p.status)}</i><span><b>${esc(p.name)}</b>${p.pos ? ` <em>${esc(p.pos)}</em>` : ""}${p.injury ? ` · ${esc(p.injury)}` : ""}${p.returnDate ? ` · expected back ${esc(fmt(p.returnDate).day)}` : ""}${p.comment ? `<small>${esc(p.comment)}</small>` : ""}</span></span>`).join("")}</div>`;
+      if (anchor && anchor.nextSibling) shell.insertBefore(el, anchor.nextSibling); else if (shell) shell.insertBefore(el, shell.firstChild);
+    } catch { /* quiet */ }
   }
 
   // AFL lists come from the official Champion Data feed, not ESPN

@@ -1439,3 +1439,13 @@ a.pl-nm{color:inherit; text-decoration:none} a.pl-nm:hover{color:var(--accent)}
 .h2h-row img{width:16px; height:16px; object-fit:contain} .h2h-row .won{color:#fff; font-weight:700}
 .h2h-btn{align-self:flex-start; background:none; border:1px solid var(--line); border-radius:8px; color:var(--ink-2); font-family:var(--f-cond); font-weight:700; text-transform:uppercase; letter-spacing:.06em; font-size:11px; padding:5px 9px; cursor:pointer; margin-top:8px}
 .h2h-btn:hover{border-color:var(--accent); color:#fff}
+
+/* availability / injuries */
+.inj{margin-top:10px; display:flex; flex-direction:column; gap:6px}
+.inj-team{display:flex; flex-direction:column; gap:3px} .inj-team > b{display:flex; align-items:center; gap:6px; font-family:var(--f-cond); font-weight:700; text-transform:uppercase; font-size:12px; letter-spacing:.06em; color:var(--ink-2)} .inj-team > b img{width:16px; height:16px; object-fit:contain}
+.inj-row{display:flex; align-items:baseline; gap:8px; font-size:12px; color:var(--ink-2)} .inj-row em{font-style:normal; color:var(--muted); font-size:10.5px}
+.inj-st{font-style:normal; font-family:var(--f-cond); font-weight:700; text-transform:uppercase; letter-spacing:.06em; font-size:10px; padding:2px 6px; border-radius:6px; background:var(--card-2); color:var(--ink-2); white-space:nowrap}
+.inj-st.out{background:#3A0F19; color:var(--accent)} .inj-st.q{background:#3A2A0A; color:#FFB020}
+.inj-more{font-size:10.5px; color:var(--muted)}
+.inj-list{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px} @media (max-width:760px){.inj-list{grid-template-columns:1fr}}
+.inj-row.card{border:1px solid var(--line); border-radius:12px; background:var(--card); padding:10px 12px; align-items:flex-start} .inj-row.card b{color:#fff} .inj-row.card small{display:block; color:var(--muted); font-size:11px; margin-top:3px; line-height:1.4}
