@@ -1078,6 +1078,27 @@
   // play the wildcard round (7v10, 8v9) for the last two spots in the eight.
   let leadersData = null, leadersSeason = null;
 
+  const LADDER_FORM_LEAGUES = ["nba", "mlb", "cfb", "epl", "nrl", "nbl"];
+  const formDotsHTML = (f) => f ? `<span class="lf">${[...f].map((c) =>
+    `<i class="${c === "W" ? "w" : c === "L" ? "l" : "d"}" title="${c}"></i>`).join("")}</span>` : "";
+  async function paintLadderForm(wrap) {
+    if (!wrap || !LADDER_FORM_LEAGUES.includes(league)) return;
+    const lg = league;
+    try {
+      const d = await fetchJSON(`/api/ladder/form?league=${lg}`);
+      if (lg !== league || !wrap.isConnected) return;
+      const map = d.form || {};
+      if (!Object.values(map).some(Boolean)) return;
+      wrap.querySelectorAll(".lad-row[href]").forEach((row) => {
+        const key = decodeURIComponent(row.getAttribute("href").split("/team/")[1] || "");
+        const f = map[key]; if (!f) return;
+        const cells = row.querySelectorAll(":scope > span"); const last = cells[cells.length - 1];
+        if (last && !last.querySelector(".lf")) last.outerHTML = formDotsHTML(f);
+      });
+      wrap.querySelectorAll(".lad-head").forEach((h) => { const c = h.children[h.children.length - 1]; if (c && !c.textContent) c.textContent = "Form"; });
+    } catch { /* form is a bonus */ }
+  }
+
   function renderLadder(lad, leaders) {
     const wrap = $("ladder-wrap");
     if (!wrap) return;
@@ -1104,6 +1125,7 @@
           </div>`).join("")}
         </div>`;
       wrap.hidden = false;
+      paintLadderForm(wrap);
       return;
     }
     leadersData = leaders && (leaders.categories || []).length ? leaders.categories : null;
@@ -1138,6 +1160,7 @@
       </div>`;
     if (leadersData) paintLeaders(leadersData[0].key);
     wrap.hidden = false;
+    if (!rows.some((r) => r.form)) paintLadderForm(wrap);
   }
 
   // ---------- finals bracket: Wildcard → Qualifying/Elimination → Semis → Prelims → GF ----------

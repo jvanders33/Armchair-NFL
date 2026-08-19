@@ -1561,7 +1561,7 @@ def api_team(abbr: str, league: str = "nfl"):
 
 
 # ---------- club form: last five + next fixture, every ESPN code ----------
-def _team_form_events(league: str, key: str) -> list[dict]:
+def _team_form_events(league: str, key: str, season: str | None = None) -> list[dict]:
     """Raw ESPN events for a team. NFL/NBA/MLB by abbreviation slug; college and
     EPL by id with their required params; NRL's team schedule 500s, so its
     events are gathered from the round scoreboards around now."""
@@ -1579,9 +1579,21 @@ def _team_form_events(league: str, key: str) -> list[dict]:
         with ThreadPoolExecutor(max_workers=8) as ex:
             evs = [e for chunk in ex.map(one, weeks) for e in chunk]
         return [e for e in evs if any(c.get("team", {}).get("id") == key for c in e["competitions"][0]["competitors"])]
-    params = {"fixture": "true"} if league == "epl" else {"season": str(datetime.now().year), "seasontype": "2"} if league == "cfb" else None
+    if league == "epl":
+        params = {"fixture": "false", "season": season} if season else {"fixture": "true"}
+    elif league == "cfb":
+        params = {"season": season or str(datetime.now().year), "seasontype": "2"}
+    else:
+        params = {"season": season} if season else None
     slug = key if league in ("cfb", "epl") else key.lower()
     return _get_json(f"{site}/teams/{slug}/schedule", params, ttl=1800).get("events", [])
+
+
+def _prev_season(league: str) -> str:
+    """The season param that returns last season's completed games. ESPN keys the
+    NBA by the year the season ENDS (2026 = 2025-26), the rest by start year."""
+    y = datetime.now().year
+    return str(y) if league == "nba" else str(y - 1)
 
 
 def _nbl_matches(year) -> list[dict]:
@@ -1654,9 +1666,13 @@ def api_team_form(abbr: str, league: str = "nfl"):
     if league not in ("nfl", "nba", "mlb", "cfb", "epl", "nrl"):
         return {"last": [], "next": None}
     try:
-        events = _team_form_events(league, abbr)
+        return _espn_form(league, abbr)
     except requests.RequestException:
         return {"last": [], "next": None, "status": "unavailable"}
+
+
+def _espn_form(league: str, abbr: str) -> dict:
+    events = _team_form_events(league, abbr)
     def side(c):
         return c.get("team", {})
     def is_us(c):
@@ -1665,30 +1681,77 @@ def api_team_form(abbr: str, league: str = "nfl"):
     def score_of(c):
         sc = c.get("score")
         return sc.get("displayValue") if isinstance(sc, dict) else sc
-    last, nxt = [], None
-    for e in sorted(events, key=lambda e: e.get("date", "")):
-        comp = (e.get("competitions") or [{}])[0]
-        cs = comp.get("competitors") or []
-        us = next((c for c in cs if is_us(c)), None)
-        them = next((c for c in cs if not is_us(c)), None)
-        if not us or not them:
-            continue
-        st = (comp.get("status") or {}).get("type") or {}
-        row = {"date": e.get("date"), "opp": side(them).get("shortDisplayName") or side(them).get("displayName") or side(them).get("name", ""),
-               "oppLogo": side(them).get("logo") or ((side(them).get("logos") or [{}])[0].get("href")),
-               "oppKey": side(them).get("id") if league in ("nrl", "epl", "cfb") else side(them).get("abbreviation"),
-               "home": us.get("homeAway") == "home", "venue": (comp.get("venue") or {}).get("fullName", ""),
-               "state": st.get("state", "pre")}
-        if st.get("state") == "post":
-            s_us, s_them = score_of(us), score_of(them)
-            try:
-                res = "W" if float(s_us) > float(s_them) else "L" if float(s_us) < float(s_them) else "D"
-            except (TypeError, ValueError):
-                res = "W" if us.get("winner") else "L" if them.get("winner") else "D"
-            last.append({**row, "us": s_us, "them": s_them, "result": res})
-        elif nxt is None:
-            nxt = {**row, "detail": st.get("shortDetail", "")}
-    return {"last": last[-5:][::-1], "next": nxt, "source": "ESPN", "league": league}
+    def walk(evs):
+        last, nxt = [], None
+        for e in sorted(evs, key=lambda e: e.get("date", "")):
+            comp = (e.get("competitions") or [{}])[0]
+            cs = comp.get("competitors") or []
+            us = next((c for c in cs if is_us(c)), None)
+            them = next((c for c in cs if not is_us(c)), None)
+            if not us or not them:
+                continue
+            st = (comp.get("status") or {}).get("type") or {}
+            row = {"date": e.get("date"), "opp": side(them).get("shortDisplayName") or side(them).get("displayName") or side(them).get("name", ""),
+                   "oppLogo": side(them).get("logo") or ((side(them).get("logos") or [{}])[0].get("href")),
+                   "oppKey": side(them).get("id") if league in ("nrl", "epl", "cfb") else side(them).get("abbreviation"),
+                   "home": us.get("homeAway") == "home", "venue": (comp.get("venue") or {}).get("fullName", ""),
+                   "state": st.get("state", "pre")}
+            if st.get("state") == "post":
+                s_us, s_them = score_of(us), score_of(them)
+                try:
+                    res = "W" if float(s_us) > float(s_them) else "L" if float(s_us) < float(s_them) else "D"
+                except (TypeError, ValueError):
+                    res = "W" if us.get("winner") else "L" if them.get("winner") else "D"
+                last.append({**row, "us": s_us, "them": s_them, "result": res})
+            elif nxt is None:
+                nxt = {**row, "detail": st.get("shortDetail", "")}
+        return last, nxt
+    last, nxt = walk(events)
+    note = ""
+    if not last and league != "nrl":
+        # nothing played yet this season (offseason / opening week) — show last season's run
+        try:
+            last, _ = walk(_team_form_events(league, abbr, _prev_season(league)))
+            if last:
+                note = "results from last season"
+        except requests.RequestException:
+            pass
+    return {"last": last[-5:][::-1], "next": nxt, "source": "ESPN", "league": league, "note": note}
+
+
+LADDER_FORM_LEAGUES = ("nba", "mlb", "cfb", "epl", "nrl", "nbl")
+
+
+@app.get("/api/ladder/form")
+def api_ladder_form(league: str = "nrl"):
+    """Last-five form for every club on the ladder — {abbr: "WLWWL", ...},
+    oldest to newest so it reads left-to-right like the AFL feed's string.
+    Built from the same per-club form data as the club pages, in parallel,
+    cached half an hour. AFL comes with its own form string; NFL has no ladder."""
+    if league not in LADDER_FORM_LEAGUES:
+        return {"form": {}, "league": league}
+    ck = f"ladform:{league}"
+    hit = _cache.get(ck)
+    if hit and time.time() - hit[0] < 1800:
+        return hit[1]
+    lad = api_ladder(league)
+    keys = [r["abbr"] for r in lad.get("ladder", []) if r.get("abbr")]
+    def one(k):
+        try:
+            d = _nbl_form(k) if league == "nbl" else _espn_form(league, k)
+            return k, "".join(r["result"] for r in reversed(d.get("last") or []))
+        except Exception:
+            return k, ""
+    out = {}
+    if league in ("nrl", "nbl") and keys:       # warm the shared feeds once, then fan out
+        k, f = one(keys[0]); out[k] = f; keys = keys[1:]
+    with ThreadPoolExecutor(max_workers=16) as ex:
+        for k, f in ex.map(one, keys):
+            out[k] = f
+    res = {"form": out, "league": league, "source": "NBL" if league == "nbl" else "ESPN"}
+    if any(out.values()):
+        _cache[ck] = (time.time(), res)
+    return res
 
 
 # ---------- head-to-head: the last meetings between the two clubs on a game card ----------
