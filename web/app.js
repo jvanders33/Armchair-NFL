@@ -1676,7 +1676,7 @@
       });
       if (league === "afl" && !d.groups.length) loadAflList(abbr);
       if (league === "nbl" && !d.groups.length) loadNblList(abbr);
-      if (["nfl", "nba", "mlb", "cfb", "epl", "nrl"].includes(league)) loadClubForm(abbr);
+      if (["nfl", "nba", "mlb", "cfb", "epl", "nrl", "nbl"].includes(league)) loadClubForm(abbr);
       if (INJ_LEAGUES.includes(league)) loadClubInjuries(abbr);
     } catch (err) {
       view.innerHTML = `<div class="shell"><div class="loading">Couldn't load ${esc(abbr)} (${esc(err.message)}).</div></div>`;
@@ -1697,8 +1697,8 @@
       const oppLink = (r) => r.oppKey ? `#/${league}/team/${esc(r.oppKey)}` : `#/${league}`;
       mount.innerHTML = `
         ${n ? `<div class="section-h" style="margin-top:22px">Next up</div>
-        <a class="cf-next" href="${oppLink(n)}">${n.oppLogo ? `<img src="${esc(n.oppLogo)}" alt="">` : ""}<span><b>${n.home ? "vs" : "at"} ${esc(n.opp)}</b><i>${esc(fmt(n.date).wd)} ${esc(fmt(n.date).day)} · ${esc(fmt(n.date).tm)} ${TZ_LABEL[tz]}${n.venue ? " · " + esc(n.venue) : ""}</i></span><em>${esc(n.opp)} →</em></a>` : ""}
-        ${last.length ? `<div class="section-h" style="margin-top:22px">Form <span class="n">· last ${last.length}, newest first</span></div>
+        <a class="cf-next" href="${oppLink(n)}">${n.oppLogo ? `<img src="${esc(n.oppLogo)}" alt="">` : ""}<span><b>${n.home ? "vs" : "at"} ${esc(n.opp)}</b><i>${n.round ? esc(n.round) + " · " : ""}${esc(fmt(n.date).wd)} ${esc(fmt(n.date).day)} · ${esc(fmt(n.date).tm)} ${TZ_LABEL[tz]}${n.venue ? " · " + esc(n.venue) : ""}</i></span><em>${esc(n.opp)} →</em></a>` : ""}
+        ${last.length ? `<div class="section-h" style="margin-top:22px">Form <span class="n">· last ${last.length}, newest first${f.note ? " · " + esc(f.note) : ""}</span></div>
         <div class="cf-strip">${last.map((r) => `<a class="cf-card ${r.result === "W" ? "w" : r.result === "L" ? "l" : "d"}" href="${oppLink(r)}">
             <div class="cf-rd">${esc(fmt(r.date).wd)} ${esc(fmt(r.date).day)} <i>${r.home ? "vs" : "at"} ${esc(r.opp)}</i></div>
             <div class="cf-res">${esc(r.result)} ${esc(r.us)}–${esc(r.them)}</div>

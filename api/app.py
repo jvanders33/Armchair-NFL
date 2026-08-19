@@ -1535,8 +1535,73 @@ def _team_form_events(league: str, key: str) -> list[dict]:
     return _get_json(f"{site}/teams/{slug}/schedule", params, ttl=1800).get("events", [])
 
 
+def _nbl_matches(year) -> list[dict]:
+    """Every fixture of a season from the NBL's own feed (~27KB, 15-min cache):
+    preseason, regular rounds and finals, with scores once complete."""
+    return _nbl_get(f"nbl/matches/in/season/{year}/all?limit=-1", ttl=900).get("data", []) or []
+
+
+def _nbl_form(abbr: str) -> dict:
+    ab = NBL_ESPN_TO_ROSETTA.get(abbr.upper(), abbr.upper())
+    seasons = sorted({int(x.get("year") or 0) for x in _nbl_get("nbl/seasons", ttl=6 * 3600).get("data", [])
+                      if x.get("season_type") == "regular" and (x.get("name") or "").startswith("NBL")}, reverse=True)[:2]
+    ms = []
+    for y in seasons:
+        try:
+            ms += _nbl_matches(y)
+        except requests.RequestException:
+            continue
+    mine = [m for m in ms if ab in ((m.get("home_team") or {}).get("team_code"), (m.get("away_team") or {}).get("team_code"))]
+    mine.sort(key=lambda m: m.get("start_time") or "")
+    def rlabel(m):
+        r = str(m.get("override_round") or m.get("round") or "")
+        if m.get("match_type") == "preseason":
+            return "Preseason" if r in ("", "None", "Preseason") else f"Preseason · {r.title()}"
+        if r.isdigit():
+            return f"Round {r}"
+        return r.replace("_", " ").title() or ("Final" if m.get("match_type") == "final" else "")
+    def row(m):
+        home = (m.get("home_team") or {}).get("team_code") == ab
+        them = (m.get("away_team") if home else m.get("home_team")) or {}
+        code = them.get("team_code", "")
+        st = (m.get("start_time") or "")
+        return {"date": st + ("Z" if st and not st.endswith("Z") else ""), "opp": them.get("name", ""),
+                "oppLogo": them.get("team_logo_transparent") or them.get("team_logo"),
+                "oppKey": NBL_ROSETTA_TO_ESPN.get(code, code), "home": home,
+                "venue": (m.get("venue") or {}).get("name", ""), "round": rlabel(m),
+                "season": (m.get("season") or {}).get("name", ""),
+                "state": "post" if m.get("match_status") == "complete" else "pre"}
+    last, nxt = [], None
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    for m in mine:
+        if m.get("match_status") == "complete":
+            if m.get("match_type") == "preseason":
+                continue                                   # preseason results don't count as form
+            home = (m.get("home_team") or {}).get("team_code") == ab
+            us, them = (m.get("home_score"), m.get("away_score")) if home else (m.get("away_score"), m.get("home_score"))
+            try:
+                res = "W" if int(us) > int(them) else "L" if int(us) < int(them) else "D"
+            except (TypeError, ValueError):
+                continue
+            last.append({**row(m), "us": us, "them": them, "result": res})
+        elif nxt is None and (m.get("start_time") or "") >= now_iso[:19] and m.get("match_status") != "cancelled":
+            nxt = {**row(m), "detail": rlabel(m)}
+    last = last[-5:][::-1]
+    note = ""
+    if last and nxt and (nxt.get("round") or "").startswith("Preseason"):
+        note = f"results from {last[0]['season']} · preseason under way"
+    elif last and nxt and last[0].get("season") and nxt.get("season") and last[0]["season"] != nxt["season"]:
+        note = f"results from {last[0]['season']} — {nxt['season']} hasn't started"
+    return {"last": last, "next": nxt, "source": "NBL", "league": "nbl", "note": note}
+
+
 @app.get("/api/team/{abbr}/form")
 def api_team_form(abbr: str, league: str = "nfl"):
+    if league == "nbl":
+        try:
+            return _nbl_form(abbr)
+        except (requests.RequestException, ValueError):
+            return {"last": [], "next": None, "status": "unavailable"}
     if league not in ("nfl", "nba", "mlb", "cfb", "epl", "nrl"):
         return {"last": [], "next": None}
     try:
