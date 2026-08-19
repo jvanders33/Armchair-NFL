@@ -274,6 +274,7 @@
         <section id="home-moments"></section>
         <div class="section-h" style="margin-top:34px">Go deeper <span class="n">· every code, every fixture, every player</span></div>
         <div class="deep-row">
+          <a class="deep-chip hot" href="#/aussies">🇦🇺 Aussies Abroad</a>
           ${["afl", "nrl", "cricket", "nbl", "racing", "nfl", "nba", "epl", "mlb", "cfb", "tennis", "f1", "golf", "ufc", "la2028"].map((k) => `<a class="deep-chip" href="#/${k}"><img src="${LG_LOGO(k)}" alt="">${esc((LEAGUE_UI[k] || {}).label || k.toUpperCase())}</a>`).join("")}
         </div>
         <p class="panel-note" style="margin-top:8px">${eps ? `Episodes from the show's podcast feed and YouTube channel · updated ${timeAgoShort(eps.updated)}` : ""}</p>
@@ -1328,6 +1329,49 @@
     });
   }
 
+  // ---------- AUSSIES ABROAD: every Australian in the world's leagues, and when they play ----------
+  const ABROAD_ORDER = ["nfl", "nba", "mlb", "cfb", "tennis", "golf", "f1", "ufc"];
+  async function showAussiesAbroad() {
+    view.innerHTML = `<div class="shell"><div class="loading" aria-live="polite">Finding every Australian abroad…</div></div>`;
+    let d;
+    try { d = await fetchJSON("/api/aussies-abroad"); } catch (e) { view.innerHTML = `<div class="shell"><div class="loading">Couldn't load (${esc(e.message)}). <a href="#/aussies" onclick="location.reload()">Try again</a>.</div></div>`; return; }
+    // any league the bundle couldn't finish in time comes in on its own call
+    if (d.missing && d.missing.length) {
+      const extra = await Promise.all(d.missing.map((lg) => fetchJSON(`/api/aussies-abroad?league=${lg}`).catch(() => null)));
+      extra.forEach((x) => { if (x && x.groups) d.groups.push(...x.groups); });
+      d.total = d.groups.reduce((n, g) => n + g.players.length, 0);
+    }
+    d.groups.sort((a, b) => ABROAD_ORDER.indexOf(a.league) - ABROAD_ORDER.indexOf(b.league));
+    const now = Date.now();
+    const whenTxt = (n, kind) => {
+      if (!n || !n.date) return kind === "tour" ? "Not in this week's field" : "No game on the current slate";
+      const k = fmt(n.date); const past = new Date(n.date) < now - 4 * 36e5;
+      const opp = n.opp ? (kind === "tour" ? esc(n.opp) : (n.home ? "vs " : "at ") + esc(n.opp)) : "";
+      return `${n.state === "in" ? '<span class="badge-live">● Live</span> ' : ""}${opp}${opp ? " · " : ""}${k.wd} ${k.day} · ${k.tm} ${TZ_LABEL[tz]}${past && n.state !== "in" ? " · played" : ""}${n.mcg ? " · <b>the MCG</b>" : ""}`;
+    };
+    const card = (p, g) => `<div class="ab-card${(p.next && p.next.state === "in") ? " live" : ""}">
+        ${p.headshot ? `<img class="ab-face" src="${esc(p.headshot)}" alt="">` : `<span class="ab-face ini">${esc((p.name || "?").split(" ").map((x) => x[0]).join("").slice(0, 2))}</span>`}
+        <div class="ab-body">
+          <div class="ab-top">🇦🇺 ${esc(p.pos || "")}${p.team ? `${p.pos ? " · " : ""}${esc(p.team)}` : ""}${p.event ? ` · ${esc(p.event)}` : ""}</div>
+          <div class="ab-name">${p.id && g.kind === "team" ? `<a href="#/${g.league}/player/${esc(p.id)}">${esc(p.name)}</a>` : esc(p.name)}</div>
+          <div class="ab-when">${whenTxt(p.next, g.kind)}</div>
+          ${p.hook ? `<div class="ab-hook">${esc(p.hook)}</div>` : p.from ? `<div class="ab-hook muted">From ${esc(p.from)}</div>` : ""}
+        </div>
+      </div>`;
+    const liveNow = d.groups.reduce((n, g) => n + g.players.filter((p) => p.next && p.next.state === "in").length, 0);
+    view.innerHTML = `<div class="shell">
+      ${pageHero("Aussies abroad", `${d.total} Australians<br><em>on the world stage</em>.`, `Every Australian in the NFL, NBA, MLB, college football, tennis, golf, F1 and UFC — and when they next play, in your time.${liveNow ? ` <b>${liveNow} playing right now.</b>` : ""}`)}
+      <div class="wr-actions"><button class="watch ghost" id="ab-share">Share this page</button><span class="watch-also">Built from the live rosters and fields · updated ${timeAgoShort(d.generated || new Date().toISOString())}</span></div>
+      ${d.groups.map((g) => `
+        <div class="section-h" style="margin-top:30px">${esc(g.name)} <span class="n">· ${g.players.length} · <a href="#/${esc(g.league)}">the hub →</a></span></div>
+        <div class="ab-grid">${g.players.map((p) => card(p, g)).join("")}</div>`).join("")}
+      <p class="panel-note" style="margin-top:16px">Australians are found by birthplace on the live rosters plus a short curated list per code (ESPN drops birthplace on some internationals), and by country flag in the tour fields. Kyrie Irving is Melbourne-born and appears on that basis.</p>
+    </div>`;
+    $("ab-share")?.addEventListener("click", () => share("Aussies Abroad — Armchair Experts", `${SITE}/aussies`, "share_aussies"));
+    track("view_aussies_abroad", String(d.total));
+    armMotion();
+  }
+
   // ---------- SAVED: the games this browser starred, upcoming first ----------
   function showSaved() {
     const m = savedMap();
@@ -2221,6 +2265,7 @@
     const byKey = Object.fromEntries(LEAGUES.map((l) => [l.key, l]));
     view.innerHTML = `<div class="shell">
       ${pageHero("The codes", `Every sport.<br><em>One armchair.</em>`, "Fifteen codes, one platform — the ones played here, the ones we watch from here, and the tours that come to us. Live fixtures, real data, and the tools fans come back to daily.")}
+      <a class="ab-banner" href="#/aussies"><span class="ab-banner-k">🇦🇺</span><span><b>Aussies Abroad</b><i>Every Australian in the world's leagues — NFL, NBA, MLB, college football, tennis, golf, F1, UFC — and when they play, in your time.</i></span><em>Open →</em></a>
       <div class="lg-cols">
         ${LEAGUE_COLS.map((c) => `
           <section class="lg-col lg-col-${c.key}">
@@ -3222,6 +3267,7 @@
     else if ((m = h.match(/^#\/episodes(?:\/([\w-]+))?$/))) { setNav("podcasts"); showEpisodes(m[1]); }
     else if (h === "#/wrap") { setNav("home"); showWrap(); }
     else if (h === "#/saved") { setNav("leagues"); showSaved(); }
+    else if (h === "#/aussies") { setNav("leagues"); showAussiesAbroad(); }
     else if (h === "#/people") { setNav("shows"); showPeople(); }
     else if ((m = h.match(/^#\/people\/([\w-]+)$/))) { setNav("shows"); showPerson(m[1]); }
     else if (h === "#/clips") { location.replace("#/watch"); return; }

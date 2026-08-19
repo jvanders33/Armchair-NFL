@@ -2139,6 +2139,103 @@ def api_hub(league: str = "nfl", year: int | None = None, seasontype: int | None
     return out
 
 
+_abroad_cache = {"data": None, "ts": 0.0}
+
+
+@app.get("/api/aussies-abroad")
+def api_aussies_abroad(league: str | None = None):
+    """Every Australian across the Abroad and Global codes, with their next
+    game/event in the visitor's time. Built from the layers that already exist
+    (curated NFL list, roster scans, tour payloads) — one page, one call."""
+    if not league and _abroad_cache["data"] and time.time() - _abroad_cache["ts"] < 900:
+        return _abroad_cache["data"]
+
+    def next_game_map(lg):
+        """team abbr/id → the next (or live) game on the current slate; if the
+        whole slate is played (week-based leagues between rounds), the next week."""
+        try:
+            d = schedule(league=lg)
+            if d.get("games") and all(g["status"]["state"] == "post" for g in d["games"]) and (d.get("week") or {}).get("number"):
+                cal = d.get("calendar") or []
+                st, wk = d["season"]["type"], d["week"]["number"]
+                idx = next((i for i, c in enumerate(cal) if c["seasontype"] == st and c["week"] == wk), -1)
+                if idx >= 0 and idx + 1 < len(cal):
+                    n = cal[idx + 1]
+                    d = schedule(year=d["season"]["year"], seasontype=n["seasontype"], week=n["week"], league=lg)
+        except Exception:
+            return {}
+        out = {}
+        for g in sorted(d.get("games", []), key=lambda g: g["date"]):
+            if g["status"]["state"] == "post":
+                continue
+            for side, other in (("home", "away"), ("away", "home")):
+                key = g[side]["abbr"]
+                if key not in out:
+                    out[key] = {"opp": g[other]["name"], "oppLogo": g[other]["logo"], "date": g["date"], "home": side == "home",
+                                "state": g["status"]["state"], "detail": g["status"]["detail"], "venue": g.get("venue", ""),
+                                "mcg": bool(g.get("ftaConfirmed"))}
+        return out
+
+    def league_block(lg, players, teams_map):
+        rows = []
+        for p in players:
+            t = p.get("team")
+            rows.append({"name": p.get("name"), "team": p.get("teamCode") or t, "teamKey": t, "pos": p.get("pos", ""),
+                         "hook": p.get("hook") or "", "from": p.get("from", ""), "headshot": p.get("headshot"),
+                         "id": p.get("id"), "next": teams_map.get(t)})
+        rows.sort(key=lambda r: (r["next"] is None, (r["next"] or {}).get("date", "9")))
+        return {"league": lg, "name": LEAGUES_CFG[lg]["name"], "kind": "team", "players": rows}
+
+    def team_league(lg):
+        try:
+            players = _load_aussies() if lg == "nfl" else _roster_aussies(lg)
+        except Exception:
+            players = []
+        return league_block(lg, players, next_game_map(lg)) if players else None
+
+    def tour_league(lg):
+        try:
+            t = gs.tour(lg)
+        except Exception:
+            return None
+        rows = [{"name": a["name"], "team": a.get("team") or "", "pos": "", "hook": "", "from": a.get("country", ""),
+                 "headshot": a.get("headshot"), "event": a.get("event"), "eventId": a.get("eventId"),
+                 "next": {"opp": a.get("compLabel") or a.get("event"), "date": a.get("compDate"), "state": a.get("compState", "pre"), "detail": ""}}
+                for a in t.get("aussies", [])]
+        if lg == "f1" and not rows and t.get("standings", {}).get("drivers"):
+            nxt = next((e for e in t.get("events", []) if e["state"] != "post"), None)
+            rows = [{"name": d["name"], "team": "", "pos": f'P{d["rank"]} in the championship', "hook": f'{d["points"]} points', "from": "Australia",
+                     "headshot": None, "event": nxt["name"] if nxt else "", "eventId": nxt["id"] if nxt else None,
+                     "next": {"opp": nxt["name"], "date": nxt["date"], "state": nxt["state"], "detail": ""} if nxt else None}
+                    for d in t["standings"]["drivers"] if d.get("aussie")]
+        return {"league": lg, "name": gs.TOURS[lg]["name"], "kind": "tour", "players": rows} if rows else None
+
+    TEAM_LGS, TOUR_LGS = ("nfl", "nba", "mlb", "cfb"), ("tennis", "golf", "f1", "ufc")
+    if league:                        # one league on its own invocation (the page fills gaps this way)
+        g = team_league(league) if league in TEAM_LGS else tour_league(league) if league in TOUR_LGS else None
+        return {"groups": [g] if g else [], "total": len(g["players"]) if g else 0, "partial": False}
+    from concurrent.futures import TimeoutError as _FT
+    ex = ThreadPoolExecutor(max_workers=8)
+    jobs = [(ex.submit(team_league, lg), lg) for lg in TEAM_LGS] + [(ex.submit(tour_league, lg), lg) for lg in TOUR_LGS]
+    groups, missing = [], []
+    for f, lg in jobs:
+        try:
+            g = f.result(timeout=7)   # inside the serverless budget; the page fetches any stragglers itself
+            if g:
+                groups.append(g)
+        except _FT:
+            missing.append(lg)
+    ex.shutdown(wait=False)
+    total = sum(len(g["players"]) for g in groups)
+    data = {"groups": groups, "total": total, "partial": bool(missing), "missing": missing,
+            "generated": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
+    if missing:                       # a partial answer is cached only briefly
+        _abroad_cache.update(data=data, ts=time.time() - 800)
+        return data
+    _abroad_cache.update(data=data, ts=time.time())
+    return data
+
+
 @app.get("/api/wrap")
 def api_wrap():
     """The Weekly Wrap, assembled from the feeds: the week's episodes, the games
@@ -2545,6 +2642,11 @@ def page_person(slug: str):
     return _render_shell(f'{p["name"]} — Armchair Experts', f'{p["name"]} — {p.get("role") or "guest"} on Armchair Experts. Episodes, clips and where to listen.', None, f"/people/{slug}", "profile")
 
 
+@app.get("/aussies", response_class=HTMLResponse)
+def page_aussies():
+    return _render_shell("Aussies Abroad — Armchair Experts", "Every Australian in the world's leagues — NFL, NBA, MLB, college football, tennis, golf, F1, UFC — and when they play, in your time.", None, "/aussies")
+
+
 @app.get("/wrap", response_class=HTMLResponse)
 def page_wrap():
     return _render_shell("The Weekly Wrap — Armchair Experts", "This week's episodes, the games worth watching, the stories, and what's coming up — in five minutes.", None, "/wrap")
@@ -2587,7 +2689,7 @@ def sitemap():
     urls = [f"{SITE}/", f"{SITE}/episodes", f"{SITE}/#/leagues", f"{SITE}/#/shows", f"{SITE}/#/watch"]
     try:
         urls += [f"{SITE}/show/{sh['slug']}" for sh in pc.shows()]
-        urls += [f"{SITE}/people/{p['slug']}" for p in pc.people()] + [f"{SITE}/wrap"]
+        urls += [f"{SITE}/people/{p['slug']}" for p in pc.people()] + [f"{SITE}/wrap", f"{SITE}/aussies"]
         urls += [f"{SITE}/episode/{e['slug']}" for e in pc.episodes()["episodes"]]
     except Exception:
         pass

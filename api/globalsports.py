@@ -166,13 +166,16 @@ def tour(league: str) -> dict:
         events = [e for e in events if not e["name"].startswith("Dana White")] or events
         events.sort(key=lambda e: e["date"] or "")
     # Aussies across every competition in the events shown
-    aussies, seen = [], set()
+    # one row per Australian, carrying their LATEST competition in the events shown
+    by_name: dict[str, dict] = {}
     for e in events:
         for c in e["competitions"]:
             for a in c["competitors"]:
-                if a["aussie"] and a["name"] not in seen:
-                    seen.add(a["name"])
-                    aussies.append({**a, "event": e["short"] or e["name"], "eventId": e["id"], "compLabel": c["label"], "compDate": c["date"], "compState": c["state"]})
+                if a["aussie"]:
+                    prev = by_name.get(a["name"])
+                    if not prev or (c["date"] or "") >= (prev.get("compDate") or ""):
+                        by_name[a["name"]] = {**a, "event": e["short"] or e["name"], "eventId": e["id"], "compLabel": c["label"], "compDate": c["date"], "compState": c["state"]}
+    aussies = list(by_name.values())
     payload = {"league": league, "name": cfg["name"], "unit": cfg["unit"], "events": events, "aussies": aussies}
     if league == "f1":
         payload["standings"] = _f1_standings()
