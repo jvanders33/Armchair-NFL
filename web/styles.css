@@ -1427,3 +1427,15 @@ a.pl-nm{color:inherit; text-decoration:none} a.pl-nm:hover{color:var(--accent)}
 .cf-next{display:grid; grid-template-columns:44px 1fr auto; gap:14px; align-items:center; text-decoration:none; color:inherit; border:1px solid var(--line); border-radius:14px; background:var(--card); padding:12px 16px}
 .cf-next img{width:44px; height:44px; object-fit:contain} .cf-next span{display:flex; flex-direction:column} .cf-next b{font-family:var(--f-cond); font-weight:700; text-transform:uppercase; font-size:20px} .cf-next i{font-style:normal; font-size:12px; color:var(--ink-2)} .cf-next em{font-style:normal; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); font-weight:800}
 .cf-card{position:relative; text-decoration:none; color:inherit} .cf-opp{position:absolute; right:12px; top:12px; width:28px; height:28px; object-fit:contain; opacity:.85}
+
+/* head-to-head */
+.h2h{margin-top:10px; display:flex; flex-direction:column; gap:4px}
+.h2h-l{font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; font-weight:800; color:var(--muted)} .h2h-note{font-size:11.5px; color:var(--muted)}
+.h2h-hd{font-family:var(--f-cond); font-weight:700; text-transform:uppercase; font-size:14px; letter-spacing:.02em; color:#FFB020}
+.h2h-rows{display:flex; flex-direction:column; gap:3px}
+.h2h-row{display:grid; grid-template-columns:78px 1fr auto 1fr; gap:8px; align-items:center; font-size:12px; color:var(--ink-2)}
+.h2h-row i{font-style:normal; color:var(--muted); font-size:10.5px; letter-spacing:.04em} .h2h-row em{font-style:normal; font-family:var(--f-cond); font-weight:700; font-size:14px; color:#fff}
+.h2h-row span{display:flex; align-items:center; gap:5px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis} .h2h-row span:last-child{justify-content:flex-end}
+.h2h-row img{width:16px; height:16px; object-fit:contain} .h2h-row .won{color:#fff; font-weight:700}
+.h2h-btn{align-self:flex-start; background:none; border:1px solid var(--line); border-radius:8px; color:var(--ink-2); font-family:var(--f-cond); font-weight:700; text-transform:uppercase; letter-spacing:.06em; font-size:11px; padding:5px 9px; cursor:pointer; margin-top:8px}
+.h2h-btn:hover{border-color:var(--accent); color:#fff}

@@ -901,6 +901,7 @@
           <p class="why">${why(g)}</p>
           ${expertCallHTML(g)}
           ${meter(g)}
+          <div class="h2h" id="gotw-h2h" data-h2h="${esc(g.id)}"></div>
         </div>
         <div class="kick">
           <div>
@@ -912,6 +913,23 @@
         </div>
       </div>`;
     bindWatch($("gotw"));
+    if (H2H_LEAGUES.includes(league)) loadH2H(g, $("gotw-h2h"), true);
+  }
+
+  // ---------- head-to-head: recent meetings between the two clubs ----------
+  const H2H_LEAGUES = ["nfl", "afl", "nrl", "nba", "mlb", "epl", "cfb"];
+  async function loadH2H(g, el, auto) {
+    if (!el) return;
+    el.innerHTML = `<span class="h2h-l">Head-to-head</span><span class="h2h-note">loading…</span>`;
+    try {
+      const d = await fetchJSON(`/api/h2h?league=${league}&home=${encodeURIComponent(g.home.abbr)}&away=${encodeURIComponent(g.away.abbr)}&event=${encodeURIComponent(g.id)}`);
+      const ms = d.meetings || [];
+      if (!ms.length) { el.innerHTML = auto ? "" : `<span class="h2h-l">Head-to-head</span><span class="h2h-note">no recent meetings on record</span>`; return; }
+      el.innerHTML = `<span class="h2h-l">Head-to-head</span>${d.headline ? `<b class="h2h-hd">${esc(d.headline)}</b>` : ""}
+        <div class="h2h-rows">${ms.map((m) => { const k = fmt(m.date); const hw = +m.home.score > +m.away.score, aw = +m.away.score > +m.home.score;
+          return `<span class="h2h-row"><i>${esc(k.day)}${/\d/.test(k.day) ? "" : ""} ${new Date(m.date).getFullYear()}</i><span class="${aw ? "won" : ""}">${m.away.logo ? `<img src="${esc(m.away.logo)}" alt="">` : ""}${esc(m.away.name)}</span><em class="tnum">${esc(m.away.score ?? "")}–${esc(m.home.score ?? "")}</em><span class="${hw ? "won" : ""}">${esc(m.home.name)}${m.home.logo ? `<img src="${esc(m.home.logo)}" alt="">` : ""}</span></span>`; }).join("")}</div>`;
+      track("view_h2h", `${league}:${g.away.abbr}@${g.home.abbr}`);
+    } catch { el.innerHTML = auto ? "" : `<span class="h2h-l">Head-to-head</span><span class="h2h-note">unavailable right now</span>`; }
   }
 
   function renderSlate() {
@@ -937,9 +955,15 @@
         </div>
         <p class="why">${why(g)}</p>
         ${expertCallHTML(g)}
+        ${H2H_LEAGUES.includes(league) ? `<button class="h2h-btn" data-h2h-btn="${esc(g.id)}" aria-expanded="false">Head-to-head ▾</button><div class="h2h" data-h2h="${esc(g.id)}" hidden></div>` : ""}
         <div class="foot">${aus}${watchBtn(g, "sm ghost")}</div>
       </article>`;
     }).join("");
+    $("slate").querySelectorAll("[data-h2h-btn]").forEach((b) => b.addEventListener("click", () => {
+      const id = b.getAttribute("data-h2h-btn"); const box = $("slate").querySelector(`.h2h[data-h2h="${CSS.escape(id)}"]`); const g = hubData.games.find((x) => String(x.id) === id);
+      const open = box.hidden; box.hidden = !open; b.setAttribute("aria-expanded", String(open)); b.textContent = open ? "Head-to-head ▴" : "Head-to-head ▾";
+      if (open && g && !box.dataset.loaded) { box.dataset.loaded = "1"; loadH2H(g, box, false); }
+    }));
     $("slate-count").textContent = "· " + list.length + (list.length === 1 ? " game" : " games");
     bindStars();
     bindWatch($("slate"));

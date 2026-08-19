@@ -1575,6 +1575,98 @@ def api_team_form(abbr: str, league: str = "nfl"):
     return {"last": last[-5:][::-1], "next": nxt, "source": "ESPN", "league": league}
 
 
+# ---------- head-to-head: the last meetings between the two clubs on a game card ----------
+def _h2h_from_schedules(league: str, home_key: str, away_key: str) -> list[dict]:
+    """Meetings from the home club's schedule, this season and last (ESPN keeps
+    both). Works for NFL/AFL/EPL/college where the summary has no h2h block."""
+    site = _site(league)
+    year = datetime.now().year
+    slug = home_key if league in ("cfb", "epl", "nrl") else home_key.lower()
+    def params(y):
+        if league == "epl":
+            return {"fixture": "false", "season": str(y)} if y != year else {"fixture": "true"}
+        if league == "cfb":
+            return {"season": str(y), "seasontype": "2"}
+        return {"season": str(y)}
+    events = []
+    for y in (year, year - 1):
+        try:
+            events += _get_json(f"{site}/teams/{slug}/schedule", params(y), ttl=6 * 3600).get("events", [])
+        except requests.RequestException:
+            continue
+    out = []
+    for e in events:
+        comp = (e.get("competitions") or [{}])[0]
+        cs = comp.get("competitors") or []
+        if len(cs) != 2 or (comp.get("status") or {}).get("type", {}).get("state") != "post":
+            continue
+        ids = {(c.get("team") or {}).get("id") for c in cs} | {((c.get("team") or {}).get("abbreviation") or "").upper() for c in cs}
+        if away_key not in ids and away_key.upper() not in ids:
+            continue
+        def sc(c):
+            v = c.get("score"); return v.get("displayValue") if isinstance(v, dict) else v
+        h = next((c for c in cs if c.get("homeAway") == "home"), cs[0]); a = next((c for c in cs if c is not h), cs[1])
+        out.append({"date": e.get("date"), "home": {"abbr": h["team"].get("abbreviation"), "name": h["team"].get("shortDisplayName") or h["team"].get("displayName"), "score": sc(h), "logo": h["team"].get("logo") or ((h["team"].get("logos") or [{}])[0].get("href"))},
+                    "away": {"abbr": a["team"].get("abbreviation"), "name": a["team"].get("shortDisplayName") or a["team"].get("displayName"), "score": sc(a), "logo": a["team"].get("logo") or ((a["team"].get("logos") or [{}])[0].get("href"))},
+                    "venue": (comp.get("venue") or {}).get("fullName", "")})
+    seen, uniq = set(), []
+    for m in sorted(out, key=lambda m: m["date"] or "", reverse=True):
+        if m["date"] in seen:
+            continue
+        seen.add(m["date"]); uniq.append(m)
+    return uniq[:5]
+
+
+@app.get("/api/h2h")
+def api_h2h(league: str, home: str, away: str, event: str | None = None):
+    """Recent meetings between two clubs. NRL from the game summary's
+    headToHeadGames; MLB/NBA from the season series; the rest from schedules."""
+    meetings, headline = [], ""
+    try:
+        if league in ("nrl", "mlb", "nba") and event:
+            summ = _get_json(f"{_site(league)}/summary", {"event": event}, ttl=1800)
+            if league == "nrl":
+                blk = (summ.get("headToHeadGames") or [{}])[0]
+                teams = {e["team"]["id"]: e["team"] for e in _get_json(f"{_site('nrl')}/teams", ttl=86400)["sports"][0]["leagues"][0]["teams"]}
+                for g in blk.get("events", [])[:5]:
+                    ht, at = teams.get(g.get("homeTeamId"), {}), teams.get(g.get("awayTeamId"), {})
+                    meetings.append({"date": g.get("gameDate"), "home": {"abbr": g.get("homeTeamId"), "name": ht.get("shortDisplayName") or ht.get("displayName", ""), "score": g.get("homeTeamScore"), "logo": (ht.get("logos") or [{}])[0].get("href")},
+                                     "away": {"abbr": g.get("awayTeamId"), "name": at.get("shortDisplayName") or at.get("displayName", ""), "score": g.get("awayTeamScore"), "logo": (at.get("logos") or [{}])[0].get("href")}, "venue": ""})
+            else:
+                ss = (summ.get("seasonseries") or [{}])[0]
+                headline = ss.get("summary", "")
+                for ev in ss.get("events", []):
+                    if (ev.get("statusType") or {}).get("state") != "post":
+                        continue
+                    cs = ev.get("competitors") or []
+                    h = next((c for c in cs if c.get("homeAway") == "home"), None); a = next((c for c in cs if c.get("homeAway") == "away"), None)
+                    if not h or not a:
+                        continue
+                    meetings.append({"date": ev.get("date"), "home": {"abbr": h["team"].get("abbreviation"), "name": h["team"].get("shortDisplayName") or h["team"].get("displayName"), "score": h.get("score"), "logo": h["team"].get("logo")},
+                                     "away": {"abbr": a["team"].get("abbreviation"), "name": a["team"].get("shortDisplayName") or a["team"].get("displayName"), "score": a.get("score"), "logo": a["team"].get("logo")}, "venue": ""})
+                meetings.sort(key=lambda m: m["date"] or "", reverse=True)
+                meetings = meetings[:5]
+        if not meetings and league in ("nfl", "afl", "epl", "cfb", "nrl", "nba", "mlb"):
+            meetings = _h2h_from_schedules(league, home, away)
+    except requests.RequestException:
+        return {"meetings": [], "headline": "", "status": "unavailable"}
+    # tally for the two clubs across the meetings shown
+    if meetings and not headline:
+        wins = {}
+        for m in meetings:
+            try:
+                hs, as_ = float(m["home"]["score"]), float(m["away"]["score"])
+            except (TypeError, ValueError):
+                continue
+            w = m["home"]["name"] if hs > as_ else m["away"]["name"] if as_ > hs else None
+            if w:
+                wins[w] = wins.get(w, 0) + 1
+        if wins:
+            top = max(wins.items(), key=lambda kv: kv[1])
+            headline = f'{top[0]} {top[1]}–{len(meetings) - top[1] - (len(meetings) - sum(wins.values()))} in the last {len(meetings)}' + (f" ({len(meetings) - sum(wins.values())} drawn)" if len(meetings) - sum(wins.values()) else "")
+    return {"meetings": meetings, "headline": headline, "source": "ESPN"}
+
+
 @app.get("/api/player/{pid}")
 def api_player(pid: str, league: str = "nfl"):
     web = f"{ESPN_WEB_BASE}/{_cfg(league)['path']}"
