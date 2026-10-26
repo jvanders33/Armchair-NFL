@@ -3143,7 +3143,7 @@ _STATIC_PAGES = {
     "clips": ("Clips & video — Armchair Experts", "Every upload from the Armchair Experts channel, playable here."),
     "shows": ("Shows — Armchair Experts", "The slate: every show, its status, and where to listen."),
     "watch": ("Watch — Armchair Experts", "The latest video from Armchair Experts."),
-    "leagues": ("Leagues — Armchair Experts", "Fifteen codes, one platform — the ones played here, the ones we watch from here, and the tours that come to us."),
+    "leagues": ("Sports — Cam Luke", "Fifteen codes, one platform — the ones played here, the ones we watch from here, and the tours that come to us."),
 }
 
 

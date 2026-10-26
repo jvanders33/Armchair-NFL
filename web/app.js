@@ -1525,7 +1525,7 @@
         ${up.length ? `<div class="section-h" style="margin-top:20px">Coming up <span class="n">· ${up.length}</span></div><div class="sv-list">${up.map(row).join("")}</div>` : ""}
         ${past.length ? `<div class="section-h" style="margin-top:28px">Played <span class="n">· ${past.length}</span></div><div class="sv-list">${past.map(row).join("")}</div>` : ""}
         <p class="panel-note" style="margin-top:14px">Saved on this device. Clear your browser data and it's gone — a proper account and reminders come later.</p>` :
-        `<div class="panel roster-empty" style="margin-top:20px"><p>Nothing saved yet. Tap ☆ on any game in a league hub and it lands here.</p><a class="watch sm ghost" href="#/leagues">Browse the leagues →</a></div>`}
+        `<div class="panel roster-empty" style="margin-top:20px"><p>Nothing saved yet. Tap ☆ on any game in a league hub and it lands here.</p><a class="watch sm ghost" href="#/leagues">Browse the sports →</a></div>`}
     </div>`;
     view.querySelectorAll("[data-unsave]").forEach((b) => b.addEventListener("click", () => {
       const id = b.getAttribute("data-unsave"); const mm = savedMap(); delete mm[id]; localStorage.setItem(SAVED_KEY, JSON.stringify(mm));
@@ -2152,7 +2152,7 @@
           <div class="land-sub">The voice of sports fans in Australia</div>
           <nav class="channels" aria-label="Channels">
             <a href="#/shows">WATCH</a>
-            <a href="#/leagues">LEAGUES</a>
+            <a href="#/leagues">SPORTS</a>
             <a href="#/shows">SHOWS</a>
             <a href="#/shows">PODCASTS</a>
           </nav>
@@ -2350,7 +2350,7 @@
       { k: "teams", label: ui.teamsLabel, href: `#/${lg}/teams` },
     ];
     return `<nav class="subnav" aria-label="${esc(ui.name)} sections"><div class="shell">
-      <a class="sn-league" href="#/leagues" title="All leagues">
+      <a class="sn-league" href="#/leagues" title="All sports">
         <img src="${LG_LOGO(lg)}" alt=""><span>${esc(ui.label)}</span>
       </a>
       ${items.map((i) => `<a href="${i.href}" class="${i.k === active ? "on" : ""}">${esc(i.label)}</a>`).join("")}
@@ -2859,7 +2859,7 @@
   const rcSubnav = (active) => {
     const items = [{ k: "watch", label: "What to Watch", href: "#/racing" }, { k: "prem", label: "Jockeys & Trainers", href: "#/racing/premierships" }];
     return `<nav class="subnav" aria-label="Racing sections"><div class="shell">
-      <a class="sn-league" href="#/leagues" title="All leagues"><img src="/img/racing-mark.svg" alt=""><span>Racing</span></a>
+      <a class="sn-league" href="#/leagues" title="All sports"><img src="/img/racing-mark.svg" alt=""><span>Racing</span></a>
       ${items.map((i) => `<a href="${i.href}" class="${i.k === active ? "on" : ""}">${esc(i.label)}</a>`).join("")}
       <a href="https://www.racing.com" target="_blank" rel="noopener" class="sn-tool" title="Full form, replays and vision on Racing.com">Racing.com ↗</a>
     </div></nav>`;
@@ -2912,7 +2912,7 @@
   // TOUR HUB — tennis / F1 / golf / UFC: an event, its competitions, the Aussies
   // =====================================================================
   const tourSubnav = (lg, extra) => `<nav class="subnav" aria-label="${esc((LEAGUE_UI[lg] || {}).name || lg)}"><div class="shell">
-      <a class="sn-league" href="#/leagues" title="All leagues"><img src="${LG_LOGO(lg)}" alt=""><span>${esc((LEAGUE_UI[lg] || {}).label || lg)}</span></a>
+      <a class="sn-league" href="#/leagues" title="All sports"><img src="${LG_LOGO(lg)}" alt=""><span>${esc((LEAGUE_UI[lg] || {}).label || lg)}</span></a>
       <a href="#/${lg}" class="on">What to Watch</a>${extra || ""}
     </div></nav>`;
   const flagImg = (a) => a.flag ? `<img class="tr-flag" src="${esc(a.flag)}" alt="${esc(a.country || "")}" title="${esc(a.country || "")}">` : "";
