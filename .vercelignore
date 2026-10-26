@@ -1,0 +1,4 @@
+# Pitch decks, previews and verification screenshots never ship with the site —
+# the Python function bundles everything uploaded, and the 225MB cap is real.
+pitch
+*.pptx
