@@ -275,7 +275,7 @@
                 <a class="watch ghost" href="#/episode/${esc(latest.slug)}" data-track="click_episode" data-label="${esc(latest.slug)}">Episode page</a>
                 <button class="watch ghost" id="hh-share" data-track="share_episode" data-label="${esc(latest.slug)}">Share</button>
               </div>` : `
-              <h1 id="home-h1" class="hh-title">Every sport. One armchair.</h1>
+              <h1 id="home-h1" class="hh-title">Cam Luke. Every sport.</h1>
               <p class="hh-desc">The voice of sports fans in Australia.</p>
               <div class="hh-meta">${err ? "The episode feed didn't answer just now — the shows are still on YouTube and Apple below." : ""}</div>`}
           </div>
@@ -2148,7 +2148,7 @@
         <div class="land-fade"></div>
         <div class="land-core">
           <div class="neon-frame"><img class="land-logo" src="/img/logo-badge.png" alt="Armchair Experts"></div>
-          <div class="land-tag">EVERY SPORT. ONE ARMCHAIR.</div>
+          <div class="land-tag">SPORTS GUY &#183; AFL &#183; RACING &#183; NFL</div>
           <div class="land-sub">The voice of sports fans in Australia</div>
           <nav class="channels" aria-label="Channels">
             <a href="#/shows">WATCH</a>
@@ -2477,7 +2477,7 @@
   function showLeagues() {
     const byKey = Object.fromEntries(LEAGUES.map((l) => [l.key, l]));
     view.innerHTML = `<div class="shell">
-      ${pageHero("The codes", `Every sport.<br><em>One armchair.</em>`, "Fifteen codes, one platform — the ones played here, the ones we watch from here, and the tours that come to us. Live fixtures, real data, and the tools fans come back to daily.")}
+      ${pageHero("The codes", `Every <em>sport</em>.`, "Fifteen codes, one platform — the ones played here, the ones we watch from here, and the tours that come to us. Live fixtures, real data, and the tools fans come back to daily.")}
       <a class="ab-banner" href="#/aussies"><span class="ab-banner-k">🇦🇺</span><span><b>Aussies Abroad</b><i>Every Australian in the world's leagues — NFL, NBA, MLB, college football, tennis, golf, F1, UFC — and when they play, in your time.</i></span><em>Open →</em></a>
       <div class="lg-cols">
         ${LEAGUE_COLS.map((c) => `

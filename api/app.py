@@ -3096,7 +3096,7 @@ def og_episode(slug: str):
 def page_episode(slug: str):
     e = pc.episode(slug)
     if not e:
-        return _render_shell("Armchair Experts", "Every sport. One armchair.", None, f"/episode/{slug}")
+        return _render_shell("Armchair Experts", "Cam Luke across AFL, racing and the NFL.", None, f"/episode/{slug}")
     ld = json.dumps({"@context": "https://schema.org", "@type": "PodcastEpisode", "name": e["title"],
                      "datePublished": e["published"], "description": e["summary"][:300],
                      "url": f"{SITE}/episode/{slug}", "timeRequired": f"PT{max(1, e['durationSec'] // 60)}M",
@@ -3110,7 +3110,7 @@ def page_episode(slug: str):
 def page_show(slug: str):
     sh = next((x for x in pc.shows() if x["slug"] == slug), None)
     if not sh:
-        return _render_shell("Armchair Experts", "Every sport. One armchair.", None, f"/show/{slug}")
+        return _render_shell("Armchair Experts", "Cam Luke across AFL, racing and the NFL.", None, f"/show/{slug}")
     img = (sh["latest"] or {}).get("thumb")
     return _render_shell(f'{sh["title"]} — Armchair Experts', sh["desc"], img, f"/show/{slug}")
 
@@ -3119,7 +3119,7 @@ def page_show(slug: str):
 def page_person(slug: str):
     p = pc.person(slug)
     if not p:
-        return _render_shell("Armchair Experts", "Every sport. One armchair.", None, f"/people/{slug}")
+        return _render_shell("Armchair Experts", "Cam Luke across AFL, racing and the NFL.", None, f"/people/{slug}")
     return _render_shell(f'{p["name"]} — Armchair Experts', f'{p["name"]} — {p.get("role") or "guest"} on Armchair Experts. Episodes, clips and where to listen.', None, f"/people/{slug}", "profile")
 
 
