@@ -1,0 +1,18 @@
+{
+  "v": 4,
+  "createdOnFiles": {"v": 1, "at": "2026-10-26T06:05:00Z"},
+  "lists": "css",
+  "title": "Cam Luke — Sports Guy",
+  "order": ["cover", "moment", "model", "why-cam", "asset", "flywheel", "phases", "revenue", "asks", "next"],
+  "sections": {
+    "case": {"description": "Why Cam, why now — the rented-reach problem and the Simmons playbook", "start": "cover"},
+    "build": {"description": "What is already built and how the audience grows", "start": "asset"},
+    "business": {"description": "The revenue ladder, the ask, and next steps", "start": "revenue"}
+  },
+  "faces": {
+    "anton": {"family": "Anton", "href": "https://fonts.googleapis.com/css2?family=Anton&display=swap"},
+    "barlow-condensed": {"family": "Barlow Condensed", "href": "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap"},
+    "inter": {"family": "Inter", "href": "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"}
+  },
+  "designSystems": []
+}
