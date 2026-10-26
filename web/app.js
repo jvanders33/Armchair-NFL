@@ -286,10 +286,10 @@
         ${followStrip(platforms)}
         <section id="home-week" aria-labelledby="hw-h"><div class="section-h" style="margin-top:32px" id="hw-h">This week in sport <span class="n" id="hw-note">· loading</span></div><div class="hw-grid" id="hw-grid"><div class="loading">Finding what's worth watching…</div></div></section>
         ${eps && eps.episodes && eps.episodes.length > 1 ? `
-        <div class="section-h" style="margin-top:32px">Latest episodes <span class="n">· <a href="#/episodes">all ${eps.count} →</a></span></div>
+        <div class="section-h" style="margin-top:32px">Latest episodes <span class="n">· <a href="#/shows">all ${eps.count} →</a></span></div>
         <div class="ep-grid">${eps.episodes.slice(1, 7).map((e) => episodeCard(e)).join("")}</div>` : ""}
         <section id="home-take"></section>
-        <div class="wr-teaser"><a class="wr-teaser-in" href="#/wrap"><b>The Weekly Wrap</b><span>The week in five minutes — episodes, games worth watching, the stories, what's coming. Read it →</span></a><a class="wr-teaser-in" href="#/people"><b>Hosts &amp; guests</b><span>Cam, Cooney, and everyone who's sat in the guest chair →</span></a><a class="wr-teaser-in" href="#/watch"><b>Watch</b><span>Every episode, interview and clip on the channel, playable here →</span></a></div>
+        <div class="wr-teaser"><a class="wr-teaser-in" href="#/wrap"><b>The Weekly Wrap</b><span>The week in five minutes — episodes, games worth watching, the stories, what's coming. Read it →</span></a><a class="wr-teaser-in" href="#/people"><b>Hosts &amp; guests</b><span>Cam, Cooney, and everyone who's sat in the guest chair →</span></a><a class="wr-teaser-in" href="#/shows"><b>The shows</b><span>Every episode and clip — listen, watch, search →</span></a></div>
         <section id="home-moments"></section>
         <div class="section-h" style="margin-top:34px">Go deeper <span class="n">· every code, every fixture, every player</span></div>
         <div class="deep-row">
@@ -397,21 +397,52 @@
   }
 
   // ---------- EPISODES list ----------
-  async function showEpisodes(showKey) {
-    view.innerHTML = `<div class="shell"><div class="loading" aria-live="polite">Loading episodes…</div></div>`;
+  async function showShowsHub(showKey) {
+    view.innerHTML = `<div class="shell"><div class="loading" aria-live="polite">Loading the shows…</div></div>`;
     try {
-      const d = await fetchJSON("/api/episodes?limit=100");
+      const [d, slate, vids] = await Promise.all([
+        fetchJSON("/api/episodes?limit=100"),
+        fetchJSON("/api/shows").catch(() => null),
+        fetchJSON("/api/videos").catch(() => null),
+      ]);
       const shows = [...new Map(d.episodes.map((e) => [e.showKey, e.show])).entries()];
       const eps = showKey ? d.episodes.filter((e) => e.showKey === showKey) : d.episodes;
+      const epVids = new Set(d.episodes.map((e) => e.videoId).filter(Boolean));
+      const clips = ((vids && vids.videos) || []).filter((v) => !epVids.has(v.id)).slice(0, 12);
+      const cards = ((slate && slate.shows) || []).filter((s) => s.slug || s.url);
       view.innerHTML = `<div class="shell">
-        ${pageHero("The podcast", `Every <em>episode</em>.`, `${d.count} episodes across the shows — listen here, watch on YouTube, or follow wherever you listen.`)}
-        ${followStrip(d.platforms, true)}
+        ${pageHero("Listen · watch · search", `The <em>shows</em>.`, `Everything Cam makes, in one place — ${d.count} episodes across ${cards.length || "the"} shows, plus the clips. Play it here or follow wherever you listen.`)}
+        ${cards.length ? `<div class="shows-grid">
+          ${cards.map((s) => {
+            const look = SHOW_LOOK[s.sport] || { c1: "#8C0F27", c2: "#2A0212" };
+            return `
+            <${s.slug ? `a href="#/show/${esc(s.slug)}"` : `a href="${esc(s.url)}"${s.url.startsWith("#") ? "" : ` target="_blank" rel="noopener"`}`} class="show-card" style="--sc1:${look.c1}; --sc2:${look.c2}">
+              ${s.img ? `<img class="sc-bg" src="${esc(s.img)}" alt="" loading="lazy">` : ""}
+              <div class="sc-scrim"></div>
+              <div class="sc-in">
+                <div class="sc-top">
+                  <span class="sc-sport">${esc(s.sport)}</span>
+                  <span class="sc-status ${esc(s.status)}">${s.status === "live" ? "● Live" : "Coming"}</span>
+                </div>
+                <div class="sc-title">${esc(s.title)}</div>
+                <div class="sc-hosts">${esc(s.hosts)}</div>
+                <p class="sc-desc">${esc(s.desc)}</p>
+                ${s.slug ? `<div class="sc-watch">${s.episodeCount ? `${s.episodeCount} episodes →` : "Show page →"}</div>` : `<div class="sc-watch">▶ Watch</div>`}
+              </div>
+            </a>`;
+          }).join("")}
+        </div>` : ""}
+        <div class="section-h" style="margin-top:34px">Every episode <span class="n">· ${d.count} · listen here or watch on YouTube</span></div>
         <div class="ep-search"><input type="search" id="ep-q" placeholder="Search episodes — a guest, a club, a topic…" aria-label="Search episodes"><span class="ep-q-n" id="ep-q-n"></span></div>
         <div class="ep-filters" role="tablist">
-          <a class="fg-tab" href="#/episodes" aria-pressed="${!showKey}">All</a>
-          ${shows.map(([k, s]) => `<a class="fg-tab" href="#/episodes/${esc(k)}" aria-pressed="${showKey === k}">${esc(s.title)}</a>`).join("")}
+          <a class="fg-tab" href="#/shows" aria-pressed="${!showKey}">All</a>
+          ${shows.map(([k, s]) => `<a class="fg-tab" href="#/shows/${esc(k)}" aria-pressed="${showKey === k}">${esc(s.title)}</a>`).join("")}
         </div>
         <div class="ep-grid" id="ep-grid">${eps.map((e) => episodeCard(e)).join("")}</div>
+        ${clips.length ? `
+        <div class="section-h" style="margin-top:34px">Clips &amp; extras <span class="n">· from the channel · a new upload lands within 15 minutes</span></div>
+        <div class="vid-rail wrap">${clips.map((v) => `<a class="vid-card" href="#/watch/${esc(v.id)}" data-track="click_watch_video" data-label="${esc(v.id)}"><span class="vc-thumb"><img src="${esc(v.thumb)}" alt="" loading="lazy"><span class="vc-play">▶</span>${v.duration ? `<span class="vc-dur">${esc(v.duration)}</span>` : ""}</span><span class="vc-t">${esc(v.title)}</span><span class="vc-m">${timeAgo(v.published)}${v.views ? " · " + v.views.toLocaleString() + " views" : ""}</span></a>`).join("")}</div>` : ""}
+        ${followStrip(d.platforms, true)}
         <p class="panel-note" style="margin-top:12px">Source: the show's podcast feed and YouTube channel · updated ${timeAgoShort(d.updated)}</p>
       </div>`;
       const q = $("ep-q");
@@ -422,9 +453,9 @@
         $("ep-q-n").textContent = s ? `${hits.length} of ${eps.length}` : "";
         if (s.length > 2) track("search_episodes", s.slice(0, 40));
       });
-      track("view_episodes", showKey || "all");
+      track("view_shows_hub", showKey || "all");
     } catch (err) {
-      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load episodes (${esc(err.message)}). <a href="#/episodes" onclick="location.reload()">Try again</a>.</div></div>`;
+      view.innerHTML = `<div class="shell"><div class="loading">Couldn't load the shows (${esc(err.message)}). <a href="#/shows" onclick="location.reload()">Try again</a>.</div></div>`;
     }
   }
 
@@ -508,7 +539,7 @@
           ${latest ? `<div class="section-h" style="margin-top:28px">Latest episode</div>${episodeCard(latest, { big: true })}` : `<div class="panel roster-empty" style="margin-top:22px"><p>No episodes yet — follow the feed and it'll land here the day it drops.</p></div>`}
           ${eps.length > 1 ? `<div class="section-h" style="margin-top:28px">Episodes <span class="n">· ${eps.length}</span></div><div class="ep-grid">${eps.slice(1).map((e) => episodeCard(e)).join("")}</div>` : ""}
           <div class="section-h" style="margin-top:28px">Related</div>
-          <div class="ep-related"><a class="ep-rel" href="${esc(sh.hub)}">${esc(sh.sport)} · what to watch this week →</a><a class="ep-rel" href="#/episodes">Every episode across the shows →</a></div>
+          <div class="ep-related"><a class="ep-rel" href="${esc(sh.hub)}">${esc(sh.sport)} · what to watch this week →</a><a class="ep-rel" href="#/shows">Every episode across the shows →</a></div>
         </div>`;
       track("view_show", sh.slug);
     } catch (err) {
@@ -2120,10 +2151,10 @@
           <div class="land-tag">EVERY SPORT. ONE ARMCHAIR.</div>
           <div class="land-sub">The voice of sports fans in Australia</div>
           <nav class="channels" aria-label="Channels">
-            <a href="#/watch">WATCH</a>
+            <a href="#/shows">WATCH</a>
             <a href="#/leagues">LEAGUES</a>
             <a href="#/shows">SHOWS</a>
-            <a href="#/podcasts">PODCASTS</a>
+            <a href="#/shows">PODCASTS</a>
           </nav>
           <div class="land-soc" aria-label="Socials">
             <a href="https://www.youtube.com/watch?v=gQ2gNGiNLa4" target="_blank" rel="noopener" title="YouTube">YT</a>
@@ -2514,8 +2545,8 @@
       if (!watchList.length) throw new Error("no videos");
       watchIdx = Math.max(0, watchList.findIndex((v) => v.id === startId));
       view.innerHTML = `<div class="shell">
-        ${pageHero("The channel", `<em>Watch</em>.`, "Every episode, interview and clip from the Armchair Experts channel — playable here, updating itself.")}
-        <div class="watch-grid">
+        <a class="crumb" style="display:inline-block;margin-top:18px" href="#/shows">← The shows</a>
+        <div class="watch-grid" style="margin-top:14px">
           <div class="watch-main">
             <div class="watch-player" id="watch-player"></div>
             <h2 class="watch-t" id="watch-title"></h2>
@@ -2573,7 +2604,7 @@
     "Racing": { c1: "#B07C1E", c2: "#2A1D05" },
   };
 
-  async function showShows() {
+  async function showShows_retired() {
     view.innerHTML = `<div class="shell"><div class="loading">Loading the slate…</div></div>`;
     try {
       const d = await fetchJSON("/api/shows");
@@ -3444,15 +3475,16 @@
     const LG = "(nfl|afl|nbl|nrl|nba|epl|mlb|cfb)";
     if (isLanding) { setNav(""); showLanding(); }
     else if (h === "#/" || h === "" || h === "#") { setNav("home"); showHome(); }
-    else if ((m = h.match(/^#\/episode\/([\w-]+)$/))) { setNav("podcasts"); showEpisode(m[1]); }
+    else if ((m = h.match(/^#\/episode\/([\w-]+)$/))) { setNav("shows"); showEpisode(m[1]); }
     else if ((m = h.match(/^#\/show\/([\w-]+)$/))) { setNav("shows"); showShowPage(m[1]); }
-    else if ((m = h.match(/^#\/episodes(?:\/([\w-]+))?$/))) { setNav("podcasts"); showEpisodes(m[1]); }
+    else if ((m = h.match(/^#\/episodes(?:\/([\w-]+))?$/))) { location.replace("#/shows" + (m[1] ? "/" + m[1] : "")); return; }
+    else if ((m = h.match(/^#\/shows\/([\w-]+)$/))) { setNav("shows"); showShowsHub(m[1]); }
     else if (h === "#/wrap") { setNav("home"); showWrap(); }
     else if (h === "#/saved") { setNav("leagues"); showSaved(); }
     else if (h === "#/aussies") { setNav("leagues"); showAussiesAbroad(); }
     else if (h === "#/people") { setNav("shows"); showPeople(); }
     else if ((m = h.match(/^#\/people\/([\w-]+)$/))) { setNav("shows"); showPerson(m[1]); }
-    else if (h === "#/clips") { location.replace("#/watch"); return; }
+    else if (h === "#/clips") { location.replace("#/shows"); return; }
     else if ((m = h.match(new RegExp(`^#/${LG}/team/([A-Za-z0-9]{2,8})$`)))) { league = m[1]; setNav("leagues"); showTeam(m[2].toUpperCase()); }
     else if ((m = h.match(new RegExp(`^#/${LG}/player/([\\w-]+)$`)))) { league = m[1]; setNav("leagues"); showPlayer(m[2]); }
     else if ((m = h.match(new RegExp(`^#/${LG}/teams$`)))) { league = m[1]; setNav("leagues"); showTeams(); }
@@ -3467,16 +3499,16 @@
     else if (h === "#/racing/premierships") { league = "racing"; setNav("leagues"); showRacingPremierships(); }
     else if ((m = h.match(/^#\/racing\/(jockey|trainer|horse)\/(\d+)$/))) { league = "racing"; setNav("leagues"); showRacingPerson(m[1], m[2]); }
     else if ((m = h.match(/^#\/watch\/([\w-]+)$/))) { setNav("watch"); showWatch(m[1]); }
-    else if (h === "#/watch") { setNav("watch"); showWatch(); }
+    else if (h === "#/watch") { location.replace("#/shows"); return; }
     // legacy NFL-only paths
     else if ((m = h.match(/^#\/team\/([A-Za-z]{2,4})$/))) { league = "nfl"; setNav("leagues"); showTeam(m[1].toUpperCase()); }
     else if ((m = h.match(/^#\/player\/(\d+)$/))) { league = "nfl"; setNav("leagues"); showPlayer(m[1]); }
     else if (h === "#/teams") { league = "nfl"; setNav("leagues"); showTeams(); }
     else if (h === "#/leagues") { setNav("leagues"); showLeagues(); }
-    else if (h === "#/podcasts") { setNav("podcasts"); showEpisodes(); }
+    else if (h === "#/podcasts") { location.replace("#/shows"); return; }
     else if (h === "#/christmas") { setNav("shows"); showChristmas(); }
     else if (h === "#/audience") { setNav("audience"); showAudience(); }
-    else if (h === "#/shows") { setNav("shows"); showShows(); }
+    else if (h === "#/shows") { setNav("shows"); showShowsHub(); }
     else if (h === "#/partner") { setNav("partner"); showPartner(); }
     else { league = "nfl"; setNav("leagues"); showHub(); }
   }
