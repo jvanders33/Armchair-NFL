@@ -2487,6 +2487,28 @@ def api_videos(league: str = ""):
     return {"videos": vids, "channel": "Armchair Experts with Cam Luke and Adam Cooney"}
 
 
+@app.get("/api/cam")
+def api_cam():
+    """Cam's identity card: who he is, where to follow him, and where he's on
+    air right now. Gigs with a date window drop off once the window closes;
+    everything else is a standing gig."""
+    try:
+        data = json.loads((DATA / "cam.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {"name": "Cam Luke", "gigs": [], "socials": []}
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    gigs = []
+    for g in data.get("gigs", []):
+        if not g.get("live", True):
+            continue
+        w = g.get("window") or {}
+        if w and not (w.get("from", "0000") <= today <= w.get("to", "9999")):
+            continue
+        gigs.append({**g, "now": bool(w)})      # a windowed gig that's inside its window is the hot one
+    data["gigs"] = gigs
+    return data
+
+
 @app.get("/api/shows")
 def api_shows():
     """The slate from data/shows.json, with each show's REAL episodes attached

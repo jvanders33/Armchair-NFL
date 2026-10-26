@@ -1,0 +1,66 @@
+{
+  "name": "Cam Luke",
+  "tag": "Sports Guy",
+  "tagline": "AFL. Racing. NFL. Every day of the year.",
+  "positioning": "Broadcaster and sports fan — AFL through winter, the carnival through spring, the NFL overnight. One voice across every code, and this is home base.",
+  "photo": "/img/cam-luke.jpg",
+  "socials": [
+    {"key": "instagram", "label": "Instagram", "handle": "@camjluke", "url": "https://www.instagram.com/camjluke/"},
+    {"key": "threads", "label": "Threads", "handle": "@camjluke", "url": "https://www.threads.com/@camjluke"},
+    {"key": "facebook", "label": "Facebook", "handle": "Pro Sports Fan", "url": "https://www.facebook.com/prosportsfan"},
+    {"key": "youtube", "label": "YouTube", "handle": "Armchair Experts", "url": "https://www.youtube.com/channel/UCvgkN-LsaA6TLIrQYq_REkg?sub_confirmation=1"}
+  ],
+  "gigs": [
+    {
+      "id": "trade-radio",
+      "title": "The Trade Feed",
+      "org": "AFL Trade Radio",
+      "role": "Co-host, with Liam Pickering",
+      "code": "AFL",
+      "when": "Weekdays 1–3pm AEDT through the trade period",
+      "window": {"from": "2026-10-12", "to": "2026-11-07"},
+      "url": "https://www.afl.com.au/trade-radio",
+      "live": true
+    },
+    {
+      "id": "sen-track",
+      "title": "Racing mornings",
+      "org": "SEN Track",
+      "role": "Host",
+      "code": "RACING",
+      "when": "Weekday mornings through the carnival",
+      "url": "https://www.sen.com.au/sen-track/",
+      "live": true
+    },
+    {
+      "id": "seven-nfl",
+      "title": "NFL on Seven",
+      "org": "Channel 7 · 7plus",
+      "role": "Host, with Ben Graham",
+      "code": "NFL",
+      "when": "Through the NFL season",
+      "url": "https://7plus.com.au/nfl",
+      "live": true
+    },
+    {
+      "id": "nbl-overtime",
+      "title": "NBL Overtime",
+      "org": "ESPN · NBL",
+      "role": "Presenter",
+      "code": "NBL",
+      "when": "Weekly through NBL27",
+      "url": "https://www.nbl.com.au",
+      "live": true
+    },
+    {
+      "id": "armchair",
+      "title": "Armchair Experts",
+      "org": "The podcast network",
+      "role": "Host, with Adam Cooney",
+      "code": "PODCAST",
+      "when": "The AFL Show in season · Cali to the 'G · The NFL Weekly",
+      "url": "https://podcasts.apple.com/au/podcast/id1883991744",
+      "live": true
+    }
+  ]
+}

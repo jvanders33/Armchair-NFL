@@ -194,15 +194,22 @@
   // THE PODCAST — home, episodes, episode page, show page, follow strip
   // =====================================================================
   const PLAT_ICON = { youtube: "▶", apple: "", iheart: "♥", rss: "◉", spotify: "●" };
+  const CAM_SOCIALS = [
+    { key: "instagram", label: "Instagram", url: "https://www.instagram.com/camjluke/", verb: "Follow" },
+    { key: "threads", label: "Threads", url: "https://www.threads.com/@camjluke", verb: "Follow" },
+    { key: "facebook", label: "Facebook", url: "https://www.facebook.com/prosportsfan", verb: "Follow" },
+  ];
+  PLAT_ICON.instagram = "📸"; PLAT_ICON.threads = "@"; PLAT_ICON.facebook = "f";
   function followStrip(platforms, compact) {
     const ps = platforms || [];
-    return `<section class="follow${compact ? " compact" : ""}" aria-label="Follow Armchair Experts">
-      <div class="fl-h"><b>Never miss an episode</b><span>Follow Armchair Experts wherever you listen.</span></div>
+    return `<section class="follow${compact ? " compact" : ""}" aria-label="Follow Cam Luke">
+      <div class="fl-h"><b>Follow Cam</b><span>The shows wherever you listen, Cam wherever you scroll.</span></div>
       <div class="fl-row">
+        ${CAM_SOCIALS.map((p) => `<a class="fl-btn fl-${esc(p.key)}" href="${esc(p.url)}" target="_blank" rel="noopener" data-track="click_follow_platform" data-label="${esc(p.key)}">${PLAT_ICON[p.key] || ""} ${esc(p.label)}</a>`).join("")}
         ${ps.map((p) => `<a class="fl-btn fl-${esc(p.key)}" href="${esc(p.url)}" target="_blank" rel="noopener" data-track="click_follow_platform" data-label="${esc(p.key)}">${PLAT_ICON[p.key] || ""} ${esc(p.verb)} on ${esc(p.label)}</a>`).join("")}
         <a class="fl-btn fl-mail" href="#/leagues" data-track="click_follow_platform" data-label="newsletter">✉ Get the weekly wrap</a>
       </div>
-      ${compact ? "" : `<div class="fl-note">Spotify, Instagram, TikTok and X links land here as soon as the handles are confirmed — nothing is faked in the meantime.</div>`}
+      ${compact ? "" : `<div class="fl-note">Spotify, TikTok and X land here once the handles are confirmed — nothing is faked in the meantime.</div>`}
     </section>`;
   }
   const epThumb = (e) => e.thumb || e.image || "/img/logo-badge.png";
@@ -241,10 +248,22 @@
     const latest = eps && eps.episodes && eps.episodes[0];
     const platforms = (eps && eps.platforms) || [];
     view.innerHTML = `
+      <section class="cam-hero" aria-label="Cam Luke">
+        <div class="shell ch-grid">
+          <img class="ch-photo" src="/img/cam-luke.jpg" alt="Cam Luke">
+          <div class="ch-copy">
+            <div class="ch-eyebrow">Sports Guy · AFL · Racing · NFL</div>
+            <h1 class="ch-name">Cam Luke</h1>
+            <p class="ch-line">AFL through winter, the carnival through spring, the NFL overnight — one voice across every code, and this is home base.</p>
+            <div class="ch-socials">${CAM_SOCIALS.map((p) => `<a href="${esc(p.url)}" target="_blank" rel="noopener" data-track="click_follow_platform" data-label="hero:${esc(p.key)}">${PLAT_ICON[p.key] || ""} ${esc(p.label)}</a>`).join("")}</div>
+          </div>
+          <div class="ch-onair" id="cam-onair"></div>
+        </div>
+      </section>
       <section class="home-hero" aria-labelledby="home-h1">
         <div class="shell hh-grid">
           <div class="hh-copy">
-            <div class="hh-eyebrow">The latest from Armchair Experts</div>
+            <div class="hh-eyebrow">The latest from the shows</div>
             ${latest ? `
               <div class="hh-show">${esc(latest.show.title)}${latest.number ? ` · Episode ${esc(latest.number)}` : ""}</div>
               <h1 id="home-h1" class="hh-title">${esc(latest.title)}</h1>
@@ -282,8 +301,24 @@
     if (latest && latest.audio) $("hh-listen")?.addEventListener("click", () => playAudio(latest.audio, latest.title));
     if (latest) $("hh-share")?.addEventListener("click", () => share(latest.title, `${SITE}/episode/${latest.slug}`, "share_episode"));
     track("view_home", latest ? latest.slug : "no-episode");
-    homeWeek(); homeTake(); homeMoments();
+    camOnAir(); homeWeek(); homeTake(); homeMoments();
     armMotion();
+  }
+
+  // Where to catch Cam — his standing gigs, the in-window one pinned on top
+  async function camOnAir() {
+    const el = $("cam-onair"); if (!el) return;
+    try {
+      const d = await fetchJSON("/api/cam");
+      const gigs = (d.gigs || []).slice().sort((a, b) => (b.now ? 1 : 0) - (a.now ? 1 : 0));
+      if (!gigs.length) { el.hidden = true; return; }
+      el.innerHTML = `<div class="co-k">Where to catch Cam</div>
+        ${gigs.slice(0, 5).map((g) => `<a class="co-gig${g.now ? " hot" : ""}" href="${esc(g.url)}" target="_blank" rel="noopener" data-track="click_cam_gig" data-label="${esc(g.id)}">
+          <span class="co-code">${esc(g.code === "PODCAST" ? "POD" : g.code)}</span>
+          <span class="co-body"><b>${esc(g.title)}</b><i>${esc(g.org)}${g.when ? " · " + esc(g.when) : ""}</i></span>
+          ${g.now ? `<span class="co-now">ON NOW</span>` : ""}
+        </a>`).join("")}`;
+    } catch { el.hidden = true; }
   }
 
   // This week in sport — the repeat-visit engine, compact: two Games of the Week + the next calendar moments
