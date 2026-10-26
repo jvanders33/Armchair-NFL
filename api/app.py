@@ -3188,11 +3188,11 @@ def robots():
 def page_home():
     try:
         latest = pc.episodes()["episodes"][0]
-        desc = f'Latest: {latest["title"]}. The voice of sports fans in Australia — the podcast, and what to watch this week.'
+        desc = f'Latest: {latest["title"]}. Cam Luke across AFL, racing and the NFL — the shows, where he\'s on air, and what to watch this week.'
         img = f"{SITE}/og/episode/{latest['slug']}.png"
     except Exception:
-        desc, img = "The voice of sports fans in Australia — the podcast, and what to watch this week.", None
-    return _render_shell("Armchair Experts — Every Sport. One Armchair.", desc, img, "/")
+        desc, img = "Cam Luke across AFL, racing and the NFL — the shows, where he's on air, and what to watch this week.", None
+    return _render_shell("Cam Luke — Sports Guy · AFL, Racing, NFL", desc, img, "/")
 
 
 app.mount("/", StaticFiles(directory=str(WEB), html=True), name="web")

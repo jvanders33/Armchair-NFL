@@ -1480,3 +1480,9 @@ a.pl-nm{color:inherit; text-decoration:none} a.pl-nm:hover{color:var(--accent)}
 .co-now{margin-left:auto; font-family:var(--f-cond); font-weight:700; font-size:10px; letter-spacing:.08em; color:#3DDC84; white-space:nowrap}
 @media (max-width:1020px){.ch-grid{grid-template-columns:110px 1fr} .ch-onair{grid-column:1 / -1} .ch-photo{width:110px; height:110px}}
 @media (max-width:560px){.ch-grid{grid-template-columns:1fr; text-align:left} .ch-photo{width:96px; height:96px}}
+
+/* cam hero: never wider than the phone */
+.ch-grid > *{min-width:0}
+.ch-onair, .co-gig{min-width:0}
+.ch-line{max-width:100%}
+@media (max-width:560px){.ch-line{font-size:14px}}
